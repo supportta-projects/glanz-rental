@@ -37,9 +37,17 @@ export default function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
 
-  const { data: ordersData, isLoading } = useOrders(user?.branch_id || null, currentPage, pageSize);
+  const { data: ordersData, isLoading, error: ordersError } = useOrders(user?.branch_id || null, currentPage, pageSize);
   const orders = ordersData?.data || [];
   const updateStatusMutation = useUpdateOrderStatus();
+  
+  // Log error if query fails
+  useEffect(() => {
+    if (ordersError) {
+      console.error("Error loading orders:", ordersError);
+      showToast("Failed to load orders. Please refresh the page.", "error");
+    }
+  }, [ordersError, showToast]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const pullStartRef = useRef<number>(0);
@@ -225,8 +233,25 @@ export default function OrdersPage() {
         </div>
       )}
 
+      {/* Error State */}
+      {ordersError && !isLoading && (
+        <Card className="p-8 text-center">
+          <p className="text-red-500 font-medium">Error loading orders</p>
+          <p className="text-sm text-gray-400 mt-2">
+            Please check your connection and try again
+          </p>
+          <Button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["orders"] })}
+            className="mt-4"
+            variant="outline"
+          >
+            Retry
+          </Button>
+        </Card>
+      )}
+
       {/* Orders List - Mobile: Cards, Desktop: Table */}
-      {!isLoading && (
+      {!isLoading && !ordersError && (
         <>
           <div className="space-y-4 md:hidden">
             {filteredOrders.length === 0 ? (

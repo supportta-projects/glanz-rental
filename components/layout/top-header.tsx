@@ -81,7 +81,7 @@ export function TopHeader() {
 
       {/* Mobile Menu Sheet */}
       <Sheet open={showMenu} onOpenChange={setShowMenu} side="bottom">
-        <SheetContent className="h-auto rounded-t-2xl">
+        <SheetContent className="h-full max-h-full overflow-y-auto rounded-t-2xl">
           <SheetHeader className="pb-4">
             <SheetTitle className="text-left text-lg">Account Menu</SheetTitle>
           </SheetHeader>

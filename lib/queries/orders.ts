@@ -18,7 +18,7 @@ export function useOrders(branchId: string | null, page: number = 1, pageSize: n
       // Optimize: Only select fields we actually use
       let query = supabase
         .from("orders")
-        .select("id, invoice_number, customer_id, start_date, end_date, start_datetime, end_datetime, status, total_amount, created_at, customer:customers(id, name, phone), branch:branches(id, name)", { count: "exact" })
+        .select("id, invoice_number, branch_id, staff_id, customer_id, start_date, end_date, start_datetime, end_datetime, status, total_amount, created_at, customer:customers(id, name, phone), branch:branches(id, name)", { count: "exact" })
         .order("created_at", { ascending: false })
         .range(from, to);
 
