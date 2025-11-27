@@ -1,0 +1,220 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  
+  /* Glanz Rental Color System */
+  --primary: #0ea5e9; /* sky-500 */
+  --primary-hover: #0284c7; /* sky-600 */
+  --success: #10b981; /* green-500 */
+  --danger: #ef4444; /* red-500 */
+  --warning: #f59e0b; /* amber-500 */
+  
+  /* shadcn/ui overrides */
+  --radius: 0.75rem; /* rounded-xl */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Mobile-first base styles */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Smooth scrolling on mobile */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Ensure minimum touch target size (56px) */
+button,
+a[role="button"],
+input[type="button"],
+input[type="submit"] {
+  min-height: 56px;
+  min-width: 56px;
+}
+
+/* Mobile input improvements */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="tel"],
+input[type="date"],
+textarea,
+select {
+  font-size: 16px; /* Prevents zoom on iOS */
+  min-height: 56px;
+}
+
+/* Date picker native on mobile */
+@media (max-width: 767px) {
+  input[type="date"] {
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 1;
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* Camera input styling */
+input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+/* Card hover effects (desktop only) */
+@media (min-width: 768px) {
+  .card-hover {
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Scrollbar styling (desktop) */
+@media (min-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+
+/* Print styles for invoice */
+@media print {
+  body {
+    background: white;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Loading skeleton animation */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton {
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(
+    to right,
+    #f1f5f9 0%,
+    #e2e8f0 50%,
+    #f1f5f9 100%
+  );
+  background-size: 1000px 100%;
+}
+
+/* Badge variants */
+.badge-success {
+  background-color: var(--success);
+  color: white;
+}
+
+.badge-danger {
+  background-color: var(--danger);
+  color: white;
+}
+
+.badge-warning {
+  background-color: var(--warning);
+  color: white;
+}
+
+/* Floating Action Button */
+.fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 50;
+  box-shadow: 0 10px 25px -5px rgba(14, 165, 233, 0.4);
+}
+
+/* Pending Return Red Background */
+.pending-return {
+  background-color: #fef2f2; /* red-50 */
+  border-left: 4px solid var(--danger);
+}
+
+/* Responsive text sizes */
+@media (max-width: 767px) {
+  h1 {
+    font-size: 1.5rem; /* 24px */
+    line-height: 1.2;
+  }
+  
+  h2 {
+    font-size: 1.25rem; /* 20px */
+    line-height: 1.3;
+  }
+  
+  .text-stat {
+    font-size: 2.5rem; /* 40px */
+  }
+}
+
+@media (min-width: 768px) {
+  h1 {
+    font-size: 2rem; /* 32px */
+  }
+  
+  .text-stat {
+    font-size: 3rem; /* 48px */
+  }
+}
+
+/* Safe area for notched phones */
+@supports (padding: max(0px)) {
+  .safe-top {
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+  
+  .safe-bottom {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}

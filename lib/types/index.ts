@@ -1,0 +1,92 @@
+// Core Type Definitions for Glanz Rental
+
+export type UserRole = "super_admin" | "branch_admin" | "staff";
+
+export type OrderStatus = "active" | "pending_return" | "completed";
+
+export interface User {
+  id: string;
+  username: string;
+  role: UserRole;
+  branch_id: string | null;
+  full_name: string;
+  phone: string;
+  gst_number?: string;
+  gst_enabled?: boolean; // true = GST enabled, false = GST disabled
+  gst_rate?: number; // GST rate as percentage (e.g., 5.00 for 5%)
+  gst_included?: boolean; // true = GST included in price, false = GST added on top
+  upi_id?: string; // UPI ID for payment QR codes
+  branch?: Branch;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  address: string;
+  phone?: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  id_proof_type?: "aadhar" | "passport" | "voter" | "others";
+  id_proof_number?: string;
+  id_proof_front_url?: string;
+  id_proof_back_url?: string;
+  created_at?: string;
+}
+
+export interface OrderItem {
+  id?: string;
+  order_id?: string;
+  photo_url: string;
+  product_name?: string;
+  quantity: number;
+  price_per_day: number;
+  days: number;
+  line_total: number;
+}
+
+export interface Order {
+  id: string;
+  branch_id: string;
+  staff_id: string;
+  customer_id: string;
+  invoice_number: string;
+  start_date: string; // Legacy DATE field (for backward compatibility)
+  end_date: string; // Legacy DATE field (for backward compatibility)
+  start_datetime?: string; // New TIMESTAMP field with time
+  end_datetime?: string; // New TIMESTAMP field with time
+  status: OrderStatus;
+  total_amount: number;
+  subtotal?: number; // Subtotal before GST
+  gst_amount?: number; // GST amount (5% of subtotal)
+  late_fee?: number; // Late fee amount
+  created_at: string;
+  customer?: Customer;
+  staff?: User;
+  branch?: Branch;
+  items?: OrderItem[];
+}
+
+export interface OrderDraft {
+  customer_id: string | null;
+  customer_name?: string;
+  customer_phone?: string;
+  start_date: string;
+  end_date: string;
+  invoice_number: string;
+  items: OrderItem[];
+  grand_total: number;
+}
+
+export interface DashboardStats {
+  active: number;
+  pending_return: number;
+  today_collection: number;
+  completed: number;
+}
+

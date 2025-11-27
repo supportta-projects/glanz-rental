@@ -1,0 +1,49 @@
+"use client";
+
+import { Card } from "@/components/ui/card";
+import { useUserStore } from "@/lib/stores/useUserStore";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { FloatingActionButton } from "@/components/layout/floating-action-button";
+
+export default function StaffPage() {
+  const { user } = useUserStore();
+
+  // Only Super Admin and Branch Admin can access
+  if (user?.role === "staff") {
+    return (
+      <div className="min-h-screen bg-zinc-50 p-4 flex items-center justify-center">
+        <Card className="p-8 text-center">
+          <p className="text-gray-500">Access denied</p>
+          <p className="text-sm text-gray-400 mt-2">
+            Only Admins can manage staff
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-zinc-50 pb-24">
+      <div className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-10">
+        <h1 className="text-2xl font-bold text-gray-900">Staff Management</h1>
+        <Button className="hidden md:flex bg-sky-500 hover:bg-sky-600">
+          <Plus className="h-5 w-5 mr-2" />
+          Add Staff
+        </Button>
+      </div>
+
+      <div className="p-4">
+        <Card className="p-8 text-center">
+          <p className="text-gray-500">Staff management coming soon</p>
+          <p className="text-sm text-gray-400 mt-2">
+            Add and manage staff members
+          </p>
+        </Card>
+      </div>
+
+      <FloatingActionButton href="/staff/new" label="Add Staff" />
+    </div>
+  );
+}
+

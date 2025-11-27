@@ -1,0 +1,141 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Eye, EyeOff } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { useUserStore } from "@/lib/stores/useUserStore";
+import { useToast } from "@/components/ui/toast";
+
+export default function LoginPage() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { setUser } = useUserStore();
+  const { showToast } = useToast();
+  const supabase = createClient();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      // Sign in with username and password
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: username, // Supabase uses email field, but we'll use username
+        password,
+      });
+
+      if (error) throw error;
+
+      // Fetch user profile
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("*, branch:branches(*)")
+        .eq("id", data.user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      // Set user in store
+      setUser({
+        id: profile.id,
+        username: profile.username,
+        role: profile.role,
+        branch_id: profile.branch_id,
+        full_name: profile.full_name,
+        phone: profile.phone,
+        gst_number: profile.gst_number,
+        gst_enabled: profile.gst_enabled ?? false,
+        gst_rate: profile.gst_rate ? parseFloat(profile.gst_rate) : undefined,
+        gst_included: profile.gst_included ?? false,
+        upi_id: profile.upi_id,
+        branch: profile.branch,
+      });
+
+      showToast("Login successful!", "success");
+      router.push("/dashboard");
+    } catch (error: any) {
+      showToast(error.message || "Login failed", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md p-6 md:p-8 shadow-lg rounded-2xl">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-sky-500">GLANZ RENTAL</h1>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleLogin} className="space-y-6">
+          {/* Username */}
+          <div className="space-y-2">
+            <Label htmlFor="username" className="text-base font-semibold">
+              Username
+            </Label>
+            <Input
+              id="username"
+              type="text"
+              placeholder="Enter username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="h-14 text-base rounded-xl border-2 focus:border-sky-500"
+              autoFocus
+              required
+            />
+          </div>
+
+          {/* Password */}
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-base font-semibold">
+              Password
+            </Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-14 text-base rounded-xl border-2 focus:border-sky-500 pr-12"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2"
+                aria-label="Toggle password visibility"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5 text-gray-500" />
+                ) : (
+                  <Eye className="h-5 w-5 text-gray-500" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Login Button */}
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full h-14 bg-sky-500 hover:bg-sky-600 text-white text-base font-semibold rounded-xl"
+          >
+            {loading ? "Logging in..." : "Login"}
+          </Button>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
