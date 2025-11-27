@@ -369,7 +369,7 @@ export async function generateAndDownloadPDF(order: Order, user: User | null): P
   const { pdf } = await import("@react-pdf/renderer");
   
   // Create PDF document instance
-  const doc = pdf(React.createElement(InvoicePDF, { order, user }));
+  const doc = pdf(React.createElement(InvoicePDF, { order, user }) as any);
   
   // Generate blob and download
   const blob = await doc.toBlob();

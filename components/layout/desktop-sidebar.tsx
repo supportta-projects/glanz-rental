@@ -112,7 +112,6 @@ export function DesktopSidebar() {
                 isActive
                   ? "bg-sky-50 text-sky-600 font-medium"
                   : "text-gray-700 hover:bg-gray-50",
-                item.highlight && "bg-sky-500 text-white hover:bg-sky-600",
                 collapsed && "justify-center"
               )}
               title={collapsed ? item.label : undefined}

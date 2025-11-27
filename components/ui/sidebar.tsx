@@ -234,7 +234,7 @@ const SidebarMenuButton = React.forwardRef<
   const { open } = useSidebar();
 
   if (asChild) {
-    return <div ref={ref as any} className={className} {...props} />;
+    return <div ref={ref as any} className={className} {...(props as any)} />;
   }
 
   return (

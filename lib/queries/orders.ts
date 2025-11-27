@@ -114,8 +114,8 @@ export function useCreateOrder() {
 
       // Use RPC call for faster batch insert (if available) or optimized sequential insert
       // First, create the order
-      const { data: order, error: orderError } = await supabase
-        .from("orders")
+      const { data: order, error: orderError } = await (supabase
+        .from("orders") as any)
         .insert(orderInsert)
         .select("id")
         .single();
@@ -134,8 +134,8 @@ export function useCreateOrder() {
       }));
 
       // Batch insert all items at once (much faster than sequential)
-      const { error: itemsError } = await supabase
-        .from("order_items")
+      const { error: itemsError } = await (supabase
+        .from("order_items") as any)
         .insert(itemsWithOrderId);
 
       if (itemsError) throw itemsError;
@@ -179,8 +179,8 @@ export function useUpdateOrder() {
       const endDateOnly = orderData.end_date.split("T")[0];
 
       // Update order
-      const { data: order, error: orderError } = await supabase
-        .from("orders")
+      const { data: order, error: orderError } = await (supabase
+        .from("orders") as any)
         .update({
           invoice_number: orderData.invoice_number,
           start_date: startDateOnly,
@@ -206,8 +206,8 @@ export function useUpdateOrder() {
         order_id: orderData.orderId,
       }));
 
-      const { error: itemsError } = await supabase
-        .from("order_items")
+      const { error: itemsError } = await (supabase
+        .from("order_items") as any)
         .insert(itemsWithOrderId);
 
       if (itemsError) throw itemsError;
@@ -237,7 +237,7 @@ export function useUpdateOrderStatus() {
       lateFee?: number;
     }) => {
       // Get current order to calculate new total
-      const { data: currentOrder, error: fetchError } = await supabase
+      const { data: currentOrderData, error: fetchError } = await supabase
         .from("orders")
         .select("total_amount, late_fee")
         .eq("id", orderId)
@@ -245,12 +245,14 @@ export function useUpdateOrderStatus() {
 
       if (fetchError) throw fetchError;
 
+      const currentOrder = currentOrderData as { total_amount?: number; late_fee?: number } | null;
+
       // Calculate new total: original total + new late fee - old late fee
       const originalTotal = (currentOrder?.total_amount || 0) - (currentOrder?.late_fee || 0);
       const newTotal = originalTotal + lateFee;
 
-      const { data, error } = await supabase
-        .from("orders")
+      const { data, error } = await (supabase
+        .from("orders") as any)
         .update({
           status,
           late_fee: lateFee,

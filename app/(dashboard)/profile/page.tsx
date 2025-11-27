@@ -81,8 +81,8 @@ export default function ProfilePage() {
 
     setSavingGst(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
+      const { error } = await (supabase
+        .from("profiles") as any)
         .update({
           gst_number: gstNumber.trim() || null,
           gst_enabled: gstEnabled,

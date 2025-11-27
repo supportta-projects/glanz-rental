@@ -188,7 +188,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-semibold text-gray-700">UPI ID: <span className="text-gray-900">{user.upi_id}</span></p>
+            <p className="text-sm font-semibold text-gray-700">UPI ID: <span className="text-gray-900">{user?.upi_id || "N/A"}</span></p>
             <p className="text-sm font-semibold text-gray-700">Amount: <span className="text-sky-600">{formatCurrency(order.total_amount)}</span></p>
           </div>
         </div>

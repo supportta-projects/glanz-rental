@@ -32,18 +32,20 @@ export function useDashboardStats(
         ordersQuery = ordersQuery.eq("branch_id", branchId);
       }
 
-      const { data: orders, error } = await ordersQuery;
+      const { data: ordersData, error } = await ordersQuery;
 
       if (error) throw error;
 
-      const active = orders?.filter((o) => o.status === "active").length || 0;
+      const orders = (ordersData || []) as Array<{ status: string; total_amount?: number }>;
+      
+      const active = orders.filter((o) => o.status === "active").length || 0;
       const pendingReturn =
-        orders?.filter((o) => o.status === "pending_return").length || 0;
+        orders.filter((o) => o.status === "pending_return").length || 0;
       const completed =
-        orders?.filter((o) => o.status === "completed").length || 0;
+        orders.filter((o) => o.status === "completed").length || 0;
       const todayCollection =
         orders
-          ?.filter((o) => o.status === "completed")
+          .filter((o) => o.status === "completed")
           .reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
 
       return {

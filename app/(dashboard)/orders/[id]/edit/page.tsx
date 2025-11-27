@@ -139,7 +139,6 @@ export default function EditOrderPage() {
 
     try {
       // Only include GST if enabled
-      const gstEnabled = user?.gst_enabled ?? false;
       
       await updateOrderMutation.mutateAsync({
         orderId: orderId,

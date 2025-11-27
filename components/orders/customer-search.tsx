@@ -229,9 +229,8 @@ export function CustomerSearch({ onSelectCustomer, selectedCustomer }: CustomerS
       )}
 
       {/* Add Customer Modal */}
-      <Sheet open={showAddModal} onOpenChange={setShowAddModal}>
-        <SheetContent 
-          side="bottom" 
+      <Sheet open={showAddModal} onOpenChange={setShowAddModal} side="bottom">        
+        <SheetContent
           className="h-[90vh] overflow-y-auto rounded-t-2xl"
           onClose={() => setShowAddModal(false)}
         >
