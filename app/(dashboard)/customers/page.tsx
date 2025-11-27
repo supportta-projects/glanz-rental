@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,14 +11,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { formatDate, formatCurrency } from "@/lib/utils/date";
 import { useCustomers, type CustomerWithDues } from "@/lib/queries/customers";
+import { useDebounce } from "@/lib/hooks/use-debounce";
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
 
   const { data: customersData, isLoading, error } = useCustomers(
-    searchQuery.trim() || undefined,
+    debouncedSearch.trim() || undefined,
     currentPage,
     pageSize
   );
@@ -28,9 +30,9 @@ export default function CustomersPage() {
   // Reset to page 1 when search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [debouncedSearch]);
 
-  const getProofTypeLabel = (type?: string) => {
+  const getProofTypeLabel = useCallback((type?: string) => {
     if (!type) return null;
     const labels: Record<string, string> = {
       aadhar: "Aadhar",
@@ -39,7 +41,15 @@ export default function CustomersPage() {
       others: "Others",
     };
     return labels[type] || type;
-  };
+  }, []);
+
+  // Helper function to scroll to top smoothly
+  const scrollToTop = useCallback(() => {
+    const scrollContainer = document.querySelector('main[data-scroll-container="true"]') as HTMLElement;
+    if (scrollContainer) {
+      scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-24">
@@ -328,7 +338,10 @@ export default function CustomersPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              onClick={() => {
+                setCurrentPage((p) => Math.max(1, p - 1));
+                scrollToTop();
+              }}
               disabled={currentPage === 1 || isLoading}
               className="h-10 px-4"
             >
@@ -341,7 +354,10 @@ export default function CustomersPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage((p) => Math.min(customersData.totalPages, p + 1))}
+              onClick={() => {
+                setCurrentPage((p) => Math.min(customersData.totalPages, p + 1));
+                scrollToTop();
+              }}
               disabled={currentPage >= customersData.totalPages || isLoading}
               className="h-10 px-4"
             >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
@@ -36,6 +36,16 @@ export default function DashboardPage() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Memoized refresh handler
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] }),
+      queryClient.invalidateQueries({ queryKey: ["recent-orders"] }),
+    ]);
+    setTimeout(() => setIsRefreshing(false), 500);
+  }, [queryClient]);
+
   // Simple pull to refresh - only triggers on actual pull, doesn't block scrolling
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -55,14 +65,7 @@ export default function DashboardPage() {
 
       // Only refresh if pulled down more than 100px from the very top
       if (pullDistance > 100 && window.scrollY === 0) {
-        setIsRefreshing(true);
-        
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] }),
-          queryClient.invalidateQueries({ queryKey: ["recent-orders"] }),
-        ]);
-        
-        setTimeout(() => setIsRefreshing(false), 500);
+        handleRefresh();
       }
     };
 
@@ -73,7 +76,7 @@ export default function DashboardPage() {
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [queryClient]);
+  }, [handleRefresh]);
 
   return (
     <div className="p-4 md:p-6 space-y-6 min-h-full">
