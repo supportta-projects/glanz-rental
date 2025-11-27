@@ -53,9 +53,10 @@ export function useOrder(orderId: string) {
   return useQuery({
     queryKey: ["order", orderId],
     queryFn: async () => {
+      // Optimize: Only select fields we actually use
       const { data, error } = await supabase
         .from("orders")
-        .select("*, customer:customers(*), staff:profiles(*), branch:branches(*), items:order_items(*), start_datetime, end_datetime")
+        .select("*, customer:customers(id, name, phone, address), staff:profiles(id, name), branch:branches(id, name), items:order_items(*), start_datetime, end_datetime")
         .eq("id", orderId)
         .single();
 

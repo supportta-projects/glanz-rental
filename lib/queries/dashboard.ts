@@ -67,9 +67,10 @@ export function useRecentOrders(branchId: string | null) {
   return useQuery({
     queryKey: ["recent-orders", branchId],
     queryFn: async (): Promise<Order[]> => {
+      // Optimize: Only select fields we actually use
       let query = supabase
         .from("orders")
-        .select("*, customer:customers(*), staff:profiles(*), branch:branches(*)")
+        .select("id, invoice_number, start_date, end_date, status, total_amount, created_at, customer:customers(id, name), branch:branches(id, name)")
         .order("created_at", { ascending: false })
         .limit(8);
 

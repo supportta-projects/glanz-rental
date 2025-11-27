@@ -25,10 +25,11 @@ export function useRealtimeSubscription(
       return;
     }
 
-    // Create a unique channel name to avoid conflicts
+    // Create a stable channel name to reuse channels and prevent duplicates
+    // Use a consistent name based on table and branchId (not timestamp)
     const channelName = branchId 
-      ? `${table}-changes-${branchId}-${Date.now()}` 
-      : `${table}-changes-${Date.now()}`;
+      ? `${table}-changes-${branchId}` 
+      : `${table}-changes-global`;
 
     try {
       // Helper function to invalidate queries
