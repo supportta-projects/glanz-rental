@@ -67,6 +67,7 @@ export default function EditOrderPage() {
   const gstAmount = calculateGst();
   const grandTotal = calculateGrandTotal();
   const gstIncluded = user?.gst_included ?? false;
+  const gstEnabled = user?.gst_enabled ?? false;
 
   const handleAddItem = (photoUrl: string) => {
     if (!photoUrl) return;

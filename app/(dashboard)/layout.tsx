@@ -31,13 +31,15 @@ export default function DashboardLayout({
 
       // Fetch user profile if not in store
       if (!user) {
-        const { data: profile } = await supabase
+        const { data: profileData } = await supabase
           .from("profiles")
           .select("*, branch:branches(*)")
           .eq("id", session.user.id)
           .single();
 
-        if (profile) {
+        if (profileData) {
+          // Type assertion for profile data
+          const profile = profileData as any;
           setUser({
             id: profile.id,
             username: profile.username,
@@ -47,7 +49,7 @@ export default function DashboardLayout({
             phone: profile.phone,
             gst_number: profile.gst_number,
             gst_enabled: profile.gst_enabled ?? false,
-            gst_rate: profile.gst_rate ? parseFloat(profile.gst_rate) : undefined,
+            gst_rate: profile.gst_rate ? parseFloat(String(profile.gst_rate)) : undefined,
             gst_included: profile.gst_included ?? false,
             upi_id: profile.upi_id,
             branch: profile.branch,

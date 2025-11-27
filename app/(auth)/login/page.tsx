@@ -35,13 +35,19 @@ export default function LoginPage() {
       if (error) throw error;
 
       // Fetch user profile
-      const { data: profile, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*, branch:branches(*)")
         .eq("id", data.user.id)
         .single();
 
       if (profileError) throw profileError;
+      if (!profileData) {
+        throw new Error("Profile not found");
+      }
+
+      // Type assertion for profile data
+      const profile = profileData as any;
 
       // Set user in store
       setUser({
@@ -53,7 +59,7 @@ export default function LoginPage() {
         phone: profile.phone,
         gst_number: profile.gst_number,
         gst_enabled: profile.gst_enabled ?? false,
-        gst_rate: profile.gst_rate ? parseFloat(profile.gst_rate) : undefined,
+        gst_rate: profile.gst_rate ? parseFloat(String(profile.gst_rate)) : undefined,
         gst_included: profile.gst_included ?? false,
         upi_id: profile.upi_id,
         branch: profile.branch,

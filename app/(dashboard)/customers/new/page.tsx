@@ -63,7 +63,7 @@ export default function NewCustomerPage() {
           id_proof_number: idProofNumber.trim() || null,
           id_proof_front_url: idProofFrontUrl || null,
           id_proof_back_url: idProofBackUrl || null,
-        })
+        } as any)
         .select()
         .single();
 
