@@ -16,7 +16,7 @@ import { useToast } from "@/components/ui/toast";
 import { DateRangePicker, type DateRange } from "@/components/ui/date-range-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
-import { startOfToday, endOfToday } from "date-fns";
+import { startOfToday, endOfToday, subDays } from "date-fns";
 import { FloatingActionButton } from "@/components/layout/floating-action-button";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { OrderCard } from "@/components/orders/order-card";
@@ -29,15 +29,31 @@ export default function OrdersPage() {
   const [filter, setFilter] = useState<"all" | "active" | "pending" | "completed">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
+  // Default to last 30 days to show all recent orders, not just today
   const [dateRange, setDateRange] = useState<DateRange>({
-    start: startOfToday(),
+    start: subDays(startOfToday(), 30),
     end: endOfToday(),
-    option: "today",
+    option: "custom",
   });
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
 
-  const { data: ordersData, isLoading, error: ordersError } = useOrders(user?.branch_id || null, currentPage, pageSize);
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, debouncedSearch, dateRange]);
+
+  // Pass filters to the query for server-side filtering
+  const { data: ordersData, isLoading, error: ordersError } = useOrders(
+    user?.branch_id || null, 
+    currentPage, 
+    pageSize,
+    {
+      status: filter,
+      searchQuery: debouncedSearch,
+      dateRange: dateRange,
+    }
+  );
   const orders = ordersData?.data || [];
   const updateStatusMutation = useUpdateOrderStatus();
   
@@ -127,39 +143,6 @@ export default function OrdersPage() {
       showToast(error.message || "Failed to update order", "error");
     }
   }, [updateStatusMutation, showToast]);
-
-  // Memoize filtered orders to avoid recalculating on every render
-  const filteredOrders = useMemo(() => {
-    if (!orders || orders.length === 0) return [];
-    
-    const query = debouncedSearch.toLowerCase();
-    
-    return orders.filter((order) => {
-      // Filter by status
-      if (filter !== "all") {
-        const status = getOrderStatus(order.start_date, order.end_date, order.status);
-        if (filter === "active" && status !== "active") return false;
-        if (filter === "pending" && status !== "pending_return") return false;
-        if (filter === "completed" && status !== "completed") return false;
-      }
-
-      // Filter by search query
-      if (query) {
-        const matchesInvoice = order.invoice_number.toLowerCase().includes(query);
-        const matchesCustomer = order.customer?.name?.toLowerCase().includes(query);
-        const matchesPhone = order.customer?.phone?.includes(query);
-        if (!matchesInvoice && !matchesCustomer && !matchesPhone) return false;
-      }
-
-      // Filter by date range
-      const orderDate = new Date(order.created_at);
-      if (orderDate < dateRange.start || orderDate > dateRange.end) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [orders, filter, debouncedSearch, dateRange]);
 
   // Helper function to scroll to top smoothly - memoized
   const scrollToTop = useCallback(() => {
@@ -254,12 +237,12 @@ export default function OrdersPage() {
       {!isLoading && !ordersError && (
         <>
           <div className="space-y-4 md:hidden">
-            {filteredOrders.length === 0 ? (
+            {orders.length === 0 ? (
               <Card className="p-8 text-center">
                 <p className="text-gray-500">No orders found</p>
               </Card>
             ) : (
-              filteredOrders.map((order) => (
+              orders.map((order) => (
                 <OrderCard key={order.id} order={order} onMarkReturned={handleMarkReturned} />
               ))
             )}
@@ -295,14 +278,14 @@ export default function OrdersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredOrders.length === 0 ? (
+                  {orders.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                         No orders found
                       </td>
                     </tr>
                   ) : (
-                    filteredOrders.map((order) => {
+                    orders.map((order) => {
                       const status = getOrderStatus(
                         order.start_date,
                         order.end_date,

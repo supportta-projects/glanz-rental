@@ -66,7 +66,6 @@ export function useRealtimeSubscription(
           if (branchId && table === "orders" && (payload.new as any)?.branch_id !== branchId) {
             return; // Ignore changes from other branches
           }
-          console.log(`[Realtime] INSERT on ${table}:`, payload.new);
           invalidateQueries();
         }
       );
@@ -84,7 +83,6 @@ export function useRealtimeSubscription(
           if (branchId && table === "orders" && (payload.new as any)?.branch_id !== branchId) {
             return; // Ignore changes from other branches
           }
-          console.log(`[Realtime] UPDATE on ${table}:`, payload.new);
           invalidateQueries();
         }
       );
@@ -102,7 +100,6 @@ export function useRealtimeSubscription(
           if (branchId && table === "orders" && (payload.old as any)?.branch_id !== branchId) {
             return; // Ignore changes from other branches
           }
-          console.log(`[Realtime] DELETE on ${table}:`, payload.old);
           invalidateQueries();
         }
       );
@@ -145,11 +142,7 @@ export function useRealtimeSubscription(
       return () => {
         // Cleanup: unsubscribe when component unmounts
         if (channelRef.current) {
-          supabase.removeChannel(channelRef.current).then((status) => {
-            if (status === "ok") {
-              console.log(`[Realtime] 🧹 Cleaned up subscription for ${table}`);
-            }
-          });
+          supabase.removeChannel(channelRef.current);
           channelRef.current = null;
         }
       };

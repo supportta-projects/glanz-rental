@@ -3,14 +3,23 @@ import { createClient } from "@/lib/supabase/client";
 import type { Order } from "@/lib/types";
 import { useRealtimeSubscription } from "@/lib/hooks/use-realtime-subscription";
 
-export function useOrders(branchId: string | null, page: number = 1, pageSize: number = 20) {
+export function useOrders(
+  branchId: string | null, 
+  page: number = 1, 
+  pageSize: number = 20,
+  filters?: {
+    status?: "all" | "active" | "pending" | "completed";
+    searchQuery?: string;
+    dateRange?: { start: Date; end: Date };
+  }
+) {
   const supabase = createClient();
   
   // Set up real-time subscription for orders (updates across all devices)
   useRealtimeSubscription("orders", branchId);
 
   return useQuery({
-    queryKey: ["orders", branchId, page, pageSize],
+    queryKey: ["orders", branchId, page, pageSize, filters],
     queryFn: async () => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
@@ -19,12 +28,43 @@ export function useOrders(branchId: string | null, page: number = 1, pageSize: n
       let query = supabase
         .from("orders")
         .select("id, invoice_number, branch_id, staff_id, customer_id, start_date, end_date, start_datetime, end_datetime, status, total_amount, created_at, customer:customers(id, name, phone), branch:branches(id, name)", { count: "exact" })
-        .order("created_at", { ascending: false })
-        .range(from, to);
+        .order("created_at", { ascending: false });
 
+      // Branch filter
       if (branchId) {
         query = query.eq("branch_id", branchId);
       }
+
+      // Date range filter (server-side) - only apply if provided
+      if (filters?.dateRange) {
+        const startDate = filters.dateRange.start.toISOString().split("T")[0];
+        const endDate = filters.dateRange.end.toISOString().split("T")[0];
+        // Use gte and lte for date range filtering on created_at
+        query = query.gte("created_at", startDate).lte("created_at", endDate + "T23:59:59");
+      }
+
+      // Status filter (server-side)
+      if (filters?.status && filters.status !== "all") {
+        if (filters.status === "active") {
+          query = query.eq("status", "active");
+        } else if (filters.status === "pending") {
+          query = query.eq("status", "pending_return");
+        } else if (filters.status === "completed") {
+          query = query.eq("status", "completed");
+        }
+      }
+
+      // Search filter (server-side) - search in invoice number
+      // Note: Customer name/phone search requires a different approach with joins
+      // For now, we search invoice_number server-side and filter customer fields client-side if needed
+      if (filters?.searchQuery?.trim()) {
+        const search = filters.searchQuery.trim();
+        // Search invoice number (most common search)
+        query = query.ilike("invoice_number", `%${search}%`);
+      }
+
+      // Apply pagination after all filters
+      query = query.range(from, to);
 
       const { data, error, count } = await query;
 
@@ -53,17 +93,53 @@ export function useOrder(orderId: string) {
   return useQuery({
     queryKey: ["order", orderId],
     queryFn: async () => {
-      // Optimize: Only select fields we actually use
+      // Fix #2: Validate orderId early and throw if invalid
+      if (!orderId || typeof orderId !== "string" || orderId === "undefined" || orderId === "null") {
+        const error = new Error(`Invalid order ID: ${orderId}`);
+        console.error("[useOrder] ❌ Invalid order ID:", orderId);
+        throw error;
+      }
+
+      console.log("[useOrder] 🔍 Fetching order:", orderId);
+      
+      // Fix #1: Explicit Supabase query with raw error logging
       const { data, error } = await supabase
         .from("orders")
-        .select("*, customer:customers(id, name, phone, address), staff:profiles(id, name), branch:branches(id, name), items:order_items(*), start_datetime, end_datetime")
+        .select("*, customer:customers(id, name, phone, address), staff:profiles(id, full_name), branch:branches(id, name), items:order_items(*)")
         .eq("id", orderId)
         .single();
-
-      if (error) throw error;
-      return data as Order;
+      
+      // Fix #1: Log raw Supabase error IMMEDIATELY (this will show RLS messages)
+      if (error) {
+        console.error("[useOrder] ⚠️ Supabase raw error:", error);
+        console.error("[useOrder] Error code:", (error as any)?.code);
+        console.error("[useOrder] Error message:", (error as any)?.message);
+        console.error("[useOrder] Error details:", (error as any)?.details);
+        console.error("[useOrder] Error hint:", (error as any)?.hint);
+        
+        // Throw error to bubble up to TanStack Query
+        throw error;
+      }
+      
+      // Fix #3: Force error on null data (don't treat as success)
+      if (!data) {
+        console.error("[useOrder] ❌ No data returned (likely RLS blocking or order doesn't exist)");
+        throw new Error(`Order not found: ${orderId}`);
+      }
+      
+      // Type assertion to help TypeScript understand the data structure
+      const orderData = data as Order;
+      
+      console.log("[useOrder] ✅ Order loaded successfully:", {
+        id: orderData.id,
+        invoiceNumber: (orderData as any).invoice_number,
+        branchId: (orderData as any).branch_id,
+      });
+      
+      return orderData;
     },
-    enabled: !!orderId,
+    enabled: !!orderId && typeof orderId === "string" && orderId !== "undefined" && orderId !== "null",
+    retry: false, // Fix #3: Don't retry 404s or RLS errors
     refetchOnWindowFocus: true,
   });
 }

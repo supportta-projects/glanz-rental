@@ -23,9 +23,38 @@ export default function OrderDetailsPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useUserStore();
+  
+  // Fix #2: Validate and log orderId from params
   const orderId = params.id as string;
+  
+  console.log("[OrderDetailsPage] 📍 Route params:", params);
+  console.log("[OrderDetailsPage] 📋 Order ID:", orderId);
+  console.log("[OrderDetailsPage] 👤 User state:", {
+    id: user?.id,
+    branchId: user?.branch_id,
+    role: user?.role,
+    fullName: user?.full_name,
+  });
 
-  const { data: order, isLoading } = useOrder(orderId);
+  // Fix #2: Guard against invalid orderId
+  if (!orderId || orderId === "undefined" || orderId === "null") {
+    return (
+      <div className="min-h-screen bg-zinc-50 p-4">
+        <Card className="p-8 text-center">
+          <p className="text-red-500 font-medium mb-2">Invalid Order ID</p>
+          <p className="text-sm text-gray-500 mb-4">
+            The order ID in the URL is invalid: <code className="bg-gray-100 px-2 py-1 rounded">{orderId || "missing"}</code>
+          </p>
+          <Link href="/orders">
+            <Button className="mt-4">Back to Orders</Button>
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
+  // Add error state to the query
+  const { data: order, isLoading, error: orderError } = useOrder(orderId);
   const updateStatusMutation = useUpdateOrderStatus();
   const [showLateFeeDialog, setShowLateFeeDialog] = useState(false);
   const [lateFee, setLateFee] = useState("0");
@@ -79,11 +108,38 @@ export default function OrderDetailsPage() {
     );
   }
 
+  // Show error state if there's an actual error (not just "not found")
+  const errorCode = (orderError as any)?.code || (orderError as any)?.status;
+  if (orderError && errorCode !== "PGRST116" && errorCode !== 404) {
+    return (
+      <div className="min-h-screen bg-zinc-50 p-4">
+        <Card className="p-8 text-center">
+          <p className="text-red-500 font-medium mb-2">Error loading order</p>
+          <p className="text-sm text-gray-500 mb-4">
+            {orderError.message || "An error occurred while loading the order"}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Link href="/orders">
+              <Button variant="outline">Back to Orders</Button>
+            </Link>
+            <Button onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show "not found" only if order is null and no error (or "not found" error)
   if (!order) {
     return (
       <div className="min-h-screen bg-zinc-50 p-4">
         <Card className="p-8 text-center">
-          <p className="text-gray-500">Order not found</p>
+          <p className="text-gray-500 mb-2">Order not found</p>
+          <p className="text-sm text-gray-400 mb-4">
+            The order you're looking for doesn't exist or you don't have permission to view it.
+          </p>
           <Link href="/orders">
             <Button className="mt-4">Back to Orders</Button>
           </Link>
