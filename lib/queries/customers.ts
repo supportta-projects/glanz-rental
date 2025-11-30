@@ -16,10 +16,9 @@ export function useCustomers(searchQuery?: string, page: number = 1, pageSize: n
   return useQuery({
     queryKey: ["customers", searchQuery, page, pageSize],
     queryFn: async () => {
-      // If no search query, fetch all customers (for client-side filtering)
-      // Otherwise, use server-side filtering with pagination
+      // Calculate pagination range
       const from = (page - 1) * pageSize;
-      const to = searchQuery ? from + pageSize - 1 : 9999; // Large limit when fetching all
+      const to = from + pageSize - 1;
 
       // Fetch customers with pagination
       let customersQuery = supabase
@@ -27,14 +26,15 @@ export function useCustomers(searchQuery?: string, page: number = 1, pageSize: n
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false });
 
-      // Only apply range if doing server-side pagination (with search)
+      // Apply search filter if provided, otherwise use server-side pagination
       if (searchQuery && searchQuery.trim()) {
         customersQuery = customersQuery
           .or(`name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
           .range(from, to);
       } else {
-        // Fetch all customers (up to 9999) for client-side filtering
-        customersQuery = customersQuery.range(0, 9999);
+        // Use server-side pagination even when there's no search query
+        // This ensures all customers are accessible, not just the first 1000
+        customersQuery = customersQuery.range(from, to);
       }
 
       const { data: customers, error: customersError, count } = await customersQuery;

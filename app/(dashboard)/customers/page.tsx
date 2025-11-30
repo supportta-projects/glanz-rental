@@ -27,65 +27,23 @@ export default function CustomersPage() {
   // Ultra-fast debounce - reduced to 30ms for instant search feel
   const debouncedSearch = useDebounce(searchQuery, 30);
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 25; // Increased to 25 items per page
+  const pageSize = 25; // 25 items per page
 
-  // Fetch ALL customers (no search filter) - we'll filter client-side for ultra-fast results
+  // Use server-side pagination and search
+  // When there's a search query, use server-side filtering
+  // When there's no search query, use server-side pagination to access all customers
   const { data: customersData, isLoading, error } = useCustomers(
-    undefined, // No server-side search - fetch all
+    debouncedSearch.trim() || undefined, // Pass search query for server-side filtering
     currentPage,
-    1000 // Large page size to get all customers in one go
+    pageSize
   );
 
-  // Pre-compute lowercase search term once
-  const searchLower = useMemo(() => debouncedSearch.trim().toLowerCase(), [debouncedSearch]);
-  const hasSearch = searchLower.length > 0;
+  // Get customers and total from the server response
+  const filteredCustomers = customersData?.data || [];
+  const totalFiltered = customersData?.total || 0;
 
-  // Ultra-fast client-side filtering - optimized single pass with pre-computed values
-  const { filteredCustomers, totalFiltered } = useMemo(() => {
-    const allCustomers = customersData?.data || [];
-    
-    if (!hasSearch) {
-      // No search - return paginated results directly
-      const start = (currentPage - 1) * pageSize;
-      const end = start + pageSize;
-      return {
-        filteredCustomers: allCustomers.slice(start, end),
-        totalFiltered: allCustomers.length,
-      };
-    }
-
-      // Fast client-side search - single pass with optimized string matching
-      const results: typeof allCustomers = [];
-      const searchLen = searchLower.length;
-      
-      // Optimized loop - cache length, use indexOf for better performance
-      for (let i = 0; i < allCustomers.length; i++) {
-        const customer = allCustomers[i];
-        const name = customer.name?.toLowerCase() || "";
-        const phone = customer.phone?.toLowerCase() || "";
-        const customerNumber = customer.customer_number?.toLowerCase() || "";
-        
-        // Use indexOf for faster substring search (faster than includes for most cases)
-        if (
-          (name.length >= searchLen && name.indexOf(searchLower) !== -1) ||
-          (phone.length >= searchLen && phone.indexOf(searchLower) !== -1) ||
-          (customerNumber.length >= searchLen && customerNumber.indexOf(searchLower) !== -1)
-        ) {
-          results.push(customer);
-        }
-      }
-    
-    // Apply pagination to filtered results
-    const start = (currentPage - 1) * pageSize;
-    const end = start + pageSize;
-    return {
-      filteredCustomers: results.slice(start, end),
-      totalFiltered: results.length,
-    };
-  }, [customersData?.data, hasSearch, searchLower, currentPage, pageSize]);
-
-  // Memoize total pages calculation
-  const totalPages = useMemo(() => Math.ceil(totalFiltered / pageSize), [totalFiltered, pageSize]);
+  // Use totalPages from server response, or calculate if not available
+  const totalPages = customersData?.totalPages || Math.ceil(totalFiltered / pageSize);
 
   // Reset to page 1 when search changes
   useEffect(() => {
