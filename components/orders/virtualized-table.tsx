@@ -37,19 +37,36 @@ export function VirtualizedTable({
         overflow: "auto",
         WebkitOverflowScrolling: "touch", // Smooth scrolling on iOS
       }}
-      className="rounded-lg border border-gray-200"
+      className="rounded-lg border border-gray-200 bg-white"
     >
-      <Table>
-        <TableHeader className="sticky top-0 z-10 bg-[#f1f5f9]">
-          <TableRow>
-            <TableHead>Order & Customer</TableHead>
-            <TableHead>Schedule</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Phone Number</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody
+      <table className="w-full caption-bottom text-sm border-collapse" style={{ tableLayout: "auto" }}>
+        <colgroup>
+          <col style={{ minWidth: "200px" }} />
+          <col style={{ minWidth: "250px" }} />
+          <col style={{ minWidth: "120px" }} />
+          <col style={{ minWidth: "150px" }} />
+          <col style={{ minWidth: "120px" }} />
+        </colgroup>
+        <thead className="sticky top-0 z-10 bg-[#f1f5f9] border-b border-gray-200">
+          <tr className="border-b border-gray-200">
+            <th className="h-12 px-4 text-left align-middle font-medium text-gray-700 text-xs uppercase tracking-wider whitespace-nowrap">
+              Order & Customer
+            </th>
+            <th className="h-12 px-4 text-left align-middle font-medium text-gray-700 text-xs uppercase tracking-wider whitespace-nowrap">
+              Schedule
+            </th>
+            <th className="h-12 px-4 text-left align-middle font-medium text-gray-700 text-xs uppercase tracking-wider whitespace-nowrap">
+              Status
+            </th>
+            <th className="h-12 px-4 text-left align-middle font-medium text-gray-700 text-xs uppercase tracking-wider whitespace-nowrap">
+              Phone Number
+            </th>
+            <th className="h-12 px-4 text-left align-middle font-medium text-gray-700 text-xs uppercase tracking-wider whitespace-nowrap">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody
           style={{
             height: `${virtualizer.getTotalSize()}px`,
             position: "relative",
@@ -58,7 +75,7 @@ export function VirtualizedTable({
           {virtualItems.map((virtualRow) => {
             const order = orders[virtualRow.index];
             return (
-              <TableRow
+              <tr
                 key={order.id}
                 data-index={virtualRow.index}
                 ref={virtualizer.measureElement}
@@ -66,17 +83,17 @@ export function VirtualizedTable({
                   position: "absolute",
                   top: 0,
                   left: 0,
-                  width: "100%",
+                  right: 0,
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
-                className="hover:bg-zinc-50 transition-colors"
+                className="border-b border-gray-200 hover:bg-zinc-50 transition-colors bg-white"
               >
                 {renderRow(order, virtualRow.index)}
-              </TableRow>
+              </tr>
             );
           })}
-        </TableBody>
-      </Table>
+        </tbody>
+      </table>
     </div>
   );
 }

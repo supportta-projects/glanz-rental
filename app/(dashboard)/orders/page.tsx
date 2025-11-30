@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { useOrders, useOrdersInfinite, useUpdateOrderStatus } from "@/lib/queries/orders";
-import { VirtualizedTable } from "@/components/orders/virtualized-table";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +37,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { OrdersHeader } from "@/components/layout/orders-header";
 import { useDebounce } from "@/lib/hooks/use-debounce";
+import { Pagination } from "@/components/shared";
 import { getOrderStatus, formatCurrency, isOrderLate, isBooking } from "@/lib/utils/date";
 import { differenceInHours, differenceInDays, differenceInMinutes, format, startOfToday, endOfToday, subDays } from "date-fns";
 import { OrderCard } from "@/components/orders/order-card";
@@ -190,6 +190,23 @@ export default function OrdersPage() {
     
     return result;
   }, [allOrdersFromServer, activeTab, debouncedSearch, getOrderCategory]);
+
+  // Paginate filtered orders
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return orders.slice(start, end);
+  }, [orders, currentPage, pageSize]);
+
+  // Calculate total pages
+  const totalPages = useMemo(() => {
+    return Math.ceil(orders.length / pageSize);
+  }, [orders.length, pageSize]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, debouncedSearch, dateRange]);
 
   // Calculate stats - each order counted in exactly ONE category
   const stats = useMemo(() => {
@@ -477,227 +494,87 @@ export default function OrdersPage() {
             </div>
           )}
 
-          {/* Error State */}
-          {error && !isLoading && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center mb-6">
-              <p className="text-red-600 font-medium mb-2">Failed to load orders</p>
-              <p className="text-sm text-red-500 mb-4">Please check your connection and try again</p>
-              <Button
-                variant="outline"
-                onClick={() => queryClient.invalidateQueries({ queryKey: ["orders"] })}
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-
-          {/* Table Structure - Always render immediately for LCP optimization */}
-          {!isLoading && !error && orders.length > 10 ? (
-            // Virtualized table for >10 rows (replaces entire table structure)
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <VirtualizedTable
-                orders={orders}
-                height={400}
-                rowHeight={72}
-                renderRow={(order, index) => {
-                  const startDate = (order as any).start_datetime || order.start_date;
-                  const endDate = (order as any).end_datetime || order.end_date;
-                  const orderCategory = getOrderCategory(order);
-                  const duration = getDuration(startDate, endDate);
-                  const itemsCount = getItemsCount(order);
-
-                  return (
-                    <>
+          {/* Table Structure */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <Table>
+              <TableHeader className="bg-[#f1f5f9] border-b border-gray-200">
+                <TableRow className="border-b border-gray-200">
+                  <TableHead className="min-w-[200px]">Order & Customer</TableHead>
+                  <TableHead className="min-w-[250px]">Schedule</TableHead>
+                  <TableHead className="min-w-[120px]">Status</TableHead>
+                  <TableHead className="min-w-[150px]">Phone Number</TableHead>
+                  <TableHead className="min-w-[120px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Loading State - Skeletons */}
+                {isLoading ? (
+                  [...Array(8)].map((_, i) => (
+                    <TableRow key={`skeleton-${i}`} className="border-b border-gray-200">
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <Link
-                              href={`/orders/${order.id}`}
-                              className="font-semibold text-sm text-gray-900 hover:text-[#0b63ff]"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              #{order.invoice_number}
-                            </Link>
-                            <Badge variant="outline" className="text-xs px-1.5 py-0.5 h-5 border-gray-200">
-                              {itemsCount} {itemsCount === 1 ? "item" : "items"}
-                            </Badge>
-                          </div>
-                          <div className="font-medium text-sm text-gray-900">{order.customer?.name || "Unknown"}</div>
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-24" />
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
-                          <div className="text-sm text-gray-900 tabular-nums">
-                            From {format(new Date(startDate), "dd MMM, HH:mm")} to {format(new Date(endDate), "dd MMM, HH:mm")}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Duration: {duration.days} day{duration.days !== 1 ? "s" : ""} {duration.hours} hour{duration.hours !== 1 ? "s" : ""}
-                          </div>
+                          <Skeleton className="h-4 w-48" />
+                          <Skeleton className="h-3 w-32" />
                         </div>
                       </TableCell>
-                      <TableCell>
-                        {orderCategory === "cancelled" ? (
-                          <Badge className="bg-gray-500 text-white flex items-center gap-1 w-fit">
-                            <AlertTriangle className="h-3 w-3" />
-                            Cancelled
-                          </Badge>
-                        ) : orderCategory === "scheduled" ? (
-                          <Badge className="bg-[#9ca3af] text-white flex items-center gap-1 w-fit">
-                            <Calendar className="h-3 w-3" />
-                            Scheduled
-                          </Badge>
-                        ) : orderCategory === "late" ? (
-                          <Badge className="bg-[#ef4444] text-white flex items-center gap-1 w-fit">
-                            <AlertTriangle className="h-3 w-3" />
-                            Late
-                          </Badge>
-                        ) : orderCategory === "ongoing" ? (
-                          <Badge className="bg-[#f59e0b] text-white flex items-center gap-1 w-fit">
-                            <PlayCircle className="h-3 w-3" />
-                            Ongoing
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-[#3b82f6] text-white flex items-center gap-1 w-fit">
-                            <CheckCircle className="h-3 w-3" />
-                            Returned
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          href={`tel:${order.customer?.phone || ""}`}
-                          className="text-sm text-gray-900 hover:text-[#0b63ff] flex items-center gap-1.5"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Phone className="h-3.5 w-3.5 text-gray-500" />
-                          <span className="tabular-nums font-semibold">{order.customer?.phone || "N/A"}</span>
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-2 justify-end">
-                          {canCancelOrder(order) && (
-                            <Tooltip content="Cancel Order">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleCancelOrder(order.id)}
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </Tooltip>
-                          )}
-                          {(orderCategory === "ongoing" || orderCategory === "late") && (
-                            <Tooltip content="Mark as Returned">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleMarkReturned(order.id)}
-                                className="h-8 w-8 p-0 text-[#10b981] hover:text-[#10b981] hover:bg-green-50"
-                              >
-                                <ArrowLeftCircle className="h-4 w-4" />
-                              </Button>
-                            </Tooltip>
-                          )}
-                          <Tooltip content="View Details">
-                            <Link href={`/orders/${order.id}`}>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                          </Tooltip>
-                        </div>
-                      </TableCell>
-                    </>
-                  );
-                }}
-              />
-            </div>
-          ) : (
-            // Regular table for <=10 rows or loading/error states
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order & Customer</TableHead>
-                    <TableHead>Schedule</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Phone Number</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {/* Loading State - Skeletons */}
-                  {isLoading ? (
-                    [...Array(8)].map((_, i) => (
-                      <TableRow key={`skeleton-${i}`}>
+                      <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                      <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : !error && paginatedOrders.length > 0 ? (
+                  // Table rows with paginated orders
+                  paginatedOrders.map((order) => {
+                    const startDate = (order as any).start_datetime || order.start_date;
+                    const endDate = (order as any).end_datetime || order.end_date;
+                    const orderCategory = getOrderCategory(order);
+                    const duration = getDuration(startDate, endDate);
+                    const itemsCount = getItemsCount(order);
+
+                    return (
+                      <TableRow
+                        key={order.id}
+                        className="cursor-pointer border-b border-gray-200 hover:bg-zinc-50 transition-colors"
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest('button, a')) return;
+                          router.push(`/orders/${order.id}`);
+                        }}
+                      >
                         <TableCell>
                           <div className="flex flex-col gap-1">
-                            <Skeleton className="h-4 w-32" />
-                            <Skeleton className="h-3 w-24" />
+                            <div className="flex items-center gap-2">
+                              <Link
+                                href={`/orders/${order.id}`}
+                                className="font-semibold text-sm text-gray-900 hover:text-[#0b63ff]"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                #{order.invoice_number}
+                              </Link>
+                              <Badge variant="outline" className="text-xs px-1.5 py-0.5 h-5 border-gray-200">
+                                {itemsCount} {itemsCount === 1 ? "item" : "items"}
+                              </Badge>
+                            </div>
+                            <div className="font-medium text-sm text-gray-900">{order.customer?.name || "Unknown"}</div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-0.5">
-                            <Skeleton className="h-4 w-48" />
-                            <Skeleton className="h-3 w-32" />
+                            <div className="text-sm text-gray-900 tabular-nums">
+                              From {format(new Date(startDate), "dd MMM, HH:mm")} to {format(new Date(endDate), "dd MMM, HH:mm")}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Duration: {duration.days} day{duration.days !== 1 ? "s" : ""} {duration.hours} hour{duration.hours !== 1 ? "s" : ""}
+                            </div>
                           </div>
                         </TableCell>
-                        <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                        <TableCell className="text-right"><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
-                      </TableRow>
-                    ))
-                  ) : !error && orders.length > 0 ? (
-                    // Regular table rows for <=10 rows
-                    orders.map((order) => {
-                      const startDate = (order as any).start_datetime || order.start_date;
-                      const endDate = (order as any).end_datetime || order.end_date;
-                      const orderCategory = getOrderCategory(order);
-                      const duration = getDuration(startDate, endDate);
-                      const itemsCount = getItemsCount(order);
-
-                      return (
-                        <TableRow
-                          key={order.id}
-                          className="cursor-pointer"
-                          onClick={(e) => {
-                            if ((e.target as HTMLElement).closest('button, a')) return;
-                            router.push(`/orders/${order.id}`);
-                          }}
-                        >
-                          <TableCell>
-                            <div className="flex flex-col gap-1">
-                              <div className="flex items-center gap-2">
-                                <Link
-                                  href={`/orders/${order.id}`}
-                                  className="font-semibold text-sm text-gray-900 hover:text-[#0b63ff]"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  #{order.invoice_number}
-                                </Link>
-                                <Badge variant="outline" className="text-xs px-1.5 py-0.5 h-5 border-gray-200">
-                                  {itemsCount} {itemsCount === 1 ? "item" : "items"}
-                                </Badge>
-                              </div>
-                              <div className="font-medium text-sm text-gray-900">{order.customer?.name || "Unknown"}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-0.5">
-                              <div className="text-sm text-gray-900 tabular-nums">
-                                From {format(new Date(startDate), "dd MMM, HH:mm")} to {format(new Date(endDate), "dd MMM, HH:mm")}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                Duration: {duration.days} day{duration.days !== 1 ? "s" : ""} {duration.hours} hour{duration.hours !== 1 ? "s" : ""}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
+                        <TableCell className="align-middle">
+                          <div className="flex items-center">
                             {orderCategory === "cancelled" ? (
                               <Badge className="bg-gray-500 text-white flex items-center gap-1 w-fit">
                                 <AlertTriangle className="h-3 w-3" />
@@ -724,62 +601,130 @@ export default function OrdersPage() {
                                 Returned
                               </Badge>
                             )}
-                          </TableCell>
-                          <TableCell>
-                            <Link
-                              href={`tel:${order.customer?.phone || ""}`}
-                              className="text-sm text-gray-900 hover:text-[#0b63ff] flex items-center gap-1.5"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Phone className="h-3.5 w-3.5 text-gray-500" />
-                              <span className="tabular-nums font-semibold">{order.customer?.phone || "N/A"}</span>
-                            </Link>
-                          </TableCell>
-                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center gap-2 justify-end">
-                              {canCancelOrder(order) && (
-                                <Tooltip content="Cancel Order">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleCancelOrder(order.id)}
-                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </Tooltip>
-                              )}
-                              {(orderCategory === "ongoing" || orderCategory === "late") && (
-                                <Tooltip content="Mark as Returned">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleMarkReturned(order.id)}
-                                    className="h-8 w-8 p-0 text-[#10b981] hover:text-[#10b981] hover:bg-green-50"
-                                  >
-                                    <ArrowLeftCircle className="h-4 w-4" />
-                                  </Button>
-                                </Tooltip>
-                              )}
-                              <Tooltip content="View Details">
-                                <Link href={`/orders/${order.id}`}>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </Link>
+                          </div>
+                        </TableCell>
+                        <TableCell className="align-middle">
+                          <Link
+                            href={`tel:${order.customer?.phone || ""}`}
+                            className="text-sm text-gray-900 hover:text-[#0b63ff] flex items-center gap-1.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Phone className="h-3.5 w-3.5 text-gray-500" />
+                            <span className="tabular-nums font-semibold">{order.customer?.phone || "N/A"}</span>
+                          </Link>
+                        </TableCell>
+                        <TableCell className="align-middle" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2">
+                            {canCancelOrder(order) && (
+                              <Tooltip content="Cancel Order">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleCancelOrder(order.id)}
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
                               </Tooltip>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  ) : null}
-                </TableBody>
-              </Table>
+                            )}
+                            {(orderCategory === "ongoing" || orderCategory === "late") && (
+                              <Tooltip content="Mark as Returned">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleMarkReturned(order.id)}
+                                  className="h-8 w-8 p-0 text-[#10b981] hover:text-[#10b981] hover:bg-green-50"
+                                >
+                                  <ArrowLeftCircle className="h-4 w-4" />
+                                </Button>
+                              </Tooltip>
+                            )}
+                            <Tooltip content="View Details">
+                              <Link href={`/orders/${order.id}`}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            </Tooltip>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : null}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          {!isLoading && !error && orders.length > 0 && totalPages > 1 && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={orders.length}
+                pageSize={pageSize}
+                onPageChange={(page) => {
+                  setCurrentPage(page);
+                  // Scroll to top smoothly
+                  const scrollContainer = document.querySelector('main[data-scroll-container="true"]') as HTMLElement;
+                  if (scrollContainer) {
+                    scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
+              />
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !isLoading && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center mt-4">
+              <p className="text-red-600 font-medium mb-2">Failed to load orders</p>
+              <p className="text-sm text-red-500 mb-4">Please check your connection and try again</p>
+              <Button
+                variant="outline"
+                onClick={() => queryClient.invalidateQueries({ queryKey: ["orders"] })}
+              >
+                Retry
+              </Button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !error && orders.length === 0 && (
+            <div className="text-center py-12 bg-white rounded-lg border border-gray-200 mt-4">
+              <p className="text-gray-500 text-lg mb-2">No orders found</p>
+              <p className="text-gray-400 text-sm mb-6">Create your first order to get started</p>
+              <Button
+                onClick={() => router.push("/orders/new")}
+                className="bg-[#0b63ff] hover:bg-[#0a5ce6] text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Order
+              </Button>
+            </div>
+          )}
+
+
+          {/* Mobile: Cards */}
+          {!isLoading && !error && paginatedOrders.length > 0 && (
+            <div className="md:hidden space-y-3 mt-4">
+              {paginatedOrders.map((order) => {
+                const startDate = (order as any).start_datetime || order.start_date;
+                return (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onMarkReturned={handleMarkReturned}
+                    onCancel={handleCancelOrder}
+                    canCancel={canCancelOrder(order)}
+                  />
+                );
+              })}
             </div>
           )}
 
@@ -831,21 +776,6 @@ export default function OrdersPage() {
             </div>
           )}
 
-          {/* Empty State */}
-          {!isLoading && !error && orders.length === 0 && (
-            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-              <p className="text-gray-500 text-lg mb-2">No orders?</p>
-              <p className="text-gray-400 text-sm mb-6">Create your first order to get started</p>
-              <Button
-                onClick={() => router.push("/orders/new")}
-                className="bg-[#0b63ff] hover:bg-[#0a5ce6] text-white"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                New Order
-              </Button>
-            </div>
-          )}
-
           {/* Bulk Actions */}
           {selectedOrders.size > 0 && (
             <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-3 flex items-center gap-3">
@@ -866,34 +796,6 @@ export default function OrdersPage() {
             </div>
           )}
 
-          {/* Infinite Scroll Load More */}
-          {hasNextPage && (
-            <div className="mt-6 flex justify-center">
-              <Button
-                variant="outline"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="h-8 px-4"
-              >
-                {isFetchingNextPage ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#0b63ff] mr-2" />
-                    Loading...
-                  </>
-                ) : (
-                  "Load More Orders"
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* Orders Count */}
-          {orders.length > 0 && (
-            <div className="mt-4 text-center text-sm text-[#6b7280]">
-              Showing {orders.length} of {stats.total} orders
-              {debouncedSearch && ` (filtered)`}
-            </div>
-          )}
         </div>
 
         {/* Mobile Floating Action Button */}
