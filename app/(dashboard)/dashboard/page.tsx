@@ -1,5 +1,8 @@
 "use client";
 
+// Force dynamic for realtime (as per requirements)
+export const dynamic = 'force-dynamic';
+
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -83,16 +86,14 @@ export default function DashboardPage() {
       {/* Pull to Refresh Indicator */}
       {isRefreshing && (
         <div className="flex justify-center py-2">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-sky-500" />
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#0b63ff]" />
         </div>
       )}
 
-      {/* Date Range Picker - Sticky on Mobile */}
-      <div className="sticky top-0 z-10 bg-zinc-50 -mx-4 md:-mx-6 px-4 md:px-6 pt-4 md:pt-0 pb-4 border-b border-gray-200 md:border-0 md:static md:bg-transparent">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
-          <DateRangePicker value={dateRange} onChange={setDateRange} />
-        </div>
+      {/* Header with Date Range Picker */}
+      <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-gray-200">
+        <h1 className="text-2xl md:text-3xl font-bold text-[#0f1724]">Dashboard</h1>
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
       </div>
 
       {/* Stats Cards - Mobile: Stacked, Desktop: 2x2 Grid */}
@@ -134,10 +135,10 @@ export default function DashboardPage() {
             title="Today Collection"
             value={formatCurrency(stats?.today_collection || 0)}
             icon={IndianRupee}
-            borderColor="border-l-sky-500"
-            bgColor="bg-blue-50"
-            textColor="text-sky-600"
-            iconColor="text-sky-500"
+            borderColor="border-l-[#0b63ff]"
+            bgColor="bg-[#0b63ff]/5"
+            textColor="text-[#0b63ff]"
+            iconColor="text-[#0b63ff]"
           />
         )}
 
@@ -158,17 +159,17 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Actions - Mobile: Stacked, Desktop: Row */}
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-col md:flex-row gap-3">
         <Link href="/orders/new" className="flex-1">
-          <Button className="w-full h-14 bg-sky-500 hover:bg-sky-600 text-white text-base font-semibold rounded-xl">
-            <Plus className="h-5 w-5 mr-2" />
+          <Button className="w-full h-9 bg-[#0b63ff] hover:bg-[#0a5ce6] text-white text-sm font-medium rounded-lg">
+            <Plus className="h-4 w-4 mr-2" />
             New Order
           </Button>
         </Link>
         <Link href="/orders" className="flex-1">
           <Button
             variant="outline"
-            className="w-full h-14 border-2 border-sky-500 text-sky-500 hover:bg-sky-50 text-base font-semibold rounded-xl"
+            className="w-full h-9 border-[#0b63ff] text-[#0b63ff] hover:bg-[#0b63ff] hover:text-white text-sm font-medium rounded-lg transition-colors"
           >
             View All Orders
           </Button>
@@ -177,7 +178,7 @@ export default function DashboardPage() {
 
       {/* Recent Activity Timeline */}
       <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Activity</h2>
+        <h2 className="text-xl font-bold text-[#0f1724] mb-4">Recent Activity</h2>
         {ordersLoading ? (
           <div className="space-y-3">
             {[...Array(4)].map((_, i) => (

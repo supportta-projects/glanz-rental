@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { subscribeWithSelector } from "zustand/middleware";
+import { shallow } from "zustand/shallow";
 import type { OrderItem, OrderDraft } from "@/lib/types";
 import { useUserStore } from "./useUserStore";
 
@@ -11,151 +13,128 @@ interface OrderDraftState {
   addItem: (item: OrderItem) => void;
   updateItem: (index: number, item: Partial<OrderItem>) => void;
   removeItem: (index: number) => void;
-  calculateGrandTotal: () => number;
-  calculateSubtotal: () => number;
-  calculateGst: () => number;
   clearDraft: () => void;
   loadOrder: (order: any) => void;
 }
 
 const initialDraft: OrderDraft = {
   customer_id: null,
-  start_date: new Date().toISOString(), // Full ISO datetime string
+  start_date: new Date().toISOString(),
   end_date: "",
   invoice_number: "",
   items: [],
   grand_total: 0,
 };
 
-export const useOrderDraftStore = create<OrderDraftState>((set, get) => ({
-  draft: initialDraft,
+// Computed selectors (memoized - no re-runs unless dependencies change)
+const selectItems = (state: OrderDraftState) => state.draft.items;
+const selectSubtotal = (state: OrderDraftState) => {
+  return state.draft.items.reduce((sum, item) => sum + item.line_total, 0);
+};
+
+const selectGrandTotal = (state: OrderDraftState) => {
+  const subtotal = selectSubtotal(state);
+  const user = useUserStore.getState().user;
+  const gstEnabled = user?.gst_enabled ?? false;
   
-  setCustomer: (customerId, name, phone) =>
-    set((state) => ({
-      draft: {
-        ...state.draft,
-        customer_id: customerId,
-        customer_name: name,
-        customer_phone: phone,
-      },
-    })),
+  if (!gstEnabled) return subtotal;
   
-  setStartDate: (date) =>
-    set((state) => ({
-      draft: { ...state.draft, start_date: date },
-    })),
+  const gstRatePercent = user?.gst_rate ?? 5.00;
+  const gstRate = gstRatePercent / 100;
+  const gstIncluded = user?.gst_included ?? false;
   
-  setEndDate: (date) =>
-    set((state) => ({
-      draft: { ...state.draft, end_date: date },
-    })),
+  return gstIncluded ? subtotal : subtotal + (subtotal * gstRate);
+};
+
+const selectGst = (state: OrderDraftState) => {
+  const subtotal = selectSubtotal(state);
+  const user = useUserStore.getState().user;
+  const gstEnabled = user?.gst_enabled ?? false;
   
-  setInvoiceNumber: (number) =>
-    set((state) => ({
-      draft: { ...state.draft, invoice_number: number },
-    })),
+  if (!gstEnabled) return 0;
   
-  addItem: (item) =>
-    set((state) => ({
-      draft: {
-        ...state.draft,
-        items: [...state.draft.items, item],
-      },
-    })),
+  const gstRatePercent = user?.gst_rate ?? 5.00;
+  const gstRate = gstRatePercent / 100;
+  const gstIncluded = user?.gst_included ?? false;
   
-  updateItem: (index, updates) =>
-    set((state) => {
-      const newItems = [...state.draft.items];
-      newItems[index] = { ...newItems[index], ...updates };
-      return {
-        draft: { ...state.draft, items: newItems },
-      };
-    }),
-  
-  removeItem: (index) =>
-    set((state) => ({
-      draft: {
-        ...state.draft,
-        items: state.draft.items.filter((_, i) => i !== index),
-      },
-    })),
-  
-  calculateSubtotal: () => {
-    const { draft } = get();
-    return draft.items.reduce((sum, item) => sum + item.line_total, 0);
-  },
-  
-  calculateGst: () => {
-    const { draft } = get();
-    const subtotal = draft.items.reduce((sum, item) => sum + item.line_total, 0);
+  return gstIncluded ? subtotal * (gstRate / (1 + gstRate)) : subtotal * gstRate;
+};
+
+export const useOrderDraftStore = create<OrderDraftState>()(
+  subscribeWithSelector((set, get) => ({
+    draft: initialDraft,
     
-    // Get user's GST settings
-    const user = useUserStore.getState().user;
-    const gstEnabled = user?.gst_enabled ?? false;
+    setCustomer: (customerId, name, phone) =>
+      set((state) => ({
+        draft: {
+          ...state.draft,
+          customer_id: customerId,
+          customer_name: name,
+          customer_phone: phone,
+        },
+      })),
     
-    // If GST is disabled, return 0
-    if (!gstEnabled) {
-      return 0;
-    }
+    setStartDate: (date) =>
+      set((state) => ({
+        draft: { ...state.draft, start_date: date },
+      })),
     
-    // Get GST rate from user settings (default to 5%)
-    const gstRatePercent = user?.gst_rate ?? 5.00;
-    const gstRate = gstRatePercent / 100; // Convert percentage to decimal
+    setEndDate: (date) =>
+      set((state) => ({
+        draft: { ...state.draft, end_date: date },
+      })),
     
-    const gstIncluded = user?.gst_included ?? false;
+    setInvoiceNumber: (number) =>
+      set((state) => ({
+        draft: { ...state.draft, invoice_number: number },
+      })),
     
-    if (gstIncluded) {
-      // GST is included in prices, so calculate GST from subtotal
-      // If subtotal includes GST: GST = subtotal * (rate / (1 + rate))
-      return subtotal * (gstRate / (1 + gstRate));
-    } else {
-      // GST is excluded, so add rate% on top
-      return subtotal * gstRate;
-    }
-  },
-  
-  calculateGrandTotal: () => {
-    const { draft } = get();
-    const subtotal = draft.items.reduce((sum, item) => sum + item.line_total, 0);
+    addItem: (item) =>
+      set((state) => ({
+        draft: {
+          ...state.draft,
+          items: [item, ...state.draft.items],
+        },
+      })),
     
-    // Get user's GST settings
-    const user = useUserStore.getState().user;
-    const gstEnabled = user?.gst_enabled ?? false;
+    updateItem: (index, updates) =>
+      set((state) => {
+        const newItems = [...state.draft.items];
+        newItems[index] = { ...newItems[index], ...updates };
+        return {
+          draft: { ...state.draft, items: newItems },
+        };
+      }),
     
-    // If GST is disabled, return subtotal as grand total
-    if (!gstEnabled) {
-      return subtotal;
-    }
+    removeItem: (index) =>
+      set((state) => ({
+        draft: {
+          ...state.draft,
+          items: state.draft.items.filter((_, i) => i !== index),
+        },
+      })),
     
-    // Get GST rate from user settings (default to 5%)
-    const gstRatePercent = user?.gst_rate ?? 5.00;
-    const gstRate = gstRatePercent / 100; // Convert percentage to decimal
+    clearDraft: () => set({ draft: initialDraft }),
     
-    const gstIncluded = user?.gst_included ?? false;
-    
-    if (gstIncluded) {
-      // GST is already included in prices, so subtotal is the grand total
-      return subtotal;
-    } else {
-      // GST is excluded, so add rate% on top
-      return subtotal + (subtotal * gstRate);
-    }
-  },
-  
-  clearDraft: () => set({ draft: initialDraft }),
-  
-  loadOrder: (order) =>
-    set({
-      draft: {
-        customer_id: order.customer_id,
-        customer_name: order.customer?.name,
-        customer_phone: order.customer?.phone,
-        start_date: order.start_date,
-        end_date: order.end_date,
-        invoice_number: order.invoice_number,
-        items: order.items || [],
-        grand_total: order.total_amount,
-      },
-    }),
-}));
+    loadOrder: (order) =>
+      set({
+        draft: {
+          customer_id: order.customer_id,
+          customer_name: order.customer?.name,
+          customer_phone: order.customer?.phone,
+          start_date: order.start_date,
+          end_date: order.end_date,
+          invoice_number: order.invoice_number,
+          items: order.items || [],
+          grand_total: order.total_amount,
+        },
+      }),
+  }))
+);
+
+// Optimized selectors with shallow equality for items array
+export const useOrderItems = () => useOrderDraftStore(selectItems);
+export const useOrderSubtotal = () => useOrderDraftStore(selectSubtotal);
+export const useOrderGrandTotal = () => useOrderDraftStore(selectGrandTotal);
+export const useOrderGst = () => useOrderDraftStore(selectGst);
 

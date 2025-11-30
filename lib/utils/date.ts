@@ -59,3 +59,22 @@ export function isOrderLate(endDate: string | Date): boolean {
   return now > end;
 }
 
+/**
+ * Check if order is a booking (scheduled for future - tomorrow or later)
+ * A booking is an order that starts after today (not including today)
+ * 
+ * @param startDate - The start date of the order (string or Date)
+ * @returns true if the order starts after today, false otherwise
+ * 
+ * @example
+ * ```ts
+ * isBooking("2024-01-15") // true if today is before Jan 15, 2024
+ * isBooking(new Date("2024-01-15")) // true if today is before Jan 15, 2024
+ * ```
+ */
+export function isBooking(startDate: string | Date): boolean {
+  const today = startOfDay(new Date());
+  const start = startOfDay(new Date(startDate));
+  return isAfter(start, today);
+}
+

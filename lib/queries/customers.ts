@@ -16,20 +16,25 @@ export function useCustomers(searchQuery?: string, page: number = 1, pageSize: n
   return useQuery({
     queryKey: ["customers", searchQuery, page, pageSize],
     queryFn: async () => {
+      // If no search query, fetch all customers (for client-side filtering)
+      // Otherwise, use server-side filtering with pagination
       const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
+      const to = searchQuery ? from + pageSize - 1 : 9999; // Large limit when fetching all
 
       // Fetch customers with pagination
       let customersQuery = supabase
         .from("customers")
         .select("*", { count: "exact" })
-        .order("created_at", { ascending: false })
-        .range(from, to);
+        .order("created_at", { ascending: false });
 
+      // Only apply range if doing server-side pagination (with search)
       if (searchQuery && searchQuery.trim()) {
-        customersQuery = customersQuery.or(
-          `name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`
-        );
+        customersQuery = customersQuery
+          .or(`name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
+          .range(from, to);
+      } else {
+        // Fetch all customers (up to 9999) for client-side filtering
+        customersQuery = customersQuery.range(0, 9999);
       }
 
       const { data: customers, error: customersError, count } = await customersQuery;
@@ -45,39 +50,55 @@ export function useCustomers(searchQuery?: string, page: number = 1, pageSize: n
         };
       }
 
-      // Fetch pending orders for all customers to calculate dues
+      // Fetch pending orders for all customers to calculate dues - optimized batch query
       const customerIds = (customers as Customer[]).map((c) => c.id);
-      const { data: pendingOrders, error: ordersError } = await supabase
-        .from("orders")
-        .select("customer_id, total_amount, status")
-        .in("customer_id", customerIds)
-        .in("status", ["active", "pending_return"]);
+      
+      // Only fetch orders if we have customers
+      let duesMap = new Map<string, number>();
+      if (customerIds.length > 0) {
+        const { data: pendingOrders, error: ordersError } = await supabase
+          .from("orders")
+          .select("customer_id, total_amount, status")
+          .in("customer_id", customerIds)
+          .in("status", ["active", "pending_return"]);
 
-      if (ordersError) throw ordersError;
+        if (ordersError) throw ordersError;
 
-      // Calculate dues for each customer
-      const duesMap = new Map<string, number>();
-      (pendingOrders || []).forEach((order: any) => {
-        const current = duesMap.get(order.customer_id) || 0;
-        duesMap.set(order.customer_id, current + (order.total_amount || 0));
-      });
+        // Calculate dues - optimized single pass with Map for O(1) lookups
+        if (pendingOrders && pendingOrders.length > 0) {
+          for (let i = 0; i < pendingOrders.length; i++) {
+            const order = pendingOrders[i] as any;
+            const customerId = order.customer_id;
+            const amount = order.total_amount || 0;
+            duesMap.set(customerId, (duesMap.get(customerId) || 0) + amount);
+          }
+        }
+      }
 
-      // Add due_amount to each customer
-      const customersWithDues = (customers as Customer[]).map((customer) => ({
-        ...customer,
-        due_amount: duesMap.get(customer.id) || 0,
-      })) as CustomerWithDues[];
+      // Add due_amount to each customer - optimized single pass with pre-allocated array
+      const customersWithDues: CustomerWithDues[] = new Array(customers.length);
+      for (let i = 0; i < customers.length; i++) {
+        const customer = customers[i] as Customer;
+        customersWithDues[i] = {
+          ...customer,
+          due_amount: duesMap.get(customer.id) || 0,
+        } as CustomerWithDues;
+      }
 
       return {
         data: customersWithDues,
         total: count || 0,
         page,
         pageSize,
-        totalPages: Math.ceil((count || 0) / pageSize),
+        totalPages: searchQuery ? Math.ceil((count || 0) / pageSize) : Math.ceil((count || 0) / pageSize),
       };
     },
-    refetchOnWindowFocus: true, // Refetch when window regains focus
-    refetchInterval: 30000, // Fallback refetch every 30 seconds
+    staleTime: 300000, // Cache for 5 minutes (increased for ultra-fast navigation)
+    gcTime: 900000, // Keep in cache for 15 minutes (increased for instant page loads)
+    refetchOnWindowFocus: false, // Disable refetch on focus for better performance
+    refetchInterval: false, // Disable interval refetch
+    refetchOnMount: false, // Use cached data if available for instant navigation
+    refetchOnReconnect: false, // Don't refetch on reconnect
   });
 }
 

@@ -1,9 +1,12 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
+// Static for branches (as per requirements)
+export const dynamic = 'force-static';
+
 import { useUserStore } from "@/lib/stores/useUserStore";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Building2, ShieldX } from "lucide-react";
+import { PageHeader, EmptyState, ActionButton } from "@/components/shared";
+import Link from "next/link";
 
 export default function BranchesPage() {
   const { user } = useUserStore();
@@ -11,34 +14,33 @@ export default function BranchesPage() {
   // Only Super Admin can access
   if (user?.role !== "super_admin") {
     return (
-      <div className="min-h-screen bg-zinc-50 p-4 flex items-center justify-center">
-        <Card className="p-8 text-center">
-          <p className="text-gray-500">Access denied</p>
-          <p className="text-sm text-gray-400 mt-2">
-            Only Super Admin can manage branches
-          </p>
-        </Card>
+      <div className="min-h-screen bg-[#f7f9fb] p-4 md:p-6 flex items-center justify-center">
+        <EmptyState
+          icon={<ShieldX className="h-16 w-16" />}
+          title="Access denied"
+          description="Only Super Admin can manage branches"
+        />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 pb-24">
-      <div className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-10">
-        <h1 className="text-2xl font-bold text-gray-900">Branches</h1>
-        <Button className="bg-sky-500 hover:bg-sky-600">
-          <Plus className="h-5 w-5 mr-2" />
-          Add Branch
-        </Button>
-      </div>
+    <div className="min-h-screen bg-[#f7f9fb] pb-24">
+      <PageHeader
+        title="Branches"
+        actions={
+          <Link href="/branches/new">
+            <ActionButton label="Add Branch" onClick={() => {}} />
+          </Link>
+        }
+      />
 
-      <div className="p-4">
-        <Card className="p-8 text-center">
-          <p className="text-gray-500">Branch management coming soon</p>
-          <p className="text-sm text-gray-400 mt-2">
-            Create, edit, and manage branches
-          </p>
-        </Card>
+      <div className="px-4 md:px-6 py-4">
+        <EmptyState
+          icon={<Building2 className="h-16 w-16" />}
+          title="Branch management coming soon"
+          description="Create, edit, and manage branches"
+        />
       </div>
     </div>
   );

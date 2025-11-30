@@ -4,7 +4,7 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { DesktopSidebar } from "@/components/layout/desktop-sidebar";
 import { TopHeader } from "@/components/layout/top-header";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { createClient } from "@/lib/supabase/client";
 
@@ -14,6 +14,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname(); // Must be called before any conditional returns
   const { user, setUser } = useUserStore();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
@@ -62,29 +63,34 @@ export default function DashboardLayout({
     checkUser();
   }, [router, user, setUser, supabase]);
 
+  const isOrdersPage = pathname === "/orders";
+
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500" />
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0b63ff]" />
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-zinc-50 flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#f7f9fb] flex flex-col overflow-hidden">
       {/* Desktop Sidebar - Only on desktop */}
       <DesktopSidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:ml-64 min-w-0 overflow-hidden">
-        {/* Top Header */}
-        <TopHeader />
+      <div className="flex-1 flex flex-col md:ml-[250px] min-w-0 overflow-hidden">
+        {/* Top Header - Only show on non-orders pages */}
+        {!isOrdersPage && <TopHeader />}
 
-        {/* Page Content - Scrollable */}
+        {/* Page Content - Scrollable with optimized rendering */}
         <main 
           data-scroll-container="true"
           className="flex-1 overflow-y-auto pb-28 md:pb-6 overscroll-contain"
-          style={{ WebkitOverflowScrolling: "touch" }}
+          style={{ 
+            WebkitOverflowScrolling: "touch",
+            willChange: "scroll-position", // Optimize scrolling performance
+          }}
         >
           <div className="min-h-full">
             {children}

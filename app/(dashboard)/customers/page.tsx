@@ -1,31 +1,91 @@
 "use client";
 
+// Static for customers (as per requirements - no realtime needed)
+export const dynamic = 'force-static';
+
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, PhoneCall, MapPin, User, CreditCard, ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { PhoneCall, MapPin, User } from "lucide-react";
 import { FloatingActionButton } from "@/components/layout/floating-action-button";
-import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { formatDate, formatCurrency } from "@/lib/utils/date";
 import { useCustomers, type CustomerWithDues } from "@/lib/queries/customers";
 import { useDebounce } from "@/lib/hooks/use-debounce";
+import {
+  PageHeader,
+  SearchInput,
+  LoadingState,
+  EmptyState,
+  ErrorState,
+  Pagination,
+  ActionButton,
+} from "@/components/shared";
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearch = useDebounce(searchQuery, 300);
+  // Ultra-fast debounce - reduced to 30ms for instant search feel
+  const debouncedSearch = useDebounce(searchQuery, 30);
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 15;
+  const pageSize = 25; // Increased to 25 items per page
 
+  // Fetch ALL customers (no search filter) - we'll filter client-side for ultra-fast results
   const { data: customersData, isLoading, error } = useCustomers(
-    debouncedSearch.trim() || undefined,
+    undefined, // No server-side search - fetch all
     currentPage,
-    pageSize
+    1000 // Large page size to get all customers in one go
   );
 
-  const filteredCustomers = customersData?.data || [];
+  // Pre-compute lowercase search term once
+  const searchLower = useMemo(() => debouncedSearch.trim().toLowerCase(), [debouncedSearch]);
+  const hasSearch = searchLower.length > 0;
+
+  // Ultra-fast client-side filtering - optimized single pass with pre-computed values
+  const { filteredCustomers, totalFiltered } = useMemo(() => {
+    const allCustomers = customersData?.data || [];
+    
+    if (!hasSearch) {
+      // No search - return paginated results directly
+      const start = (currentPage - 1) * pageSize;
+      const end = start + pageSize;
+      return {
+        filteredCustomers: allCustomers.slice(start, end),
+        totalFiltered: allCustomers.length,
+      };
+    }
+
+      // Fast client-side search - single pass with optimized string matching
+      const results: typeof allCustomers = [];
+      const searchLen = searchLower.length;
+      
+      // Optimized loop - cache length, use indexOf for better performance
+      for (let i = 0; i < allCustomers.length; i++) {
+        const customer = allCustomers[i];
+        const name = customer.name?.toLowerCase() || "";
+        const phone = customer.phone?.toLowerCase() || "";
+        const customerNumber = customer.customer_number?.toLowerCase() || "";
+        
+        // Use indexOf for faster substring search (faster than includes for most cases)
+        if (
+          (name.length >= searchLen && name.indexOf(searchLower) !== -1) ||
+          (phone.length >= searchLen && phone.indexOf(searchLower) !== -1) ||
+          (customerNumber.length >= searchLen && customerNumber.indexOf(searchLower) !== -1)
+        ) {
+          results.push(customer);
+        }
+      }
+    
+    // Apply pagination to filtered results
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return {
+      filteredCustomers: results.slice(start, end),
+      totalFiltered: results.length,
+    };
+  }, [customersData?.data, hasSearch, searchLower, currentPage, pageSize]);
+
+  // Memoize total pages calculation
+  const totalPages = useMemo(() => Math.ceil(totalFiltered / pageSize), [totalFiltered, pageSize]);
 
   // Reset to page 1 when search changes
   useEffect(() => {
@@ -52,70 +112,73 @@ export default function CustomersPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-50 pb-24">
-      <div className="bg-white border-b p-4 sticky top-0 z-10">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Customers</h1>
-        <div className="flex flex-col md:flex-row gap-4 items-center">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input
-              placeholder="Search by name or phone"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-14 pl-10 rounded-xl w-full"
-            />
-          </div>
-          {/* Desktop Add Customer Button */}
+    <div className="min-h-screen bg-[#f7f9fb] pb-24">
+      {/* Header Section */}
+      <PageHeader
+        title="Customers"
+        description={
+          customersData
+            ? debouncedSearch.trim()
+              ? `${totalFiltered} customer${totalFiltered !== 1 ? "s" : ""} found`
+              : `${customersData.total} customer${customersData.total !== 1 ? "s" : ""} total`
+            : undefined
+        }
+        actions={
           <Link href="/customers/new" className="hidden md:flex">
-            <Button className="h-14 px-6 bg-sky-500 hover:bg-sky-600 text-white text-base font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 active:scale-95">
-              <Plus className="h-5 w-5 mr-2" />
-              Add Customer
-            </Button>
+            <ActionButton label="Add Customer" onClick={() => {}} />
           </Link>
+        }
+      >
+        <div className="flex flex-col md:flex-row gap-3 items-center mt-4">
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search by name, phone, or customer ID"
+            maxWidth="2xl"
+          />
         </div>
-        {customersData && customersData.total > 0 && (
-          <p className="text-sm text-gray-500 mt-2">
-            {customersData.total} customer{customersData.total !== 1 ? "s" : ""} found
-          </p>
-        )}
-      </div>
+      </PageHeader>
 
-      <div className="p-4 space-y-4">
+      <div className="px-4 md:px-6 py-4 space-y-4">
         {isLoading ? (
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-24 rounded-xl" />
-            ))}
-          </div>
+          <LoadingState variant="skeleton" count={5} />
         ) : error ? (
-          <Card className="p-8 text-center">
-            <p className="text-red-500">Error loading customers</p>
-            <p className="text-sm text-gray-400 mt-2">
-              Please try refreshing the page
-            </p>
-          </Card>
+          <ErrorState
+            title="Error loading customers"
+            message="Please try refreshing the page"
+            onRetry={() => window.location.reload()}
+          />
         ) : filteredCustomers && filteredCustomers.length > 0 ? (
           <>
             {/* Mobile: Card View */}
             <div className="md:hidden space-y-2">
               {filteredCustomers.map((customer) => {
+                // Pre-compute values once per customer for performance
                 const hasDues = customer.due_amount > 0;
                 const phoneNumber = customer.phone.replace(/\D/g, "");
                 const whatsappUrl = `https://wa.me/${phoneNumber}`;
                 const callUrl = `tel:${customer.phone}`;
+                const proofLabel = customer.id_proof_type ? getProofTypeLabel(customer.id_proof_type) : null;
 
                 return (
                   <Card
                     key={customer.id}
-                    className="p-3 rounded-lg hover:shadow-sm transition-shadow border border-gray-200"
+                    className="p-4 rounded-lg hover:shadow-md transition-all border border-gray-200 bg-white"
                   >
                     <div className="flex items-start justify-between gap-3">
                       {/* Left: Customer Info */}
                       <Link href={`/customers/${customer.id}`} className="flex-1 min-w-0">
                         <div className="space-y-1.5">
-                          <h3 className="font-semibold text-gray-900 text-base truncate">
-                            {customer.name}
-                          </h3>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-gray-900 text-base truncate">
+                              {customer.name}
+                            </h3>
+                            {customer.customer_number && (
+                              <span className="text-xs text-[#6b7280] font-mono bg-gray-100 px-1.5 py-0.5 rounded">
+                                {customer.customer_number}
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-1.5 text-sm text-gray-600">
                             <PhoneCall className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
                             <span className="truncate">{customer.phone}</span>
@@ -127,16 +190,12 @@ export default function CustomersPage() {
                             </div>
                           )}
                           <div className="flex items-center gap-2 pt-1">
-                            <span
-                              className={`text-xs font-medium ${
-                                hasDues ? "text-red-600" : "text-green-600"
-                              }`}
-                            >
+                            <span className={`text-xs font-medium ${hasDues ? "text-red-600" : "text-green-600"}`}>
                               {hasDues ? formatCurrency(customer.due_amount) : "No dues"}
                             </span>
-                            {customer.id_proof_type && (
+                            {proofLabel && (
                               <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-                                {getProofTypeLabel(customer.id_proof_type)}
+                                {proofLabel}
                               </Badge>
                             )}
                           </div>
@@ -183,63 +242,73 @@ export default function CustomersPage() {
 
             {/* Desktop: Table View */}
             <div className="hidden md:block">
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden border border-gray-200">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50 border-b">
+                    <thead className="bg-[#f1f5f9] border-b border-gray-200">
                       <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           Name
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           Phone
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           Address
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           Due Amount
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           ID Proof
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           Actions
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           Added
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredCustomers.map((customer, index) => {
+                      {filteredCustomers.map((customer) => {
+                        // Pre-compute values once per customer for performance
                         const hasDues = customer.due_amount > 0;
                         const phoneNumber = customer.phone.replace(/\D/g, "");
                         const whatsappUrl = `https://wa.me/${phoneNumber}`;
                         const callUrl = `tel:${customer.phone}`;
+                        const proofLabel = customer.id_proof_type ? getProofTypeLabel(customer.id_proof_type) : null;
+                        const formattedDate = customer.created_at ? formatDate(customer.created_at, "dd MMM yyyy") : "-";
+                        const dueAmountText = hasDues ? formatCurrency(customer.due_amount) : "No dues";
+                        const dueAmountClass = hasDues ? "text-red-600" : "text-green-600";
 
                         return (
                           <tr
                             key={customer.id}
-                            className={`border-t hover:bg-gray-50 transition-colors ${
-                              index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                            }`}
+                            className="border-t border-gray-200 hover:bg-zinc-50 transition-colors bg-white"
                           >
-                            <td className="px-6 py-4">
-                              <Link
-                                href={`/customers/${customer.id}`}
-                                className="font-semibold text-gray-900 hover:text-sky-600 transition-colors"
-                              >
-                                {customer.name}
-                              </Link>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-col gap-0.5">
+                                <Link
+                                  href={`/customers/${customer.id}`}
+                                  className="font-semibold text-sm text-[#0f1724] hover:text-[#0b63ff] transition-colors"
+                                >
+                                  {customer.name}
+                                </Link>
+                                {customer.customer_number && (
+                                  <span className="text-xs text-[#6b7280] font-mono">
+                                    {customer.customer_number}
+                                  </span>
+                                )}
+                              </div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-600">
+                            <td className="px-4 py-3 text-sm text-gray-900">
                               <div className="flex items-center gap-2">
                                 <PhoneCall className="h-4 w-4 text-gray-400" />
                                 {customer.phone}
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-600 max-w-xs">
+                            <td className="px-4 py-3 text-sm text-gray-900 max-w-xs">
                               {customer.address ? (
                                 <div className="flex items-start gap-2">
                                   <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
@@ -249,25 +318,21 @@ export default function CustomersPage() {
                                 <span className="text-gray-400">-</span>
                               )}
                             </td>
-                            <td className="px-6 py-4">
-                              <span
-                                className={`text-sm font-semibold ${
-                                  hasDues ? "text-red-600" : "text-green-600"
-                                }`}
-                              >
-                                {hasDues ? formatCurrency(customer.due_amount) : "No dues"}
+                            <td className="px-4 py-3">
+                              <span className={`text-sm font-semibold ${dueAmountClass}`}>
+                                {dueAmountText}
                               </span>
                             </td>
-                            <td className="px-6 py-4">
-                              {customer.id_proof_type ? (
-                                <Badge variant="outline" className="text-xs">
-                                  {getProofTypeLabel(customer.id_proof_type)}
+                            <td className="px-4 py-3">
+                              {proofLabel ? (
+                                <Badge variant="outline" className="text-xs border-gray-200">
+                                  {proofLabel}
                                 </Badge>
                               ) : (
                                 <span className="text-sm text-gray-400">-</span>
                               )}
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <a
                                   href={callUrl}
@@ -275,20 +340,20 @@ export default function CustomersPage() {
                                     e.preventDefault();
                                     window.location.href = callUrl;
                                   }}
-                                  className="p-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center justify-center"
+                                  className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center justify-center h-8 w-8"
                                   title="Call"
                                 >
-                                  <PhoneCall className="h-5 w-5" />
+                                  <PhoneCall className="h-4 w-4" />
                                 </a>
                                 <a
                                   href={whatsappUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="p-2.5 bg-[#25D366] hover:bg-[#20BA5A] text-white rounded-lg transition-colors flex items-center justify-center"
+                                  className="p-2 bg-[#25D366] hover:bg-[#20BA5A] text-white rounded-lg transition-colors flex items-center justify-center h-8 w-8"
                                   title="WhatsApp"
                                 >
                                   <svg
-                                    className="h-5 w-5"
+                                    className="h-4 w-4"
                                     fill="currentColor"
                                     viewBox="0 0 24 24"
                                     xmlns="http://www.w3.org/2000/svg"
@@ -298,10 +363,8 @@ export default function CustomersPage() {
                                 </a>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-600">
-                              {customer.created_at
-                                ? formatDate(customer.created_at, "dd MMM yyyy")
-                                : "-"}
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {formattedDate}
                             </td>
                           </tr>
                         );
@@ -313,58 +376,39 @@ export default function CustomersPage() {
             </div>
           </>
         ) : (
-          <Card className="p-12 text-center">
-            <User className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600 font-medium text-lg">
-              {searchQuery ? "No customers found" : "No customers yet"}
-            </p>
-            <p className="text-sm text-gray-400 mt-2">
-              {searchQuery
+          <EmptyState
+            icon={<User className="h-16 w-16" />}
+            title={searchQuery ? "No customers found" : "No customers yet"}
+            description={
+              searchQuery
                 ? "Try a different search term"
-                : "Add your first customer to get started"}
-            </p>
-          </Card>
+                : "Add your first customer to get started"
+            }
+            action={
+              !searchQuery
+                ? {
+                    label: "Add Customer",
+                    onClick: () => (window.location.href = "/customers/new"),
+                  }
+                : undefined
+            }
+          />
         )}
       </div>
 
       {/* Pagination */}
-      {customersData && customersData.totalPages > 1 && (
-        <div className="flex items-center justify-between pt-6 border-t px-4">
-          <div className="text-sm text-gray-600">
-            Showing {(currentPage - 1) * pageSize + 1} to{" "}
-            {Math.min(currentPage * pageSize, customersData.total)} of {customersData.total} customers
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setCurrentPage((p) => Math.max(1, p - 1));
-                scrollToTop();
-              }}
-              disabled={currentPage === 1 || isLoading}
-              className="h-10 px-4"
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Previous
-            </Button>
-            <div className="text-sm text-gray-600 px-3">
-              Page {currentPage} of {customersData.totalPages}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setCurrentPage((p) => Math.min(customersData.totalPages, p + 1));
-                scrollToTop();
-              }}
-              disabled={currentPage >= customersData.totalPages || isLoading}
-              className="h-10 px-4"
-            >
-              Next
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
+      {customersData && totalPages > 1 && (
+        <div className="pt-6 border-t border-gray-200 px-4 md:px-6">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalFiltered}
+            pageSize={pageSize}
+            onPageChange={(page) => {
+              setCurrentPage(page);
+              scrollToTop();
+            }}
+          />
         </div>
       )}
 

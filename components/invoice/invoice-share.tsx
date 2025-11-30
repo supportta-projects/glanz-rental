@@ -12,12 +12,18 @@ import { useToast } from "@/components/ui/toast";
 interface InvoiceShareProps {
   order: Order;
   user: User | null;
+  showInvoice?: boolean;
+  onShowInvoiceChange?: (show: boolean) => void;
 }
 
-export function InvoiceShare({ order, user }: InvoiceShareProps) {
-  const [showInvoice, setShowInvoice] = useState(false);
+export function InvoiceShare({ order, user, showInvoice: externalShowInvoice, onShowInvoiceChange }: InvoiceShareProps) {
+  const [internalShowInvoice, setInternalShowInvoice] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const { showToast } = useToast();
+  
+  // Use external control if provided, otherwise use internal state
+  const showInvoice = externalShowInvoice !== undefined ? externalShowInvoice : internalShowInvoice;
+  const setShowInvoice = onShowInvoiceChange || setInternalShowInvoice;
 
 
   const shareOnWhatsApp = async () => {

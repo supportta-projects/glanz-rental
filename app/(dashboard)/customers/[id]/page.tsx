@@ -338,6 +338,16 @@ export default function CustomerDetailsPage() {
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Customer Number */}
+              {customer.customer_number && (
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <Label className="text-xs text-gray-500 mb-1">Customer ID</Label>
+                    <p className="text-base font-semibold text-[#0b63ff] font-mono">{customer.customer_number}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Name */}
               <div className="flex items-start gap-3">
                 <div className="flex-1">

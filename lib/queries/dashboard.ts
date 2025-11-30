@@ -22,41 +22,54 @@ export function useDashboardStats(
   return useQuery({
     queryKey: ["dashboard-stats", branchId, rangeStart, rangeEnd],
     queryFn: async (): Promise<DashboardStats> => {
+      if (!branchId) throw new Error("Branch ID required");
+
+      // Try RPC function first (if available), fallback to direct query
+      try {
+        const { data, error } = await (supabase.rpc as any)("get_dashboard_stats", {
+          p_branch_id: branchId,
+          p_start_date: rangeStart,
+          p_end_date: rangeEnd,
+        });
+
+        if (!error && data) {
+          return data as DashboardStats;
+        }
+      } catch (rpcError: any) {
+        // Fallback if RPC function doesn't exist (404) or fails
+        if (rpcError?.code === "PGRST116" || rpcError?.status === 404) {
+          console.warn("[useDashboardStats] RPC function not found, using fallback query");
+        }
+      }
+
+      // Fallback to direct query
       let ordersQuery = supabase
         .from("orders")
         .select("status, total_amount, created_at")
         .gte("created_at", rangeStart)
-        .lte("created_at", rangeEnd);
+        .lte("created_at", rangeEnd)
+        .eq("branch_id", branchId);
 
-      if (branchId) {
-        ordersQuery = ordersQuery.eq("branch_id", branchId);
-      }
-
-      const { data: ordersData, error } = await ordersQuery;
-
-      if (error) throw error;
+      const { data: ordersData, error: ordersError } = await ordersQuery;
+      if (ordersError) throw ordersError;
 
       const orders = (ordersData || []) as Array<{ status: string; total_amount?: number }>;
       
-      const active = orders.filter((o) => o.status === "active").length || 0;
-      const pendingReturn =
-        orders.filter((o) => o.status === "pending_return").length || 0;
-      const completed =
-        orders.filter((o) => o.status === "completed").length || 0;
-      const todayCollection =
-        orders
-          .filter((o) => o.status === "completed")
-          .reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
-
       return {
-        active,
-        pending_return: pendingReturn,
-        today_collection: todayCollection,
-        completed,
+        active: orders.filter((o) => o.status === "active").length || 0,
+        pending_return: orders.filter((o) => o.status === "pending_return").length || 0,
+        completed: orders.filter((o) => o.status === "completed").length || 0,
+        today_collection: orders
+          .filter((o) => o.status === "completed")
+          .reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0,
       };
     },
     enabled: !!branchId,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 30000, // 30s as per requirements
+    gcTime: 300000, // 5m as per requirements
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 
@@ -69,16 +82,14 @@ export function useRecentOrders(branchId: string | null) {
   return useQuery({
     queryKey: ["recent-orders", branchId],
     queryFn: async (): Promise<Order[]> => {
-      // Optimize: Only select fields we actually use
+      if (!branchId) throw new Error("Branch ID required");
+
       let query = supabase
         .from("orders")
         .select("id, invoice_number, start_date, end_date, status, total_amount, created_at, customer:customers(id, name), branch:branches(id, name)")
+        .eq("branch_id", branchId)
         .order("created_at", { ascending: false })
         .limit(8);
-
-      if (branchId) {
-        query = query.eq("branch_id", branchId);
-      }
 
       const { data, error } = await query;
 
@@ -86,6 +97,10 @@ export function useRecentOrders(branchId: string | null) {
       return data as Order[];
     },
     enabled: !!branchId,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 30000, // 30s as per requirements
+    gcTime: 300000, // 5m as per requirements
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }

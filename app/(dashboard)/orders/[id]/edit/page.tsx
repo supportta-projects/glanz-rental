@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, Trash2, Camera } from "lucide-react";
 import Link from "next/link";
 import { useUserStore } from "@/lib/stores/useUserStore";
-import { useOrderDraftStore } from "@/lib/stores/useOrderDraftStore";
+import { useOrderDraftStore, useOrderSubtotal, useOrderGrandTotal, useOrderGst } from "@/lib/stores/useOrderDraftStore";
 import { useOrder, useUpdateOrder } from "@/lib/queries/orders";
 import { calculateDays } from "@/lib/utils/date";
 import { CameraUpload } from "@/components/orders/camera-upload";
@@ -38,15 +38,19 @@ export default function EditOrderPage() {
     addItem,
     updateItem,
     removeItem,
-    calculateGrandTotal,
-    calculateSubtotal,
-    calculateGst,
     loadOrder,
     clearDraft,
   } = useOrderDraftStore();
+  
+  // Use optimized selectors
+  const subtotal = useOrderSubtotal();
+  const gstAmount = useOrderGst();
+  const grandTotal = useOrderGrandTotal();
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const itemsSectionRef = useRef<HTMLDivElement>(null);
+  const [newItemIndex, setNewItemIndex] = useState<number | null>(null);
 
   // Load order data into draft when order loads
   useEffect(() => {
@@ -63,9 +67,7 @@ export default function EditOrderPage() {
     ? calculateDays(draft.start_date, draft.end_date)
     : 0;
 
-  const subtotal = calculateSubtotal();
-  const gstAmount = calculateGst();
-  const grandTotal = calculateGrandTotal();
+  // Values already computed via selectors above
   const gstIncluded = user?.gst_included ?? false;
   const gstEnabled = user?.gst_enabled ?? false;
 
@@ -81,7 +83,29 @@ export default function EditOrderPage() {
       line_total: 0,
     };
 
+    // Add item (will be prepended to the beginning of the array)
     addItem(newItem);
+    
+    // Mark the first item (index 0) as newly added for highlight animation
+    setNewItemIndex(0);
+    
+    // Smooth scroll to the newly added item after a brief delay
+    // This allows React to render the new item first
+    setTimeout(() => {
+      if (itemsSectionRef.current) {
+        // Scroll to the items section, with offset for better visibility
+        itemsSectionRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start',
+          inline: 'nearest'
+        });
+      }
+      
+      // Remove highlight after animation completes
+      setTimeout(() => {
+        setNewItemIndex(null);
+      }, 2000);
+    }, 100);
   };
 
   const handleUpdateItem = (index: number, field: keyof OrderItem, value: any) => {
@@ -296,7 +320,7 @@ export default function EditOrderPage() {
         </div>
 
         {/* Items Section */}
-        <div className="space-y-4">
+        <div className="space-y-4" ref={itemsSectionRef}>
           <div className="flex items-center justify-between">
             <Label className="text-lg font-bold">Items</Label>
             <CameraUpload onUploadComplete={handleAddItem} />
@@ -305,7 +329,14 @@ export default function EditOrderPage() {
           {/* Items List */}
           <div className="space-y-4">
             {draft.items.map((item, index) => (
-              <Card key={index} className="p-4 rounded-xl">
+              <Card 
+                key={index} 
+                className={`p-4 rounded-xl transition-all duration-500 ${
+                  newItemIndex === index 
+                    ? 'ring-2 ring-sky-500 bg-sky-50/50 shadow-lg' 
+                    : ''
+                }`}
+              >
                 <div className="space-y-4">
                   {/* Photo */}
                   <div className="flex justify-center">
@@ -341,32 +372,58 @@ export default function EditOrderPage() {
                       <Label className="text-sm text-gray-600">Quantity</Label>
                       <Input
                         type="number"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          handleUpdateItem(
-                            index,
-                            "quantity",
-                            parseInt(e.target.value) || 0
-                          )
-                        }
+                        value={item.quantity === 0 ? "" : item.quantity}
+                        onChange={(e) => {
+                          const value = e.target.value.trim();
+                          // Allow empty string for better UX - user can clear and type fresh
+                          if (value === "" || value === "-") {
+                            handleUpdateItem(index, "quantity", 0);
+                            return;
+                          }
+                          // Parse and validate
+                          const numValue = parseInt(value, 10);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            handleUpdateItem(index, "quantity", numValue);
+                          }
+                        }}
+                        onFocus={(e) => {
+                          // Select all text when focused, especially if value is 0
+                          // This allows user to immediately type and replace the value
+                          e.target.select();
+                        }}
                         className="h-12 text-base rounded-xl"
                         inputMode="numeric"
+                        min="0"
+                        step="1"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm text-gray-600">Price</Label>
                       <Input
                         type="number"
-                        value={item.price_per_day}
-                        onChange={(e) =>
-                          handleUpdateItem(
-                            index,
-                            "price_per_day",
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
+                        value={item.price_per_day === 0 ? "" : item.price_per_day}
+                        onChange={(e) => {
+                          const value = e.target.value.trim();
+                          // Allow empty string for better UX - user can clear and type fresh
+                          if (value === "" || value === "-" || value === ".") {
+                            handleUpdateItem(index, "price_per_day", 0);
+                            return;
+                          }
+                          // Parse and validate
+                          const numValue = parseFloat(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            handleUpdateItem(index, "price_per_day", numValue);
+                          }
+                        }}
+                        onFocus={(e) => {
+                          // Select all text when focused, especially if value is 0
+                          // This allows user to immediately type and replace the value
+                          e.target.select();
+                        }}
                         className="h-12 text-base rounded-xl"
                         inputMode="decimal"
+                        min="0"
+                        step="0.01"
                       />
                     </div>
                   </div>

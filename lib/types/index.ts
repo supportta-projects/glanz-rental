@@ -2,7 +2,7 @@
 
 export type UserRole = "super_admin" | "branch_admin" | "staff";
 
-export type OrderStatus = "active" | "pending_return" | "completed";
+export type OrderStatus = "active" | "pending_return" | "completed" | "cancelled";
 
 export interface User {
   id: string;
@@ -28,6 +28,7 @@ export interface Branch {
 
 export interface Customer {
   id: string;
+  customer_number?: string; // Format: GLA-00001
   name: string;
   phone: string;
   email?: string;

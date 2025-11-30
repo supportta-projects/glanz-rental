@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Trash2, Camera } from "lucide-react";
 import Link from "next/link";
 import { useUserStore } from "@/lib/stores/useUserStore";
-import { useOrderDraftStore } from "@/lib/stores/useOrderDraftStore";
+import { useOrderDraftStore, useOrderSubtotal, useOrderGrandTotal, useOrderGst } from "@/lib/stores/useOrderDraftStore";
 import { useCreateOrder } from "@/lib/queries/orders";
 import { calculateDays } from "@/lib/utils/date";
 import { CameraUpload } from "@/components/orders/camera-upload";
@@ -34,22 +34,23 @@ export default function CreateOrderPage() {
     addItem,
     updateItem,
     removeItem,
-    calculateGrandTotal,
-    calculateSubtotal,
-    calculateGst,
     clearDraft,
   } = useOrderDraftStore();
+  
+  // Use optimized selectors
+  const subtotal = useOrderSubtotal();
+  const gstAmount = useOrderGst();
+  const grandTotal = useOrderGrandTotal();
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const itemsSectionRef = useRef<HTMLDivElement>(null);
+  const [newItemIndex, setNewItemIndex] = useState<number | null>(null);
 
   const days = draft.end_date && draft.start_date
     ? calculateDays(draft.start_date, draft.end_date)
     : 0;
 
-  const subtotal = calculateSubtotal();
-  const gstAmount = calculateGst();
-  const grandTotal = calculateGrandTotal();
   const gstIncluded = user?.gst_included ?? false;
 
   // Set default start datetime to now and end datetime to next day (1 day rental default)
@@ -83,7 +84,29 @@ export default function CreateOrderPage() {
       line_total: 0,
     };
 
+    // Add item (will be prepended to the beginning of the array)
     addItem(newItem);
+    
+    // Mark the first item (index 0) as newly added for highlight animation
+    setNewItemIndex(0);
+    
+    // Smooth scroll to the newly added item after a brief delay
+    // This allows React to render the new item first
+    setTimeout(() => {
+      if (itemsSectionRef.current) {
+        // Scroll to the items section, with offset for better visibility
+        itemsSectionRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start',
+          inline: 'nearest'
+        });
+      }
+      
+      // Remove highlight after animation completes
+      setTimeout(() => {
+        setNewItemIndex(null);
+      }, 2000);
+    }, 100);
   };
 
   const handleUpdateItem = (index: number, field: keyof OrderItem, value: any) => {
@@ -167,16 +190,16 @@ export default function CreateOrderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 pb-32">
+    <div className="min-h-screen bg-gray-50 pb-32">
       {/* Header */}
-      <div className="bg-white border-b p-4 flex items-center gap-4 sticky top-0 z-10">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex items-center gap-4 sticky top-0 z-10">
         <Link href="/orders">
-          <ArrowLeft className="h-6 w-6 text-gray-600" />
+          <ArrowLeft className="h-5 w-5 text-[#6b7280] hover:text-[#0f1724] transition-colors" />
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">New Order</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-[#0f1724]">New Order</h1>
       </div>
 
-      <div className="p-4 space-y-6">
+      <div className="px-4 md:px-6 py-4 md:py-6 space-y-6">
         {/* Customer Section */}
         <CustomerSearch
           onSelectCustomer={setSelectedCustomer}
@@ -186,14 +209,14 @@ export default function CreateOrderPage() {
         {/* Branch & Staff (Readonly) */}
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label className="text-sm text-gray-600">Branch</Label>
-            <div className="h-14 bg-gray-50 rounded-xl px-4 flex items-center text-gray-700">
+            <Label className="text-sm text-[#6b7280] font-medium">Branch</Label>
+            <div className="h-10 bg-[#f1f5f9] rounded-lg px-3 flex items-center text-[#0f1724] text-sm">
               {user?.branch?.name || "N/A"}
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-sm text-gray-600">Staff</Label>
-            <div className="h-14 bg-gray-50 rounded-xl px-4 flex items-center text-gray-700">
+            <Label className="text-sm text-[#6b7280] font-medium">Staff</Label>
+            <div className="h-10 bg-[#f1f5f9] rounded-lg px-3 flex items-center text-[#0f1724] text-sm">
               {user?.full_name || "N/A"}
             </div>
           </div>
@@ -246,16 +269,23 @@ export default function CreateOrderPage() {
         </div>
 
         {/* Items Section */}
-        <div className="space-y-4">
+        <div className="space-y-4" ref={itemsSectionRef}>
           <div className="flex items-center justify-between">
-            <Label className="text-lg font-bold">Items</Label>
+            <Label className="text-lg font-bold text-[#0f1724]">Items</Label>
             <CameraUpload onUploadComplete={handleAddItem} />
           </div>
 
           {/* Items List */}
           <div className="space-y-4">
             {draft.items.map((item, index) => (
-              <Card key={index} className="p-4 rounded-xl">
+              <Card 
+                key={index} 
+                className={`p-4 rounded-lg border border-gray-200 bg-white transition-all duration-500 ${
+                  newItemIndex === index 
+                    ? 'ring-2 ring-[#0b63ff] bg-[#0b63ff]/5 shadow-lg' 
+                    : ''
+                }`}
+              >
                 <div className="space-y-4">
                   {/* Photo */}
                   <div className="flex justify-center">
@@ -288,35 +318,61 @@ export default function CreateOrderPage() {
                   {/* Quantity & Price Row */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label className="text-sm text-gray-600">Quantity</Label>
+                      <Label className="text-sm text-[#6b7280] font-medium">Quantity</Label>
                       <Input
                         type="number"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          handleUpdateItem(
-                            index,
-                            "quantity",
-                            parseInt(e.target.value) || 0
-                          )
-                        }
-                        className="h-12 text-base rounded-xl"
+                        value={item.quantity === 0 ? "" : item.quantity}
+                        onChange={(e) => {
+                          const value = e.target.value.trim();
+                          // Allow empty string for better UX - user can clear and type fresh
+                          if (value === "" || value === "-") {
+                            handleUpdateItem(index, "quantity", 0);
+                            return;
+                          }
+                          // Parse and validate
+                          const numValue = parseInt(value, 10);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            handleUpdateItem(index, "quantity", numValue);
+                          }
+                        }}
+                        onFocus={(e) => {
+                          // Select all text when focused, especially if value is 0
+                          // This allows user to immediately type and replace the value
+                          e.target.select();
+                        }}
+                        className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#0b63ff] focus:ring-1 focus:ring-[#0b63ff]"
                         inputMode="numeric"
+                        min="0"
+                        step="1"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm text-gray-600">Price</Label>
+                      <Label className="text-sm text-[#6b7280] font-medium">Price</Label>
                       <Input
                         type="number"
-                        value={item.price_per_day}
-                        onChange={(e) =>
-                          handleUpdateItem(
-                            index,
-                            "price_per_day",
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        className="h-12 text-base rounded-xl"
+                        value={item.price_per_day === 0 ? "" : item.price_per_day}
+                        onChange={(e) => {
+                          const value = e.target.value.trim();
+                          // Allow empty string for better UX - user can clear and type fresh
+                          if (value === "" || value === "-" || value === ".") {
+                            handleUpdateItem(index, "price_per_day", 0);
+                            return;
+                          }
+                          // Parse and validate
+                          const numValue = parseFloat(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            handleUpdateItem(index, "price_per_day", numValue);
+                          }
+                        }}
+                        onFocus={(e) => {
+                          // Select all text when focused, especially if value is 0
+                          // This allows user to immediately type and replace the value
+                          e.target.select();
+                        }}
+                        className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#0b63ff] focus:ring-1 focus:ring-[#0b63ff]"
                         inputMode="decimal"
+                        min="0"
+                        step="0.01"
                       />
                     </div>
                   </div>
@@ -347,7 +403,7 @@ export default function CreateOrderPage() {
 
         {/* Order Summary with GST */}
         {grandTotal > 0 && (
-          <Card className="p-5 bg-sky-50 rounded-xl space-y-3">
+          <Card className="p-5 bg-[#0b63ff]/5 rounded-lg border border-gray-200 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-base font-medium text-gray-700">
                 Subtotal
@@ -393,7 +449,7 @@ export default function CreateOrderPage() {
         <Button
           onClick={handleSaveOrder}
           disabled={createOrderMutation.isPending}
-          className="w-full h-14 bg-sky-500 hover:bg-sky-600 text-white text-base font-semibold rounded-xl mt-6"
+          className="w-full h-10 bg-[#0b63ff] hover:bg-[#0a5ce6] text-white text-sm font-medium rounded-lg mt-6"
         >
           {createOrderMutation.isPending ? "Saving..." : "Save Order"}
         </Button>

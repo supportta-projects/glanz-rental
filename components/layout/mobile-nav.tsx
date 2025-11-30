@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Home, ShoppingCart, Users, BarChart3, User } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { useUserStore } from "@/lib/stores/useUserStore";
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
@@ -15,6 +17,33 @@ const navItems = [
 
 export function MobileNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user } = useUserStore();
+
+  // Prefetch data on link press/touch for ultra-fast navigation
+  const handleLinkInteraction = (href: string) => {
+    // Prefetch the route immediately
+    router.prefetch(href);
+    
+    // Prefetch query data based on route
+    if (href === "/orders") {
+      queryClient.prefetchQuery({
+        queryKey: ["orders", user?.branch_id, 1, 20, { status: "all" }],
+      });
+    } else if (href === "/customers") {
+      queryClient.prefetchQuery({
+        queryKey: ["customers", undefined, 1, 25],
+      });
+    } else if (href === "/dashboard") {
+      queryClient.prefetchQuery({
+        queryKey: ["dashboard-stats", user?.branch_id],
+      });
+      queryClient.prefetchQuery({
+        queryKey: ["recent-orders", user?.branch_id],
+      });
+    }
+  };
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 md:hidden safe-bottom">
@@ -27,6 +56,9 @@ export function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={true}
+              onTouchStart={() => handleLinkInteraction(item.href)}
+              onMouseEnter={() => handleLinkInteraction(item.href)}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 flex-1 h-full",
                 isActive ? "text-sky-500" : "text-gray-500"

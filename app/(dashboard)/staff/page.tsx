@@ -1,10 +1,13 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
+// Static for staff (as per requirements)
+export const dynamic = 'force-static';
+
 import { useUserStore } from "@/lib/stores/useUserStore";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { UserCog, ShieldX } from "lucide-react";
+import { PageHeader, EmptyState, ActionButton } from "@/components/shared";
 import { FloatingActionButton } from "@/components/layout/floating-action-button";
+import Link from "next/link";
 
 export default function StaffPage() {
   const { user } = useUserStore();
@@ -12,34 +15,33 @@ export default function StaffPage() {
   // Only Super Admin and Branch Admin can access
   if (user?.role === "staff") {
     return (
-      <div className="min-h-screen bg-zinc-50 p-4 flex items-center justify-center">
-        <Card className="p-8 text-center">
-          <p className="text-gray-500">Access denied</p>
-          <p className="text-sm text-gray-400 mt-2">
-            Only Admins can manage staff
-          </p>
-        </Card>
+      <div className="min-h-screen bg-[#f7f9fb] p-4 md:p-6 flex items-center justify-center">
+        <EmptyState
+          icon={<ShieldX className="h-16 w-16" />}
+          title="Access denied"
+          description="Only Admins can manage staff"
+        />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 pb-24">
-      <div className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-10">
-        <h1 className="text-2xl font-bold text-gray-900">Staff Management</h1>
-        <Button className="hidden md:flex bg-sky-500 hover:bg-sky-600">
-          <Plus className="h-5 w-5 mr-2" />
-          Add Staff
-        </Button>
-      </div>
+    <div className="min-h-screen bg-[#f7f9fb] pb-24">
+      <PageHeader
+        title="Staff Management"
+        actions={
+          <Link href="/staff/new" className="hidden md:flex">
+            <ActionButton label="Add Staff" onClick={() => {}} />
+          </Link>
+        }
+      />
 
-      <div className="p-4">
-        <Card className="p-8 text-center">
-          <p className="text-gray-500">Staff management coming soon</p>
-          <p className="text-sm text-gray-400 mt-2">
-            Add and manage staff members
-          </p>
-        </Card>
+      <div className="px-4 md:px-6 py-4">
+        <EmptyState
+          icon={<UserCog className="h-16 w-16" />}
+          title="Staff management coming soon"
+          description="Add and manage staff members"
+        />
       </div>
 
       <FloatingActionButton href="/staff/new" label="Add Staff" />

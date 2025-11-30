@@ -1,21 +1,120 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { Order } from "@/lib/types";
 import { useRealtimeSubscription } from "@/lib/hooks/use-realtime-subscription";
 
+const PAGE_SIZE = 50; // Optimized page size for infinite scroll
+
+// Infinite query using RPC function for <10ms queries
+export function useOrdersInfinite(
+  branchId: string | null,
+  filters?: {
+    status?: "all" | "active" | "pending" | "completed" | "cancelled";
+    searchQuery?: string; // Client-side only
+    dateRange?: { start: Date; end: Date };
+  }
+) {
+  const supabase = createClient();
+  
+  // Realtime only for orders page (as per requirements)
+  useRealtimeSubscription("orders", branchId);
+
+  return useInfiniteQuery({
+    queryKey: ["orders-infinite", branchId, filters],
+    queryFn: async ({ pageParam = 0 }) => {
+      // Add small delay to prevent flash of loading state
+      await new Promise(resolve => setTimeout(resolve, 0));
+      if (!branchId) throw new Error("Branch ID required");
+
+      // Try RPC function first (if available), fallback to direct query
+      let result: { data: Order[]; total: number };
+      
+      try {
+        const { data, error } = await (supabase.rpc as any)("get_orders_with_items", {
+          p_branch_id: branchId,
+          p_status: filters?.status === "all" ? null : filters?.status || null,
+          p_start_date: filters?.dateRange?.start.toISOString() || null,
+          p_end_date: filters?.dateRange?.end.toISOString() || null,
+          p_limit: PAGE_SIZE,
+          p_offset: pageParam * PAGE_SIZE,
+        });
+
+        if (error) throw error;
+        result = data as { data: Order[]; total: number };
+      } catch (rpcError: any) {
+        // Fallback to direct query if RPC function doesn't exist (404) or fails
+        if (rpcError?.code === "PGRST116" || rpcError?.status === 404) {
+          console.warn("[useOrdersInfinite] RPC function not found, using fallback query");
+        }
+        
+        const from = pageParam * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        let query = supabase
+          .from("orders")
+          .select("id, invoice_number, branch_id, staff_id, customer_id, start_date, end_date, start_datetime, end_datetime, status, total_amount, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id)", { count: "exact" })
+          .eq("branch_id", branchId)
+          .order("created_at", { ascending: false });
+
+        if (filters?.dateRange) {
+          const startDate = filters.dateRange.start.toISOString().split("T")[0];
+          const endDate = filters.dateRange.end.toISOString().split("T")[0];
+          query = query.gte("created_at", startDate).lte("created_at", endDate + "T23:59:59");
+        }
+
+        if (filters?.status && filters.status !== "all") {
+          if (filters.status === "active") {
+            query = query.eq("status", "active");
+          } else if (filters.status === "pending") {
+            query = query.eq("status", "pending_return");
+          } else if (filters.status === "completed") {
+            query = query.eq("status", "completed");
+          } else if (filters.status === "cancelled") {
+            query = query.eq("status", "cancelled");
+          }
+        }
+
+        query = query.range(from, to);
+
+        const { data, error, count } = await query;
+        if (error) throw error;
+
+        result = {
+          data: (data as Order[]) || [],
+          total: count || 0,
+        };
+      }
+      
+      return {
+        data: result.data || [],
+        total: result.total || 0,
+        nextPage: result.data?.length === PAGE_SIZE ? pageParam + 1 : undefined,
+      };
+    },
+    getNextPageParam: (lastPage, pages) => lastPage.nextPage,
+    initialPageParam: 0,
+    enabled: !!branchId,
+    staleTime: 30000, // 30s as per requirements
+    gcTime: 300000, // 5m as per requirements
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+}
+
+// Legacy paginated query (for backward compatibility)
 export function useOrders(
   branchId: string | null, 
   page: number = 1, 
   pageSize: number = 20,
   filters?: {
-    status?: "all" | "active" | "pending" | "completed";
+    status?: "all" | "active" | "pending" | "completed" | "cancelled";
     searchQuery?: string;
     dateRange?: { start: Date; end: Date };
   }
 ) {
   const supabase = createClient();
   
-  // Set up real-time subscription for orders (updates across all devices)
   useRealtimeSubscription("orders", branchId);
 
   return useQuery({
@@ -24,26 +123,21 @@ export function useOrders(
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
-      // Optimize: Only select fields we actually use
       let query = supabase
         .from("orders")
-        .select("id, invoice_number, branch_id, staff_id, customer_id, start_date, end_date, start_datetime, end_datetime, status, total_amount, created_at, customer:customers(id, name, phone), branch:branches(id, name)", { count: "exact" })
+        .select("id, invoice_number, branch_id, staff_id, customer_id, start_date, end_date, start_datetime, end_datetime, status, total_amount, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id)", { count: "exact" })
         .order("created_at", { ascending: false });
 
-      // Branch filter
       if (branchId) {
         query = query.eq("branch_id", branchId);
       }
 
-      // Date range filter (server-side) - only apply if provided
       if (filters?.dateRange) {
         const startDate = filters.dateRange.start.toISOString().split("T")[0];
         const endDate = filters.dateRange.end.toISOString().split("T")[0];
-        // Use gte and lte for date range filtering on created_at
         query = query.gte("created_at", startDate).lte("created_at", endDate + "T23:59:59");
       }
 
-      // Status filter (server-side)
       if (filters?.status && filters.status !== "all") {
         if (filters.status === "active") {
           query = query.eq("status", "active");
@@ -51,19 +145,11 @@ export function useOrders(
           query = query.eq("status", "pending_return");
         } else if (filters.status === "completed") {
           query = query.eq("status", "completed");
+        } else if (filters.status === "cancelled") {
+          query = query.eq("status", "cancelled");
         }
       }
 
-      // Search filter (server-side) - search in invoice number
-      // Note: Customer name/phone search requires a different approach with joins
-      // For now, we search invoice_number server-side and filter customer fields client-side if needed
-      if (filters?.searchQuery?.trim()) {
-        const search = filters.searchQuery.trim();
-        // Search invoice number (most common search)
-        query = query.ilike("invoice_number", `%${search}%`);
-      }
-
-      // Apply pagination after all filters
       query = query.range(from, to);
 
       const { data, error, count } = await query;
@@ -78,8 +164,11 @@ export function useOrders(
       };
     },
     enabled: !!branchId,
-    refetchOnWindowFocus: true, // Refetch when window regains focus
-    refetchInterval: 30000, // Fallback refetch every 30 seconds
+    staleTime: 30000, // 30s
+    gcTime: 300000, // 5m
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 
@@ -309,10 +398,9 @@ export function useUpdateOrderStatus() {
       lateFee = 0,
     }: {
       orderId: string;
-      status: "active" | "pending_return" | "completed";
+      status: "active" | "pending_return" | "completed" | "cancelled";
       lateFee?: number;
     }) => {
-      // Get current order to calculate new total
       const { data: currentOrderData, error: fetchError } = await supabase
         .from("orders")
         .select("total_amount, late_fee")
@@ -322,8 +410,6 @@ export function useUpdateOrderStatus() {
       if (fetchError) throw fetchError;
 
       const currentOrder = currentOrderData as { total_amount?: number; late_fee?: number } | null;
-
-      // Calculate new total: original total + new late fee - old late fee
       const originalTotal = (currentOrder?.total_amount || 0) - (currentOrder?.late_fee || 0);
       const newTotal = originalTotal + lateFee;
 
@@ -341,14 +427,44 @@ export function useUpdateOrderStatus() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      // Invalidate all related queries for immediate UI update
+    // Optimistic update for instant UI feedback
+    onMutate: async ({ orderId, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["orders-infinite"] });
+      
+      const previousData = queryClient.getQueriesData({ queryKey: ["orders-infinite"] });
+      
+      // Optimistically update infinite query cache
+      queryClient.setQueriesData({ queryKey: ["orders-infinite"] }, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            data: page.data.map((order: Order) =>
+              order.id === orderId ? { ...order, status } : order
+            ),
+          })),
+        };
+      });
+
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["orders-infinite"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["order"] });
+      queryClient.invalidateQueries({ queryKey: ["order", variables.orderId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["recent-orders"] });
       queryClient.invalidateQueries({ queryKey: ["customer-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["customers"] }); // Customer dues may change
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
   });
 }

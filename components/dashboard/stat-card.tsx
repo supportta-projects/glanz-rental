@@ -29,7 +29,7 @@ export const StatCard = memo(function StatCard({
   return (
     <Card
       className={cn(
-        "p-5 rounded-xl shadow-sm border-l-4",
+        "p-5 rounded-lg shadow-sm border-l-4 border border-gray-200 bg-white",
         borderColor,
         bgColor,
         blinking && "animate-pulse"
@@ -37,8 +37,8 @@ export const StatCard = memo(function StatCard({
     >
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-600 mb-1 truncate">{title}</p>
-          <p className={cn("text-4xl font-bold truncate", textColor)}>
+          <p className="text-sm text-[#6b7280] mb-1.5 truncate font-medium">{title}</p>
+          <p className={cn("text-3xl font-bold truncate", textColor)}>
             {value}
           </p>
         </div>

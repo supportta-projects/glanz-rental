@@ -1,21 +1,19 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
+import { BarChart3 } from "lucide-react";
+import { PageHeader, EmptyState } from "@/components/shared";
 
 export default function ReportsPage() {
   return (
-    <div className="min-h-screen bg-zinc-50 pb-24">
-      <div className="bg-white border-b p-4 sticky top-0 z-10">
-        <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
-      </div>
+    <div className="min-h-screen bg-[#f7f9fb] pb-24">
+      <PageHeader title="Reports" />
 
-      <div className="p-4">
-        <Card className="p-8 text-center">
-          <p className="text-gray-500">Reports coming soon</p>
-          <p className="text-sm text-gray-400 mt-2">
-            Daily collection, customer history, and CSV export
-          </p>
-        </Card>
+      <div className="px-4 md:px-6 py-4">
+        <EmptyState
+          icon={<BarChart3 className="h-16 w-16" />}
+          title="Reports coming soon"
+          description="Daily collection, customer history, and CSV export"
+        />
       </div>
     </div>
   );

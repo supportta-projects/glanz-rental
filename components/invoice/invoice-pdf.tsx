@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   totalValue: {
     fontSize: 18,
-    color: "#0284c7",
+    color: "#0b63ff",
     fontWeight: "bold",
   },
   qrSection: {

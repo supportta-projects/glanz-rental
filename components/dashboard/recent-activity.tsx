@@ -37,24 +37,24 @@ const OrderItem = memo(function OrderItem({ order }: OrderItemProps) {
   return (
     <Link href={`/orders/${order.id}`}>
       <Card
-        className={`p-4 rounded-xl transition-all ${
+        className={`p-4 rounded-lg border border-gray-200 transition-all ${
           isPendingReturn
             ? "bg-red-50 border-l-4 border-l-red-500"
-            : "bg-white hover:shadow-md"
+            : "bg-white hover:shadow-md hover:border-gray-300"
         }`}
       >
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-gray-900">
+            <span className="font-bold text-[#0f1724] text-sm">
               {order.invoice_number}
             </span>
             <Badge
               className={
                 status === "active"
-                  ? "bg-green-500"
+                  ? "bg-green-100 text-green-700 border-green-200"
                   : status === "pending_return"
-                  ? "bg-red-500"
-                  : "bg-gray-500"
+                  ? "bg-red-100 text-red-700 border-red-200"
+                  : "bg-gray-100 text-gray-700 border-gray-200"
               }
             >
               {status === "active"
@@ -64,10 +64,10 @@ const OrderItem = memo(function OrderItem({ order }: OrderItemProps) {
                 : "Completed"}
             </Badge>
           </div>
-          <span className="text-xs text-gray-500">{timeAgo}</span>
+          <span className="text-xs text-[#6b7280]">{timeAgo}</span>
         </div>
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-gray-700">
+          <p className="text-sm font-medium text-[#0f1724]">
             {order.customer?.name || "Unknown"}
           </p>
           <p className="text-sm font-bold text-green-600">
@@ -100,8 +100,8 @@ export const RecentActivity = memo(function RecentActivity({
 
   if (!orders || orders.length === 0) {
     return (
-      <Card className="p-8 text-center">
-        <p className="text-gray-500">No recent activity</p>
+      <Card className="p-8 text-center border border-gray-200 bg-white">
+        <p className="text-[#6b7280]">No recent activity</p>
       </Card>
     );
   }

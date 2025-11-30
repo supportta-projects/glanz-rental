@@ -29,7 +29,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
   
   return (
     <div 
-      className="bg-white p-6 md:p-10 max-w-3xl mx-auto" 
+      className="bg-white p-6 md:p-10 max-w-3xl mx-auto print:p-0 print:max-w-full" 
       id="invoice-preview"
       data-invoice-id={invoiceId}
       style={{ 
@@ -40,13 +40,13 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
       }}
     >
       {/* Professional Header with Logo Area */}
-      <div className="text-center mb-8 border-b-2 border-gray-300 pb-6">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2 tracking-tight">GLANZ RENTAL</h1>
-        <p className="text-base text-gray-600 font-medium">Rental Invoice</p>
+      <div className="text-center mb-8 border-b-2 border-gray-300 pb-6 print:mb-4 print:pb-3">
+        <h1 className="text-4xl font-bold text-gray-900 mb-2 tracking-tight print:text-3xl print:mb-1">GLANZ RENTAL</h1>
+        <p className="text-base text-gray-600 font-medium print:text-sm">Rental Invoice</p>
       </div>
 
       {/* Business Info Section */}
-      <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 print:mb-4 print:gap-4">
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">From</h3>
           {user?.branch && (
@@ -81,7 +81,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
       </div>
 
       {/* Invoice Details */}
-      <div className="mb-8 grid grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg">
+      <div className="mb-8 grid grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg print:mb-4 print:gap-3 print:p-3">
         <div>
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Invoice Number</p>
           <p className="text-lg font-bold text-gray-900">{order.invoice_number}</p>
@@ -105,41 +105,41 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
       </div>
 
       {/* Items Table - Professional Design */}
-      <div className="mb-8 overflow-x-auto">
-        <table className="w-full border-collapse">
+      <div className="mb-8 overflow-x-auto print:mb-4">
+        <table className="w-full border-collapse print:text-xs">
           <thead>
             <tr className="bg-gray-100 border-b-2 border-gray-300">
-              <th className="text-left py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide">Image</th>
-              <th className="text-left py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide">Product Name</th>
-              <th className="text-center py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide">Quantity</th>
-              <th className="text-right py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide">Price per Unit</th>
-              <th className="text-right py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide">Total Amount</th>
+              <th className="text-left py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide print:py-2 print:px-2">Image</th>
+              <th className="text-left py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide print:py-2 print:px-2">Product Name</th>
+              <th className="text-center py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide print:py-2 print:px-2">Quantity</th>
+              <th className="text-right py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide print:py-2 print:px-2">Price per Unit</th>
+              <th className="text-right py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide print:py-2 print:px-2">Total Amount</th>
             </tr>
           </thead>
           <tbody>
             {order.items?.map((item, index) => (
-              <tr key={index} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                <td className="py-4 px-4">
+              <tr key={index} className="border-b border-gray-200 hover:bg-gray-50 transition-colors print:border-b print:border-gray-300">
+                <td className="py-4 px-4 print:py-2 print:px-2">
                   <img 
                     src={item.photo_url} 
                     alt={item.product_name || "Product"} 
-                    className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200"
+                    className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200 print:w-16 print:h-16 print:rounded"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ddd' width='100' height='100'/%3E%3Ctext fill='%23999' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3ENo Image%3C/text%3E%3C/svg%3E";
                     }}
                   />
                 </td>
-                <td className="py-4 px-4">
-                  <p className="font-semibold text-gray-900 text-sm">{item.product_name || "Unnamed Product"}</p>
+                <td className="py-4 px-4 print:py-2 print:px-2">
+                  <p className="font-semibold text-gray-900 text-sm print:text-xs">{item.product_name || "Unnamed Product"}</p>
                 </td>
-                <td className="py-4 px-4 text-center">
-                  <span className="font-semibold text-gray-900 text-sm">{item.quantity}</span>
+                <td className="py-4 px-4 text-center print:py-2 print:px-2">
+                  <span className="font-semibold text-gray-900 text-sm print:text-xs">{item.quantity}</span>
                 </td>
-                <td className="py-4 px-4 text-right">
-                  <span className="font-medium text-gray-700 text-sm">{formatCurrency(item.price_per_day)}</span>
+                <td className="py-4 px-4 text-right print:py-2 print:px-2">
+                  <span className="font-medium text-gray-700 text-sm print:text-xs">{formatCurrency(item.price_per_day)}</span>
                 </td>
-                <td className="py-4 px-4 text-right">
-                  <span className="font-bold text-gray-900 text-sm">{formatCurrency(item.line_total)}</span>
+                <td className="py-4 px-4 text-right print:py-2 print:px-2">
+                  <span className="font-bold text-gray-900 text-sm print:text-xs">{formatCurrency(item.line_total)}</span>
                 </td>
               </tr>
             ))}
@@ -148,8 +148,8 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
       </div>
 
       {/* Summary Section - Professional Layout */}
-      <div className="mb-8 flex justify-end">
-        <div className="w-full md:w-80 space-y-3">
+      <div className="mb-8 flex justify-end print:mb-4">
+        <div className="w-full md:w-80 space-y-3 print:w-full print:space-y-2">
           <div className="flex justify-between text-sm py-2 border-b border-gray-200">
             <span className="text-gray-600 font-medium">Total Items:</span>
             <span className="font-bold text-gray-900">{totalItems}</span>
@@ -180,26 +180,34 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
 
       {/* UPI QR Code Section */}
       {upiPaymentString && (
-        <div className="mb-8 p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 text-center">
-          <p className="font-bold text-gray-900 mb-3 text-lg">Scan to Pay via UPI</p>
-          <div className="flex justify-center mb-4">
-            <div className="bg-white p-4 rounded-lg shadow-lg">
-              <QRCodeSVG value={upiPaymentString} size={220} />
+        <div className="mb-8 p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 text-center print:mb-4 print:p-4 print:border">
+          <p className="font-bold text-gray-900 mb-3 text-lg print:text-base print:mb-2">Scan to Pay via UPI</p>
+          <div className="flex justify-center mb-4 print:mb-2">
+            <div className="bg-white p-4 rounded-lg shadow-lg print:p-2 print:shadow-none">
+              <QRCodeSVG 
+                value={upiPaymentString} 
+                size={220} 
+                style={{ 
+                  width: '220px', 
+                  height: '220px',
+                }}
+                className="print:w-32 print:h-32"
+              />
             </div>
           </div>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-gray-700">UPI ID: <span className="text-gray-900">{user?.upi_id || "N/A"}</span></p>
-            <p className="text-sm font-semibold text-gray-700">Amount: <span className="text-sky-600">{formatCurrency(order.total_amount)}</span></p>
+          <div className="space-y-1 print:space-y-0.5">
+            <p className="text-sm font-semibold text-gray-700 print:text-xs">UPI ID: <span className="text-gray-900">{user?.upi_id || "N/A"}</span></p>
+            <p className="text-sm font-semibold text-gray-700 print:text-xs">Amount: <span className="text-sky-600">{formatCurrency(order.total_amount)}</span></p>
           </div>
         </div>
       )}
 
       {/* Professional Footer */}
-      <div className="text-center border-t-2 border-gray-300 pt-6 space-y-2">
-        <p className="text-sm font-semibold text-gray-700">Thank you for your business!</p>
-        <p className="text-xs text-gray-500">For any queries, please contact us at: {user?.phone || "N/A"}</p>
+      <div className="text-center border-t-2 border-gray-300 pt-6 space-y-2 print:pt-3 print:space-y-1">
+        <p className="text-sm font-semibold text-gray-700 print:text-xs">Thank you for your business!</p>
+        <p className="text-xs text-gray-500 print:text-[10px]">For any queries, please contact us at: {user?.phone || "N/A"}</p>
         {user?.branch?.address && (
-          <p className="text-xs text-gray-500">{user.branch.address}</p>
+          <p className="text-xs text-gray-500 print:text-[10px]">{user.branch.address}</p>
         )}
       </div>
     </div>

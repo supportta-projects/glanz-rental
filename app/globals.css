@@ -1,18 +1,44 @@
 @import "tailwindcss";
 
+/* Performance: Tailwind optimization - only use classes that are actually used */
+/* Purge unused classes in production build */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f9fb;
+  --foreground: #0f1724;
+  --border: #00000000;
+  --input: #ffffff;
+  --primary: #0b63ff;
+  --primary-foreground: #ffffff;
+  --primary-hover: #0a5ce6;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f1724;
+  --muted: #e6eef8;
+  --muted-foreground: #6b7280;
+  --success: #0f9d58;
+  --success-foreground: #ffffff;
+  --accent: #ffb020;
+  --accent-foreground: #0f1724;
+  --destructive: #d7263d;
+  --destructive-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+  --card: #ffffff;
+  --card-foreground: #0f1724;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f1724;
+  --sidebar-primary: #0b63ff;
+  --sidebar-primary-foreground: #ffffff;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
   
-  /* Glanz Rental Color System */
-  --primary: #0ea5e9; /* sky-500 */
-  --primary-hover: #0284c7; /* sky-600 */
-  --success: #10b981; /* green-500 */
-  --danger: #ef4444; /* red-500 */
-  --warning: #f59e0b; /* amber-500 */
+  /* Legacy support */
+  --danger: #d7263d;
   
   /* shadcn/ui overrides */
-  --radius: 0.75rem; /* rounded-xl */
+  --radius: 0.5rem; /* rounded-lg */
 }
 
 @theme inline {
@@ -118,14 +144,193 @@ input[type="file"] {
   }
 }
 
-/* Print styles for invoice */
+/* Print styles for invoice - A4 format */
+@page {
+  size: A4;
+  margin: 15mm 10mm;
+}
+
 @media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
   body {
-    background: white;
+    background: white !important;
+    margin: 0;
+    padding: 0;
   }
   
-  .no-print {
+  /* Hide all non-essential elements */
+  .no-print,
+  header,
+  nav,
+  aside,
+  button:not(.print-button),
+  .dialog-overlay,
+  [role="dialog"] > button,
+  .orders-header,
+  .desktop-sidebar,
+  .mobile-sidebar,
+  .top-header {
     display: none !important;
+  }
+
+  /* Invoice container - A4 optimized */
+  #invoice-preview,
+  [data-invoice-id] {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+
+  /* Dialog content when printing */
+  [role="dialog"] {
+    position: static !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Ensure proper spacing for A4 */
+  #invoice-preview > * {
+    page-break-inside: avoid;
+  }
+
+  /* Header section */
+  #invoice-preview h1 {
+    font-size: 28pt !important;
+    margin-bottom: 8pt !important;
+  }
+
+  /* Business info and customer info */
+  #invoice-preview .grid {
+    margin-bottom: 12pt !important;
+  }
+
+  /* Invoice details box */
+  #invoice-preview .bg-gray-50 {
+    background: #f9fafb !important;
+    padding: 10pt !important;
+    margin-bottom: 12pt !important;
+    page-break-inside: avoid;
+  }
+
+  /* Items table - optimized for print */
+  #invoice-preview table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-bottom: 12pt !important;
+    page-break-inside: avoid;
+  }
+
+  #invoice-preview table thead {
+    display: table-header-group !important;
+  }
+
+  #invoice-preview table tbody {
+    display: table-row-group !important;
+  }
+
+  #invoice-preview table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  #invoice-preview table th,
+  #invoice-preview table td {
+    padding: 8pt 6pt !important;
+    border: 1pt solid #e5e7eb !important;
+    font-size: 9pt !important;
+  }
+
+  #invoice-preview table th {
+    background: #f3f4f6 !important;
+    font-weight: bold !important;
+  }
+
+  /* Product images in table */
+  #invoice-preview table img {
+    width: 50pt !important;
+    height: 50pt !important;
+    max-width: 50pt !important;
+    max-height: 50pt !important;
+    object-fit: cover !important;
+  }
+
+  /* Summary section */
+  #invoice-preview .space-y-3 {
+    margin-bottom: 12pt !important;
+  }
+
+  /* UPI QR Code - ensure it fits */
+  #invoice-preview .bg-gradient-to-br {
+    page-break-inside: avoid;
+    padding: 10pt !important;
+    margin-bottom: 12pt !important;
+  }
+
+  #invoice-preview svg[data-testid="qr-code"],
+  #invoice-preview svg {
+    width: 150pt !important;
+    height: 150pt !important;
+    max-width: 150pt !important;
+    max-height: 150pt !important;
+  }
+
+  /* Footer */
+  #invoice-preview .border-t-2 {
+    margin-top: 12pt !important;
+    padding-top: 8pt !important;
+  }
+
+  /* Text sizes for print */
+  #invoice-preview p,
+  #invoice-preview span {
+    font-size: 10pt !important;
+    line-height: 1.4 !important;
+  }
+
+  #invoice-preview .text-sm {
+    font-size: 9pt !important;
+  }
+
+  #invoice-preview .text-lg {
+    font-size: 12pt !important;
+  }
+
+  #invoice-preview .text-xl {
+    font-size: 14pt !important;
+  }
+
+  #invoice-preview .text-3xl {
+    font-size: 18pt !important;
+  }
+
+  #invoice-preview .text-4xl {
+    font-size: 24pt !important;
+  }
+
+  /* Prevent page breaks in critical sections */
+  #invoice-preview > div:first-child {
+    page-break-after: avoid;
+  }
+
+  #invoice-preview > div:last-child {
+    page-break-before: avoid;
+  }
+
+  /* Ensure totals don't break */
+  #invoice-preview .border-t-2.border-gray-400 {
+    page-break-inside: avoid;
   }
 }
 
@@ -217,4 +422,42 @@ input[type="file"] {
   .safe-bottom {
     padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
+}
+
+/* Table row hover states - Professional SaaS style */
+.table-row {
+  @apply transition-colors duration-150;
+}
+
+.table-row:hover {
+  @apply bg-zinc-50;
+}
+
+/* Consistent typography for orders table */
+.orders-table {
+  @apply text-sm;
+}
+
+.orders-table th {
+  @apply text-xs font-semibold text-gray-700 uppercase tracking-wider;
+}
+
+.orders-table td {
+  @apply text-sm text-gray-900;
+}
+
+/* Status badge animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.status-badge {
+  animation: fadeIn 0.2s ease-out;
 }

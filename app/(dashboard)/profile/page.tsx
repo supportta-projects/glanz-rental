@@ -130,39 +130,39 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 pb-24">
-      <div className="bg-white border-b p-4 sticky top-0 z-10">
-        <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
+    <div className="min-h-screen bg-gray-50 pb-24">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 sticky top-0 z-10">
+        <h1 className="text-2xl md:text-3xl font-bold text-[#0f1724]">Profile</h1>
       </div>
 
-      <div className="p-4 space-y-6">
+      <div className="px-4 md:px-6 py-4 md:py-6 space-y-6">
         {/* User Info */}
-        <Card className="p-5 rounded-xl">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <Card className="p-5 md:p-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+          <h2 className="text-lg font-semibold text-[#0f1724] mb-4">
             User Information
           </h2>
           <div className="space-y-3">
             <div>
-              <Label className="text-sm text-gray-600">Full Name</Label>
-              <div className="h-14 bg-gray-50 rounded-xl px-4 flex items-center text-gray-700 mt-1">
+              <Label className="text-sm text-[#6b7280] font-medium">Full Name</Label>
+              <div className="h-10 bg-[#f1f5f9] rounded-lg px-3 flex items-center text-[#0f1724] mt-1.5 text-sm">
                 {user?.full_name || "N/A"}
               </div>
             </div>
             <div>
-              <Label className="text-sm text-gray-600">Username</Label>
-              <div className="h-14 bg-gray-50 rounded-xl px-4 flex items-center text-gray-700 mt-1">
+              <Label className="text-sm text-[#6b7280] font-medium">Username</Label>
+              <div className="h-10 bg-[#f1f5f9] rounded-lg px-3 flex items-center text-[#0f1724] mt-1.5 text-sm">
                 {user?.username || "N/A"}
               </div>
             </div>
             <div>
-              <Label className="text-sm text-gray-600">Phone</Label>
-              <div className="h-14 bg-gray-50 rounded-xl px-4 flex items-center text-gray-700 mt-1">
+              <Label className="text-sm text-[#6b7280] font-medium">Phone</Label>
+              <div className="h-10 bg-[#f1f5f9] rounded-lg px-3 flex items-center text-[#0f1724] mt-1.5 text-sm">
                 {user?.phone || "N/A"}
               </div>
             </div>
             <div>
-              <Label className="text-sm text-gray-600">Role</Label>
-              <div className="h-14 bg-gray-50 rounded-xl px-4 flex items-center text-gray-700 mt-1">
+              <Label className="text-sm text-[#6b7280] font-medium">Role</Label>
+              <div className="h-10 bg-[#f1f5f9] rounded-lg px-3 flex items-center text-[#0f1724] mt-1.5 text-sm">
                 {user?.role?.replace("_", " ").toUpperCase() || "N/A"}
               </div>
             </div>
@@ -170,33 +170,33 @@ export default function ProfilePage() {
         </Card>
 
         {/* GST Settings */}
-        <Card className="p-5 rounded-xl">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <Card className="p-5 md:p-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+          <h2 className="text-lg font-semibold text-[#0f1724] mb-4">
             GST Settings
           </h2>
           <div className="space-y-4">
             {/* GST Number */}
             <div className="space-y-2">
-              <Label className="text-sm text-gray-600">GST Number (Optional)</Label>
+              <Label className="text-sm text-[#6b7280] font-medium">GST Number (Optional)</Label>
               <Input
                 value={gstNumber}
                 onChange={(e) => setGstNumber(e.target.value)}
                 placeholder="Enter GST number (e.g., 27AAAAA0000A1Z5)"
-                className="h-14 text-base rounded-xl"
+                className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#0b63ff] focus:ring-1 focus:ring-[#0b63ff]"
                 maxLength={15}
               />
             </div>
 
             {/* UPI ID */}
             <div className="space-y-2">
-              <Label className="text-sm text-gray-600">UPI ID (Optional)</Label>
+              <Label className="text-sm text-[#6b7280] font-medium">UPI ID (Optional)</Label>
               <Input
                 value={upiId}
                 onChange={(e) => setUpiId(e.target.value)}
                 placeholder="yourname@paytm or yourname@upi"
-                className="h-14 text-base rounded-xl"
+                className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#0b63ff] focus:ring-1 focus:ring-[#0b63ff]"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[#6b7280]">
                 Enter your UPI ID for payment QR codes (e.g., business@paytm, business@upi)
               </p>
             </div>
@@ -204,7 +204,7 @@ export default function ProfilePage() {
             {/* GST Enabled Toggle */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-gray-600">Enable GST</Label>
+                <Label className="text-sm text-[#6b7280] font-medium">Enable GST</Label>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -212,10 +212,10 @@ export default function ProfilePage() {
                     onChange={(e) => setGstEnabled(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sky-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#0b63ff]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0b63ff]"></div>
                 </label>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[#6b7280]">
                 {gstEnabled ? "GST will be applied to all orders" : "GST will not be applied to orders"}
               </p>
             </div>
@@ -223,7 +223,7 @@ export default function ProfilePage() {
             {/* GST Rate (only shown when GST is enabled) */}
             {gstEnabled && (
               <div className="space-y-2">
-                <Label className="text-sm text-gray-600">
+                <Label className="text-sm text-[#6b7280] font-medium">
                   GST Rate (%)
                 </Label>
                 <Input
@@ -231,13 +231,13 @@ export default function ProfilePage() {
                   value={gstRate}
                   onChange={(e) => setGstRate(e.target.value)}
                   placeholder="5.00"
-                  className="h-14 text-base rounded-xl"
+                  className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#0b63ff] focus:ring-1 focus:ring-[#0b63ff]"
                   inputMode="decimal"
                   min="0"
                   max="100"
                   step="0.01"
                 />
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[#6b7280]">
                   Enter the GST percentage rate (e.g., 5.00 for 5%, 18.00 for 18%)
                 </p>
               </div>
@@ -246,34 +246,34 @@ export default function ProfilePage() {
             {/* GST Include/Exclude Toggle (only shown when GST is enabled) */}
             {gstEnabled && (
               <div className="space-y-3">
-                <Label className="text-sm text-gray-600">GST Calculation Method</Label>
+                <Label className="text-sm text-[#6b7280] font-medium">GST Calculation Method</Label>
                 <div className="space-y-2">
-                  <label className="flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer hover:bg-gray-50 transition-colors">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border-2 border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
                     <input
                       type="radio"
                       name="gstMethod"
                       checked={!gstIncluded}
                       onChange={() => setGstIncluded(false)}
-                      className="w-5 h-5 text-sky-500 focus:ring-sky-500"
+                      className="w-4 h-4 text-[#0b63ff] focus:ring-[#0b63ff]"
                     />
                     <div className="flex-1">
-                      <div className="font-medium text-gray-900">GST Excluded</div>
-                      <div className="text-xs text-gray-500">
+                      <div className="font-medium text-[#0f1724] text-sm">GST Excluded</div>
+                      <div className="text-xs text-[#6b7280]">
                         GST ({gstRate}%) will be added on top of the order total
                       </div>
                     </div>
                   </label>
-                  <label className="flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer hover:bg-gray-50 transition-colors">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border-2 border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
                     <input
                       type="radio"
                       name="gstMethod"
                       checked={gstIncluded}
                       onChange={() => setGstIncluded(true)}
-                      className="w-5 h-5 text-sky-500 focus:ring-sky-500"
+                      className="w-4 h-4 text-[#0b63ff] focus:ring-[#0b63ff]"
                     />
                     <div className="flex-1">
-                      <div className="font-medium text-gray-900">GST Included</div>
-                      <div className="text-xs text-gray-500">
+                      <div className="font-medium text-[#0f1724] text-sm">GST Included</div>
+                      <div className="text-xs text-[#6b7280]">
                         GST ({gstRate}%) is already included in the item prices
                       </div>
                     </div>
@@ -285,7 +285,7 @@ export default function ProfilePage() {
             <Button
               onClick={handleSaveGst}
               disabled={savingGst}
-              className="w-full h-14 bg-sky-500 hover:bg-sky-600 text-white text-base font-semibold rounded-xl"
+              className="w-full h-9 bg-[#0b63ff] hover:bg-[#0a5ce6] text-white text-sm font-medium rounded-lg"
             >
               {savingGst ? "Saving..." : "Save GST Settings"}
             </Button>
@@ -293,42 +293,42 @@ export default function ProfilePage() {
         </Card>
 
         {/* Change Password */}
-        <Card className="p-5 rounded-xl">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <Card className="p-5 md:p-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+          <h2 className="text-lg font-semibold text-[#0f1724] mb-4">
             Change Password
           </h2>
           <form onSubmit={handleChangePassword} className="space-y-4">
             <div className="space-y-2">
-              <Label>Current Password</Label>
+              <Label className="text-sm text-[#6b7280] font-medium">Current Password</Label>
               <Input
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="h-14"
+                className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#0b63ff] focus:ring-1 focus:ring-[#0b63ff]"
               />
             </div>
             <div className="space-y-2">
-              <Label>New Password</Label>
+              <Label className="text-sm text-[#6b7280] font-medium">New Password</Label>
               <Input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="h-14"
+                className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#0b63ff] focus:ring-1 focus:ring-[#0b63ff]"
               />
             </div>
             <div className="space-y-2">
-              <Label>Confirm New Password</Label>
+              <Label className="text-sm text-[#6b7280] font-medium">Confirm New Password</Label>
               <Input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="h-14"
+                className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#0b63ff] focus:ring-1 focus:ring-[#0b63ff]"
               />
             </div>
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-14 bg-sky-500 hover:bg-sky-600"
+              className="w-full h-9 bg-[#0b63ff] hover:bg-[#0a5ce6] text-white text-sm font-medium rounded-lg"
             >
               {loading ? "Updating..." : "Update Password"}
             </Button>
@@ -339,7 +339,7 @@ export default function ProfilePage() {
         <Button
           onClick={handleLogout}
           variant="destructive"
-          className="w-full h-14"
+          className="w-full h-9 bg-[#ef4444] hover:bg-[#dc2626] text-white text-sm font-medium rounded-lg"
         >
           Logout
         </Button>

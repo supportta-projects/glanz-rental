@@ -1,10 +1,10 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, CheckCircle, Edit, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import { useUserStore } from "@/lib/stores/useUserStore";
 export default function OrderDetailsPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast } = useToast();
   const { user } = useUserStore();
   
@@ -59,6 +60,20 @@ export default function OrderDetailsPage() {
   const [showLateFeeDialog, setShowLateFeeDialog] = useState(false);
   const [lateFee, setLateFee] = useState("0");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
+  
+  // Handle print parameter from URL
+  useEffect(() => {
+    const shouldPrint = searchParams.get('print') === 'true';
+    if (shouldPrint && order && !isLoading) {
+      // Open invoice dialog
+      setShowInvoiceDialog(true);
+      // Trigger print after dialog opens
+      setTimeout(() => {
+        window.print();
+      }, 1000);
+    }
+  }, [searchParams, order, isLoading]);
 
   const handleMarkReturned = async () => {
     if (!order) return;
@@ -318,7 +333,12 @@ export default function OrderDetailsPage() {
 
         {/* Invoice Share */}
         <div className="pt-4">
-          <InvoiceShare order={order} user={user} />
+          <InvoiceShare 
+            order={order} 
+            user={user}
+            showInvoice={showInvoiceDialog}
+            onShowInvoiceChange={setShowInvoiceDialog}
+          />
         </div>
 
         {/* Actions */}
