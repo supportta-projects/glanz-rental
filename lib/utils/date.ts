@@ -46,8 +46,9 @@ export function getOrderStatus(
   return "active";
 }
 
-export function formatCurrency(amount: number): string {
-  return `₹${amount.toLocaleString("en-IN")}`;
+export function formatCurrency(amount: number | null | undefined): string {
+  const safeAmount = amount ?? 0;
+  return `₹${safeAmount.toLocaleString("en-IN")}`;
 }
 
 /**

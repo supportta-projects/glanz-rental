@@ -500,12 +500,42 @@ export function useStartRental() {
 
   return useMutation({
     mutationFn: async (orderId: string) => {
-      // Update status to active and optionally update start_datetime to now
+      // First, fetch the order to get original scheduled dates
+      const { data: order, error: fetchError } = await (supabase
+        .from("orders") as any)
+        .select("start_datetime, end_datetime, start_date, end_date")
+        .eq("id", orderId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!order) throw new Error("Order not found");
+
+      // Calculate rental duration from original scheduled dates
+      const originalStart = new Date(order.start_datetime || order.start_date);
+      const originalEnd = new Date(order.end_datetime || order.end_date);
+      const rentalDurationMs = originalEnd.getTime() - originalStart.getTime();
+      const rentalDurationDays = Math.ceil(rentalDurationMs / (1000 * 60 * 60 * 24));
+
+      // Set start_datetime to NOW (current time)
+      const now = new Date();
+      const newStartDatetime = now.toISOString();
+      
+      // Calculate new end_datetime: NOW + original rental duration
+      const newEndDatetime = new Date(now.getTime() + rentalDurationMs).toISOString();
+
+      // Extract date-only strings for start_date and end_date
+      const newStartDate = now.toISOString().split("T")[0];
+      const newEndDate = new Date(now.getTime() + rentalDurationMs).toISOString().split("T")[0];
+
+      // Update order: status to active, set new start/end datetimes
       const { data, error } = await (supabase
         .from("orders") as any)
         .update({ 
-          status: "active",
-          start_datetime: new Date().toISOString()
+          status: "active" as OrderStatus,
+          start_datetime: newStartDatetime,
+          end_datetime: newEndDatetime,
+          start_date: newStartDate,
+          end_date: newEndDate,
         })
         .eq("id", orderId)
         .select()

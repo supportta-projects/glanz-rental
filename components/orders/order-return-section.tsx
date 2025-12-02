@@ -297,20 +297,20 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="font-medium">{item.quantity}</span>
+                      <span className="font-medium">{item.quantity || 0}</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-medium">{formatCurrency(item.price_per_day)}</span>
+                        <span className="font-medium">{formatCurrency(item.price_per_day || 0)}</span>
                         <span className="text-xs text-gray-500">per day</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <span className="font-semibold text-gray-900">
-                        {formatCurrency(item.line_total)}
+                        {formatCurrency(item.line_total || 0)}
                       </span>
                       <p className="text-xs text-gray-500">
-                        {item.quantity} × {formatCurrency(item.price_per_day)}
+                        {item.quantity || 0} × {formatCurrency(item.price_per_day || 0)}
                       </p>
                     </TableCell>
                     <TableCell>

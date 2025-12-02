@@ -6,19 +6,18 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Phone, Eye, X, Calendar, PlayCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle, Phone, Eye, X, Calendar, PlayCircle, AlertTriangle, Package } from "lucide-react";
 import { formatDateTime, calculateDays, getOrderStatus, formatCurrency, isBooking, isOrderLate } from "@/lib/utils/date";
 import { differenceInMinutes } from "date-fns";
 import type { Order } from "@/lib/types";
 
 interface OrderCardProps {
   order: Order;
-  onMarkReturned?: (orderId: string) => void;
   onCancel?: (orderId: string) => void;
   canCancel?: boolean;
 }
 
-export const OrderCard = memo(function OrderCard({ order, onMarkReturned, onCancel, canCancel }: OrderCardProps) {
+export const OrderCard = memo(function OrderCard({ order, onCancel, canCancel }: OrderCardProps) {
   const router = useRouter();
   
   const startDate = (order as any).start_datetime || order.start_date;
@@ -57,12 +56,6 @@ export const OrderCard = memo(function OrderCard({ order, onMarkReturned, onCanc
     }
     return 0;
   }, [order.items]);
-
-  const handleReturnClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onMarkReturned?.(order.id);
-  };
 
   const handleCancelClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -184,15 +177,15 @@ export const OrderCard = memo(function OrderCard({ order, onMarkReturned, onCanc
                 <X className="h-4 w-4" />
               </Button>
             )}
-            {/* Mark as Returned - for ongoing/late */}
-            {(orderCategory === "ongoing" || orderCategory === "late") && onMarkReturned && (
+            {/* Check Products - for ongoing/late */}
+            {(orderCategory === "ongoing" || orderCategory === "late") && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleReturnClick}
-                className="h-8 w-8 p-0 text-[#10b981] hover:text-[#10b981] hover:bg-green-50"
+                onClick={handleViewClick}
+                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
               >
-                <CheckCircle className="h-4 w-4" />
+                <Package className="h-4 w-4" />
               </Button>
             )}
             {/* View button */}

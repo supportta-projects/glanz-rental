@@ -17,8 +17,9 @@ import { CustomerSearch } from "@/components/orders/customer-search";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { useToast } from "@/components/ui/toast";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
-import type { OrderItem, Customer } from "@/lib/types";
+import type { OrderItem, Customer, Order } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { differenceInMinutes } from "date-fns";
 
 export default function EditOrderPage() {
   const params = useParams();
@@ -70,6 +71,45 @@ export default function EditOrderPage() {
   // Values already computed via selectors above
   const gstIncluded = user?.gst_included ?? false;
   const gstEnabled = user?.gst_enabled ?? false;
+
+  // Helper function to check if order can be edited
+  const canEditOrder = (order: Order): boolean => {
+    const status = order.status;
+    
+    // Completed or cancelled orders cannot be edited
+    if (status === "completed" || status === "cancelled") {
+      return false;
+    }
+    
+    // Scheduled orders can be edited anytime (until they become active)
+    if (status === "scheduled") {
+      return true;
+    }
+    
+    // Active/ongoing orders can only be edited within 10 minutes of becoming active
+    if (status === "active") {
+      // Use start_datetime as the timestamp when rental became active
+      const activeSince = (order as any).start_datetime || order.start_date;
+      if (!activeSince) {
+        // If no start_datetime, use created_at as fallback
+        const createdAt = new Date(order.created_at);
+        const now = new Date();
+        const minutesSinceCreation = differenceInMinutes(now, createdAt);
+        return minutesSinceCreation <= 10;
+      }
+      
+      // Calculate minutes since order became active
+      const activeSinceDate = new Date(activeSince);
+      const now = new Date();
+      const minutesSinceActive = differenceInMinutes(now, activeSinceDate);
+      
+      // Can edit if less than or equal to 10 minutes since becoming active
+      return minutesSinceActive <= 10;
+    }
+    
+    // Other statuses (pending_return, partially_returned) cannot be edited
+    return false;
+  };
 
   const handleAddItem = (photoUrl: string) => {
     if (!photoUrl) return;
@@ -138,6 +178,13 @@ export default function EditOrderPage() {
 
     if (!draft.invoice_number) {
       showToast("Please enter an invoice number", "error");
+      return;
+    }
+
+    // Check if order can still be edited (in case user kept page open)
+    if (order && !canEditOrder(order)) {
+      showToast("This order can no longer be edited. It has been active for more than 10 minutes.", "error");
+      router.push(`/orders/${orderId}`);
       return;
     }
 
@@ -231,6 +278,37 @@ export default function EditOrderPage() {
         <div className="p-4">
           <Card className="p-8 text-center">
             <p className="text-gray-500">Cannot edit completed orders</p>
+            <Link href={`/orders/${orderId}`}>
+              <Button className="mt-4">Back to Order</Button>
+            </Link>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Check for active orders that have been active for more than 10 minutes
+  if (order.status === "active" && !canEditOrder(order)) {
+    const activeSince = (order as any).start_datetime || order.start_date;
+    const activeSinceDate = activeSince ? new Date(activeSince) : new Date(order.created_at);
+    const now = new Date();
+    const minutesSinceActive = differenceInMinutes(now, activeSinceDate);
+    
+    return (
+      <div className="min-h-screen bg-zinc-50 pb-32">
+        <div className="bg-white border-b p-4 flex items-center gap-4 sticky top-0 z-10">
+          <Link href={`/orders/${orderId}`}>
+            <ArrowLeft className="h-6 w-6 text-gray-600" />
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-900">Edit Order</h1>
+        </div>
+        <div className="p-4">
+          <Card className="p-8 text-center">
+            <p className="text-gray-500 mb-2">Cannot edit this order</p>
+            <p className="text-sm text-gray-400 mb-4">
+              Ongoing orders can only be edited within 10 minutes of becoming active.
+              This order has been active for {minutesSinceActive} minutes.
+            </p>
             <Link href={`/orders/${orderId}`}>
               <Button className="mt-4">Back to Order</Button>
             </Link>

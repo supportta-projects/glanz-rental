@@ -295,18 +295,6 @@ export default function OrdersPage() {
     };
   }, [allOrdersFromServer, infiniteData, getOrderCategory]);
 
-  // Handle mark returned
-  const handleMarkReturned = useCallback(async (orderId: string) => {
-    try {
-      await updateStatusMutation.mutateAsync({
-        orderId,
-        status: "completed",
-      });
-      showToast("Order marked as returned", "success");
-    } catch (error: any) {
-      showToast(error.message || "Failed to update order", "error");
-    }
-  }, [updateStatusMutation, showToast]);
 
   // Handle cancel order
   const handleCancelOrder = useCallback(async (orderId: string) => {
@@ -722,17 +710,18 @@ export default function OrdersPage() {
                                   </Button>
                                 </Tooltip>
                               )}
-                              {/* Show "Mark as Returned" ONLY for ongoing/late orders (NOT scheduled) */}
+                              {/* Show "Check Products" ONLY for ongoing/late orders (NOT scheduled) */}
                               {(orderCategory === "ongoing" || orderCategory === "late") && (
-                                <Tooltip content="Mark as Returned">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleMarkReturned(order.id)}
-                                    className="h-8 w-8 p-0 text-[#10b981] hover:text-[#10b981] hover:bg-green-50"
-                                  >
-                                    <ArrowLeftCircle className="h-4 w-4" />
-                                  </Button>
+                                <Tooltip content="Check Products">
+                                  <Link href={`/orders/${order.id}`}>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    >
+                                      <Package className="h-4 w-4" />
+                                    </Button>
+                                  </Link>
                                 </Tooltip>
                               )}
                               <Tooltip content="View Details">
@@ -815,7 +804,6 @@ export default function OrdersPage() {
                   <OrderCard
                     key={order.id}
                     order={order}
-                    onMarkReturned={handleMarkReturned}
                     onCancel={handleCancelOrder}
                     canCancel={canCancelOrder(order)}
                   />
@@ -863,7 +851,6 @@ export default function OrdersPage() {
                   <OrderCard
                     key={order.id}
                     order={order}
-                    onMarkReturned={handleMarkReturned}
                     onCancel={handleCancelOrder}
                     canCancel={canCancelOrder(order)}
                   />
@@ -903,6 +890,7 @@ export default function OrdersPage() {
             <Plus className="h-6 w-6" />
           </Button>
         </div>
+
       </div>
     </>
   );
