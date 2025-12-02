@@ -141,35 +141,46 @@ export default function OrderDetailsPage() {
   return (
     <div className="min-h-screen bg-zinc-50 pb-24">
       {/* Header */}
-      <div className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-10">
+      <div className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
           <Link href="/orders">
-            <ArrowLeft className="h-6 w-6 text-gray-600" />
+            <ArrowLeft className="h-6 w-6 text-gray-600 hover:text-gray-900 transition-colors" />
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
         </div>
-        {!isCompleted && !isScheduled && (
-          <Link href={`/orders/${orderId}/edit`}>
+        <div className="flex items-center gap-3">
+          {!isCompleted && !isScheduled && (
+            <Link href={`/orders/${orderId}/edit`}>
+              <Button
+                variant="outline"
+                className="h-10 px-4 border-sky-500 text-sky-500 hover:bg-sky-50 rounded-xl"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            </Link>
+          )}
+          {/* Show "Start Rental" button for scheduled orders - Professional Design */}
+          {isScheduled && (
             <Button
-              variant="outline"
-              className="h-10 px-4 border-sky-500 text-sky-500 hover:bg-sky-50 rounded-xl"
+              onClick={handleStartRental}
+              disabled={startRentalMutation.isPending}
+              className="h-11 px-6 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 border-2 border-orange-400"
             >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
+              {startRentalMutation.isPending ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                  <span>Starting...</span>
+                </>
+              ) : (
+                <>
+                  <PlayCircle className="h-5 w-5" />
+                  <span>Start Rental</span>
+                </>
+              )}
             </Button>
-          </Link>
-        )}
-        {/* Show "Start Rental" button for scheduled orders */}
-        {isScheduled && (
-          <Button
-            onClick={handleStartRental}
-            disabled={startRentalMutation.isPending}
-            className="h-10 px-4 bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-md"
-          >
-            <PlayCircle className="h-4 w-4 mr-2" />
-            {startRentalMutation.isPending ? "Starting..." : "Start Rental"}
-          </Button>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="p-4 space-y-4">
@@ -279,22 +290,41 @@ export default function OrderDetailsPage() {
 
         {/* Scheduled Order Info Card - Show for scheduled orders */}
         {isScheduled && (
-          <Card className="p-5 rounded-xl bg-blue-50 border-2 border-blue-200">
-            <div className="flex items-center gap-3 mb-3">
-              <Calendar className="h-5 w-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-blue-900">Scheduled Rental</h2>
+          <Card className="p-6 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-md">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Calendar className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-blue-900">Scheduled Rental</h2>
+                <p className="text-xs text-blue-600 mt-0.5">Ready to begin rental period</p>
+              </div>
             </div>
-            <p className="text-sm text-blue-700 mb-4">
-              This rental is scheduled to start on {formatDateTime((order as any).start_datetime || order.start_date)}.
-              Click "Start Rental" above when you're ready to begin the rental period.
-            </p>
+            <div className="bg-white/60 rounded-lg p-4 mb-4 border border-blue-100">
+              <p className="text-sm text-gray-700 leading-relaxed">
+                <span className="font-semibold text-gray-900">Scheduled Start:</span>{" "}
+                {formatDateTime((order as any).start_datetime || order.start_date)}
+              </p>
+              <p className="text-xs text-gray-500 mt-2">
+                Click the button below or use the "Start Rental" button in the header to begin the rental period.
+              </p>
+            </div>
             <Button
               onClick={handleStartRental}
               disabled={startRentalMutation.isPending}
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white shadow-md"
+              className="w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 border-2 border-orange-400 text-base"
             >
-              <PlayCircle className="h-4 w-4 mr-2" />
-              {startRentalMutation.isPending ? "Starting Rental..." : "Start Rental Now"}
+              {startRentalMutation.isPending ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                  <span>Starting Rental...</span>
+                </>
+              ) : (
+                <>
+                  <PlayCircle className="h-5 w-5" />
+                  <span>Start Rental Now</span>
+                </>
+              )}
             </Button>
           </Card>
         )}

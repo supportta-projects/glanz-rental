@@ -77,8 +77,8 @@ export function useRealtimeSubscription(
           table: "orders",
           filter: branchId ? `branch_id=eq.${branchId}` : undefined,
         },
-        (payload) => {
-          console.log("[Realtime] Orders changed:", payload.eventType, payload.new?.id || payload.old?.id);
+        (payload: any) => {
+          console.log("[Realtime] Orders changed:", payload.eventType, (payload.new as any)?.id || (payload.old as any)?.id);
           refetchQueries();
         }
       );
@@ -93,8 +93,8 @@ export function useRealtimeSubscription(
           schema: "public",
           table: "order_items",
         },
-        (payload) => {
-          console.log("[Realtime] Order items changed:", payload.eventType, payload.new?.order_id || payload.old?.order_id);
+        (payload: any) => {
+          console.log("[Realtime] Order items changed:", payload.eventType, (payload.new as any)?.order_id || (payload.old as any)?.order_id);
           refetchQueries();
         }
       );

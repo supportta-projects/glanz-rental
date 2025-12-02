@@ -501,11 +501,10 @@ export function useStartRental() {
   return useMutation({
     mutationFn: async (orderId: string) => {
       // Update status to active and optionally update start_datetime to now
-      const { data, error } = await supabase
-        .from("orders")
+      const { data, error } = await (supabase
+        .from("orders") as any)
         .update({ 
           status: "active",
-          // Update start_datetime to current time if rental is starting now
           start_datetime: new Date().toISOString()
         })
         .eq("id", orderId)
@@ -566,7 +565,7 @@ export function useProcessOrderReturn() {
       }));
 
       // Single database function call - all operations in one transaction (~50-100ms)
-      const { data, error } = await supabase.rpc("process_order_return_optimized", {
+      const { data, error } = await (supabase.rpc as any)("process_order_return_optimized", {
         p_order_id: orderId,
         p_item_returns: itemReturnsJsonb,
         p_user_id: authUser.id,
