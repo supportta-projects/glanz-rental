@@ -23,12 +23,14 @@ import {
   PlayCircle,
   CheckCircle,
   X,
+  Search,
 } from "lucide-react";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { useOrders, useOrdersInfinite, useUpdateOrderStatus, useStartRental } from "@/lib/queries/orders";
 import { useToast } from "@/components/ui/toast";
 import { useRealtimeSubscription } from "@/lib/hooks/use-realtime-subscription";
 import { Button } from "@/components/ui/button";
+import { StandardButton } from "@/components/shared/standard-button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -36,7 +38,7 @@ import { DateRangePicker, type DateRange } from "@/components/ui/date-range-pick
 import { Tooltip } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { OrdersHeader } from "@/components/layout/orders-header";
+import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Pagination } from "@/components/shared";
 import { getOrderStatus, formatCurrency, isOrderLate, isBooking } from "@/lib/utils/date";
@@ -141,8 +143,22 @@ export default function OrdersPage() {
   }, [statusFromUrl]);
   
   const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   // Debounce: 300ms as per requirements for search/filters
   const debouncedSearch = useDebounce(searchQuery, 300);
+
+  // Keyboard shortcut: Cmd/Ctrl + K to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
   const [dateRange, setDateRange] = useState<DateRange>(getInitialDateRange());
 
   // Update dateRange when URL parameter changes
@@ -580,17 +596,64 @@ export default function OrdersPage() {
           </Button>
         </div>
 
-        {/* Header */}
-        <OrdersHeader
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onNewOrder={() => router.push("/orders/new")}
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-        />
-
         {/* Main Content */}
         <div className="px-4 py-4">
+          {/* Search and Filters Bar */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-6">
+            {/* Search - Professional Shopify-style */}
+            <div className="relative flex-1 w-full md:max-w-2xl">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                <Input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search orders, customers, invoice numbers, or phone numbers..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-10 h-9 w-full rounded-lg border border-gray-300 bg-white text-sm placeholder:text-gray-400 
+                             focus:border-[#273492] focus:ring-2 focus:ring-[#273492]/20 focus:outline-none 
+                             transition-all duration-200 shadow-sm hover:shadow-md hover:border-gray-400
+                             font-medium"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-100 transition-colors 
+                               focus:outline-none focus:ring-2 focus:ring-[#273492]/20"
+                    aria-label="Clear search"
+                    type="button"
+                  >
+                    <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                  </button>
+                )}
+                {!searchQuery && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-gray-300 bg-gray-50 text-xs font-mono text-gray-500">
+                      <span className="text-[10px]">Ctrl</span>
+                      <span>K</span>
+                    </kbd>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Buttons - Right Corner, Wrap on Mobile */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Date Filter Button */}
+              <DateRangePicker value={dateRange} onChange={setDateRange} />
+
+              {/* New Order Button - Match All Time button height exactly */}
+              <StandardButton
+                onClick={() => router.push("/orders/new")}
+                variant="default"
+                icon={Plus}
+                className="flex-shrink-0"
+              >
+                New Order
+              </StandardButton>
+            </div>
+          </div>
+
           {/* Tabs - Scrollable on Mobile */}
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mb-4">
             <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
@@ -895,13 +958,13 @@ export default function OrdersPage() {
             <div className="text-center py-12 bg-white rounded-lg border border-gray-200 mt-4">
               <p className="text-gray-500 text-lg mb-2">No orders found</p>
               <p className="text-gray-400 text-sm mb-6">Create your first order to get started</p>
-              <Button
+              <StandardButton
                 onClick={() => router.push("/orders/new")}
-                className="bg-[#273492] hover:bg-[#1f2a7a] text-white"
+                variant="default"
+                icon={Plus}
               >
-                <Plus className="h-4 w-4 mr-2" />
                 New Order
-              </Button>
+              </StandardButton>
             </div>
           )}
 
@@ -942,13 +1005,13 @@ export default function OrdersPage() {
             <div className="text-center py-12 bg-white rounded-lg border border-gray-200 mt-4">
               <p className="text-gray-500 text-lg mb-2">No orders found</p>
               <p className="text-gray-400 text-sm mb-6">Create your first order to get started</p>
-              <Button
+              <StandardButton
                 onClick={() => router.push("/orders/new")}
-                className="bg-[#273492] hover:bg-[#1f2a7a] text-white"
+                variant="default"
+                icon={Plus}
               >
-                <Plus className="h-4 w-4 mr-2" />
                 New Order
-              </Button>
+              </StandardButton>
             </div>
           )}
 

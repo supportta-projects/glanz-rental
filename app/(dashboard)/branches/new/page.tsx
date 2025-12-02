@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { StandardButton } from "@/components/shared/standard-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,8 @@ import { ArrowLeft, Building2 } from "lucide-react";
 import { useCreateBranch } from "@/lib/queries/branches";
 import { useToast } from "@/components/ui/toast";
 import Link from "next/link";
+import { RouteGuard } from "@/components/auth/route-guard";
+import { PageNavbar } from "@/components/layout/page-navbar";
 
 export default function NewBranchPage() {
   const router = useRouter();
@@ -55,16 +57,14 @@ export default function NewBranchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <RouteGuard allowedRoles={["super_admin"]} redirectTo="/orders">
+      <div className="min-h-screen bg-gray-50 pb-24">
       {/* Minimal Header */}
-      <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <Link href="/branches" className="p-1 hover:bg-gray-100 rounded-md transition-colors">
-            <ArrowLeft className="h-4 w-4 text-gray-500" />
-          </Link>
-          <h1 className="text-[9px] font-normal text-gray-500">New Branch</h1>
-        </div>
-      </div>
+      <PageNavbar
+        title="New Branch"
+        subtitle="Create a new branch"
+        backHref="/branches"
+      />
 
       <div className="p-4 md:p-6 max-w-2xl mx-auto">
         <Card className="p-6 md:p-8">
@@ -127,7 +127,7 @@ export default function NewBranchPage() {
 
             {/* Actions */}
             <div className="flex items-center gap-3 pt-4">
-              <Button
+              <StandardButton
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
@@ -135,19 +135,22 @@ export default function NewBranchPage() {
                 disabled={loading}
               >
                 Cancel
-              </Button>
-              <Button
+              </StandardButton>
+              <StandardButton
                 type="submit"
-                className="flex-1 bg-[#273492] hover:bg-[#1f2a7a]"
+                variant="default"
+                className="flex-1"
                 disabled={loading}
+                loading={loading}
               >
                 {loading ? "Creating..." : "Create Branch"}
-              </Button>
+              </StandardButton>
             </div>
           </form>
         </Card>
       </div>
     </div>
+    </RouteGuard>
   );
 }
 

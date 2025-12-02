@@ -23,8 +23,6 @@ export function useOrdersInfinite(
   return useInfiniteQuery({
     queryKey: ["orders-infinite", branchId, filters],
     queryFn: async ({ pageParam = 0 }) => {
-      // Add small delay to prevent flash of loading state
-      await new Promise(resolve => setTimeout(resolve, 0));
       if (!branchId) throw new Error("Branch ID required");
 
       // Try RPC function first (if available), fallback to direct query
@@ -44,9 +42,7 @@ export function useOrdersInfinite(
         result = data as { data: Order[]; total: number };
       } catch (rpcError: any) {
         // Fallback to direct query if RPC function doesn't exist (404) or fails
-        if (rpcError?.code === "PGRST116" || rpcError?.status === 404) {
-          console.warn("[useOrdersInfinite] RPC function not found, using fallback query");
-        }
+        // Silent fallback for better performance
         
         const from = pageParam * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
@@ -137,10 +133,10 @@ export function useOrdersInfinite(
     getNextPageParam: (lastPage, pages) => lastPage.nextPage,
     initialPageParam: 0,
     enabled: !!branchId,
-    staleTime: 0, // Mark as stale immediately so real-time updates trigger refetch
+    staleTime: 30000, // 30s - balance between freshness and performance
     gcTime: 300000, // 5m as per requirements
-    refetchOnWindowFocus: false,
-    refetchOnMount: true, // Allow refetch on mount for real-time updates
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
+    refetchOnMount: false, // Use cached data if available
     refetchOnReconnect: true, // Refetch on reconnect to catch missed updates
   });
 }
@@ -232,43 +228,25 @@ export function useOrder(orderId: string) {
         throw error;
       }
 
-      console.log("[useOrder] 🔍 Fetching order:", orderId);
-      
-      // Fix #1: Explicit Supabase query with raw error logging
       const { data, error } = await supabase
         .from("orders")
         .select("*, customer:customers(id, name, phone, address), staff:profiles(id, full_name), branch:branches(id, name), items:order_items(*)")
         .eq("id", orderId)
         .single();
       
-      // Fix #1: Log raw Supabase error IMMEDIATELY (this will show RLS messages)
       if (error) {
-        console.error("[useOrder] ⚠️ Supabase raw error:", error);
-        console.error("[useOrder] Error code:", (error as any)?.code);
-        console.error("[useOrder] Error message:", (error as any)?.message);
-        console.error("[useOrder] Error details:", (error as any)?.details);
-        console.error("[useOrder] Error hint:", (error as any)?.hint);
-        
-        // Throw error to bubble up to TanStack Query
+        // Only log errors in development
+        if (process.env.NODE_ENV === 'development') {
+          console.error("[useOrder] Error:", error);
+        }
         throw error;
       }
       
-      // Fix #3: Force error on null data (don't treat as success)
       if (!data) {
-        console.error("[useOrder] ❌ No data returned (likely RLS blocking or order doesn't exist)");
         throw new Error(`Order not found: ${orderId}`);
       }
       
-      // Type assertion to help TypeScript understand the data structure
-      const orderData = data as Order;
-      
-      console.log("[useOrder] ✅ Order loaded successfully:", {
-        id: orderData.id,
-        invoiceNumber: (orderData as any).invoice_number,
-        branchId: (orderData as any).branch_id,
-      });
-      
-      return orderData;
+      return data as Order;
     },
     enabled: !!orderId && typeof orderId === "string" && orderId !== "undefined" && orderId !== "null",
     retry: false, // Fix #3: Don't retry 404s or RLS errors
@@ -313,13 +291,7 @@ export function useCreateOrder() {
       // Calculate status with proper date comparison
       const orderStatus: OrderStatus = startDate > today ? "scheduled" : "active";
       
-      // Log for debugging
-      console.log("[useCreateOrder] Status calculation:", {
-        startDate: startDate.toISOString(),
-        today: today.toISOString(),
-        calculatedStatus: orderStatus,
-        isFuture: startDate > today
-      });
+      // Removed verbose logging for better performance
       
       // Prepare order data
       const orderInsert = {

@@ -1,7 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { StandardButton } from "@/components/shared/standard-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUserStore } from "@/lib/stores/useUserStore";
@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { useState, useEffect } from "react";
+import { PageNavbar } from "@/components/layout/page-navbar";
 
 export default function ProfilePage() {
   const { user, clearUser, setUser } = useUserStore();
@@ -132,9 +133,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       {/* Minimal Header */}
-      <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
-        <h1 className="text-[9px] font-normal text-gray-500">Profile</h1>
-      </div>
+      <PageNavbar title="Profile" subtitle="Manage your account settings" />
 
       <div className="px-4 md:px-6 py-4 md:py-6 space-y-6">
         {/* User Info */}
@@ -283,13 +282,15 @@ export default function ProfilePage() {
               </div>
             )}
 
-            <Button
+            <StandardButton
               onClick={handleSaveGst}
+              variant="default"
               disabled={savingGst}
-              className="w-full h-9 bg-[#273492] hover:bg-[#1f2a7a] text-white text-sm font-medium rounded-lg"
+              loading={savingGst}
+              className="w-full"
             >
               {savingGst ? "Saving..." : "Save GST Settings"}
-            </Button>
+            </StandardButton>
           </div>
         </Card>
 
@@ -326,24 +327,26 @@ export default function ProfilePage() {
                 className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#273492] focus:ring-1 focus:ring-[#273492]"
               />
             </div>
-            <Button
+            <StandardButton
               type="submit"
+              variant="default"
               disabled={loading}
-              className="w-full h-9 bg-[#273492] hover:bg-[#1f2a7a] text-white text-sm font-medium rounded-lg"
+              loading={loading}
+              className="w-full"
             >
               {loading ? "Updating..." : "Update Password"}
-            </Button>
+            </StandardButton>
           </form>
         </Card>
 
         {/* Logout */}
-        <Button
+        <StandardButton
           onClick={handleLogout}
           variant="destructive"
-          className="w-full h-9 bg-[#ef4444] hover:bg-[#dc2626] text-white text-sm font-medium rounded-lg"
+          className="w-full"
         >
           Logout
-        </Button>
+        </StandardButton>
       </div>
     </div>
   );

@@ -8,12 +8,22 @@ function getSupabaseAdmin() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
+  // Add debugging - this will show in your SERVER terminal, not browser console
+  console.log("[API Route] Environment variables check:", {
+    hasServiceRoleKey: !!serviceRoleKey,
+    serviceRoleKeyLength: serviceRoleKey?.length || 0,
+    serviceRoleKeyFirstChars: serviceRoleKey?.substring(0, 20) || "NOT FOUND",
+    hasSupabaseUrl: !!supabaseUrl,
+    supabaseUrl: supabaseUrl || "NOT FOUND",
+  });
+
   if (!supabaseUrl) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL is required");
   }
 
   // If service role key is available, use it
   if (serviceRoleKey) {
+    console.log("[API Route] Service role key found, creating admin client");
     return createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
@@ -23,11 +33,13 @@ function getSupabaseAdmin() {
   }
 
   // Fallback: return null and handle in the route
+  console.error("[API Route] Service role key NOT found in environment variables");
   return null;
 }
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("[API Route] POST /api/staff/create called");
     const body = await request.json();
     const { email, password, full_name, phone, role, branch_id, username } = body;
 
@@ -39,15 +51,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("[API Route] Attempting to get Supabase admin client...");
     const supabaseAdmin = getSupabaseAdmin();
 
     if (!supabaseAdmin) {
+      console.error("[API Route] Supabase admin client is null - service role key missing");
       return NextResponse.json(
         { error: "Service role key not configured. Please set SUPABASE_SERVICE_ROLE_KEY in environment variables." },
         { status: 500 }
       );
     }
 
+    console.log("[API Route] Supabase admin client created successfully, creating auth user...");
     // Step 1: Create auth user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -56,6 +71,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (authError) {
+      console.error("[API Route] Auth user creation error:", authError.message);
       return NextResponse.json(
         { error: authError.message },
         { status: 400 }
@@ -63,12 +79,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!authData.user) {
+      console.error("[API Route] Auth user creation failed - no user returned");
       return NextResponse.json(
         { error: "Failed to create auth user" },
         { status: 500 }
       );
     }
 
+    console.log("[API Route] Auth user created successfully:", authData.user.id);
     // Step 2: Create profile
     const { data: profileData, error: profileError } = await (supabaseAdmin
       .from("profiles") as any)
@@ -86,6 +104,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (profileError) {
+      console.error("[API Route] Profile creation error:", profileError.message);
       // If profile creation fails, try to delete the auth user
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       return NextResponse.json(
@@ -94,6 +113,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("[API Route] Staff created successfully:", profileData?.id);
     return NextResponse.json({ data: profileData }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(

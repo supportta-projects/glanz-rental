@@ -44,12 +44,7 @@ export function EmptyState({
         <Button
           onClick={action.onClick}
           variant={action.variant || "default"}
-          className={cn(
-            action.variant === "default"
-              ? "bg-[#273492] hover:bg-[#1f2a7a] text-white"
-              : "",
-            "h-8 px-3 text-xs font-medium rounded-lg"
-          )}
+          size="md"
         >
           {action.label}
         </Button>

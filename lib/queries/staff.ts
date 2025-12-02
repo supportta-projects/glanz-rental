@@ -24,6 +24,11 @@ export function useStaff(branchId?: string | null) {
       return (data || []) as User[];
     },
     enabled: true,
+    staleTime: 60000, // Cache for 1 minute
+    gcTime: 300000, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: true,
   });
 }
 
@@ -77,15 +82,24 @@ export function useUpdateStaff() {
       phone?: string;
       role?: UserRole;
       branch_id?: string;
+      is_active?: boolean;
     }) => {
-      const { data, error } = await (supabase
+      // Update the profile
+      const { error: updateError } = await (supabase
         .from("profiles") as any)
         .update(updates)
-        .eq("id", id)
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+
+      // Fetch the updated profile with branch relation
+      const { data, error: fetchError } = await (supabase
+        .from("profiles") as any)
         .select("*, branch:branches(*)")
+        .eq("id", id)
         .single();
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
       return data as User;
     },
     onSuccess: () => {

@@ -12,7 +12,6 @@ import {
   UserCog,
   UserCircle,
   LogOut,
-  Settings as SettingsIcon,
   Calendar,
   ChevronDown,
 } from "lucide-react";
@@ -22,13 +21,20 @@ import { createClient } from "@/lib/supabase/client";
 import { useBranches } from "@/lib/queries/branches";
 import { useState } from "react";
 
-const menuItems = [
-  { href: "/dashboard", icon: Home, label: "Dashboard" },
+// Base menu items - available to all roles
+const baseMenuItems = [
   { href: "/orders", icon: FileText, label: "Orders" },
   { href: "/calendar", icon: Calendar, label: "Calendar" },
   { href: "/customers", icon: Users, label: "Customers" },
-  { href: "/reports", icon: BarChart3, label: "Reports" },
 ];
+
+// Dashboard - only for super_admin and branch_admin
+const dashboardMenuItem = {
+  href: "/dashboard",
+  icon: Home,
+  label: "Dashboard",
+  roles: ["super_admin", "branch_admin"] as const,
+};
 
 const adminMenuItems = [
   {
@@ -190,7 +196,36 @@ export function DesktopSidebar() {
 
       {/* Menu Items */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-        {menuItems.map((item) => {
+        {/* Dashboard - Only for super_admin and branch_admin */}
+        {user?.role === "super_admin" || user?.role === "branch_admin" ? (
+          (() => {
+            const Icon = dashboardMenuItem.icon;
+            const isActive =
+              pathname === dashboardMenuItem.href || pathname.startsWith(dashboardMenuItem.href + "/");
+
+            return (
+              <Link
+                key={dashboardMenuItem.href}
+                href={dashboardMenuItem.href}
+                prefetch={true}
+                onMouseEnter={() => handleLinkHover(dashboardMenuItem.href)}
+                onFocus={() => handleLinkHover(dashboardMenuItem.href)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                  isActive
+                    ? "bg-[#273492] text-white font-medium"
+                    : "text-gray-700 hover:bg-gray-50"
+                )}
+              >
+                <Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
+                <span className="text-sm">{dashboardMenuItem.label}</span>
+              </Link>
+            );
+          })()
+        ) : null}
+
+        {/* Base menu items - available to all roles */}
+        {baseMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
@@ -272,19 +307,6 @@ export function DesktopSidebar() {
         >
           <UserCircle className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
           <span className="text-sm">Profile</span>
-        </Link>
-        <Link
-          href="/settings"
-          prefetch={true}
-          className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
-            pathname === "/settings"
-              ? "bg-gray-50 text-[#273492] font-medium"
-              : "text-gray-700 hover:bg-gray-50"
-          )}
-        >
-          <SettingsIcon className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
-          <span className="text-sm">Settings</span>
         </Link>
         <button
           onClick={handleLogout}

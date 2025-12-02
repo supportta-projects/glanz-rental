@@ -17,6 +17,7 @@ export function useRealtimeSubscription(
   const queryClient = useQueryClient();
   const supabaseRef = useRef(createClient());
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const refetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const supabase = supabaseRef.current;
@@ -41,34 +42,41 @@ export function useRealtimeSubscription(
         presence: { key: "" },
       },
     });
-
     const refetchQueries = () => {
-      // Force immediate refetch of all order-related queries when orders or order_items change
-      // Using refetchQueries instead of invalidateQueries ensures immediate update
-      queryClient.refetchQueries({ 
-        queryKey: ["orders-infinite"],
-        type: "active" // Only refetch active queries (currently being used)
-      });
-      queryClient.refetchQueries({ 
-        queryKey: ["orders"],
-        type: "active"
-      });
-      queryClient.refetchQueries({ 
-        queryKey: ["dashboard-stats"],
-        type: "active"
-      });
-      queryClient.refetchQueries({ 
-        queryKey: ["recent-orders"],
-        type: "active"
-      });
-      queryClient.refetchQueries({ 
-        queryKey: ["order"],
-        type: "active"
-      });
-      queryClient.refetchQueries({ 
-        queryKey: ["calendar-orders"],
-        type: "active"
-      });
+      // Clear existing timeout
+      if (refetchTimeoutRef.current) {
+        clearTimeout(refetchTimeoutRef.current);
+      }
+      
+      // Debounce refetch by 300ms to batch multiple rapid updates
+      refetchTimeoutRef.current = setTimeout(() => {
+        // Use invalidateQueries instead of refetchQueries for better performance
+        // This allows React Query to batch updates and only refetch when needed
+        queryClient.invalidateQueries({ 
+          queryKey: ["orders-infinite"],
+          refetchType: "active" // Only refetch active queries
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: ["orders"],
+          refetchType: "active"
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: ["dashboard-stats"],
+          refetchType: "active"
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: ["recent-orders"],
+          refetchType: "active"
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: ["order"],
+          refetchType: "active"
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: ["calendar-orders"],
+          refetchType: "active"
+        });
+      }, 300);
     };
 
     // Subscribe to orders table changes
@@ -82,7 +90,7 @@ export function useRealtimeSubscription(
           filter: branchId ? `branch_id=eq.${branchId}` : undefined,
         },
         (payload: any) => {
-          console.log("[Realtime] Orders changed:", payload.eventType, (payload.new as any)?.id || (payload.old as any)?.id);
+          // Removed verbose logging for better performance
           refetchQueries();
         }
       );
@@ -98,19 +106,19 @@ export function useRealtimeSubscription(
           table: "order_items",
         },
         (payload: any) => {
-          console.log("[Realtime] Order items changed:", payload.eventType, (payload.new as any)?.order_id || (payload.old as any)?.order_id);
+          // Removed verbose logging for better performance
           refetchQueries();
         }
       );
     }
 
     channel.subscribe((status) => {
-      if (status === "SUBSCRIBED") {
-        console.log(`[Realtime] ✅ Subscribed to ${table}${branchId ? ` (branch: ${branchId})` : " (global)"}`);
-      } else if (status === "CHANNEL_ERROR") {
-        console.warn(`[Realtime] ⚠️ Channel error for ${table}`);
+      if (status === "CHANNEL_ERROR") {
+        // Only log errors in development
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`[Realtime] Channel error for ${table}`);
+        }
       } else if (status === "TIMED_OUT") {
-        console.warn(`[Realtime] ⚠️ Channel timeout for ${table}, resubscribing...`);
         // Auto-resubscribe on timeout
         setTimeout(() => {
           channel.subscribe();
@@ -121,6 +129,11 @@ export function useRealtimeSubscription(
     channelRef.current = channel;
 
     return () => {
+      // Clear debounce timeout
+      if (refetchTimeoutRef.current) {
+        clearTimeout(refetchTimeoutRef.current);
+        refetchTimeoutRef.current = null;
+      }
       // Unsubscribe on unmount
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);

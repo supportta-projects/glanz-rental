@@ -196,20 +196,24 @@ export function DateRangePicker({
         variant="outline"
         onClick={() => setShowPicker(!showPicker)}
         className={cn(
-          "h-7 px-2.5 gap-1.5 text-xs font-medium transition-all duration-200",
-          "border-gray-300 hover:border-[#273492] hover:bg-[#273492]/5",
-          "active:scale-[0.98]",
-          isFiltered && "border-[#273492] text-[#273492] bg-[#273492]/5"
+          "!h-9 !px-3.5 !min-h-0 gap-2 text-sm font-medium transition-all duration-200",
+          "border border-gray-200 bg-white hover:border-[#273492] hover:bg-[#273492]/5 hover:shadow-sm",
+          "active:scale-[0.97] shadow-sm",
+          "focus-visible:ring-2 focus-visible:ring-[#273492]/20 focus-visible:ring-offset-1",
+          isFiltered && "border-[#273492] text-[#273492] bg-[#273492]/5 shadow-sm"
         )}
         size="sm"
       >
         {isFiltered ? (
-          <Filter className="h-3 w-3 flex-shrink-0" />
+          <Filter className="h-3.5 w-3.5 flex-shrink-0" />
         ) : (
-          <Calendar className="h-3 w-3 flex-shrink-0" />
+          <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-gray-500" />
         )}
-        <span className="truncate max-w-[100px] sm:max-w-[140px] font-medium">{displayText}</span>
-        <ChevronDown className={cn("h-3 w-3 flex-shrink-0 transition-transform duration-200", showPicker && "rotate-180")} />
+        <span className={cn(
+          "truncate max-w-[100px] sm:max-w-[140px] font-medium",
+          isFiltered ? "text-[#273492]" : "text-gray-700"
+        )}>{displayText}</span>
+        <ChevronDown className={cn("h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 text-gray-400", showPicker && "rotate-180")} />
         {isFiltered && (
           <button
             onClick={(e) => {

@@ -24,7 +24,8 @@ export function VirtualizedTable({
     count: orders.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => rowHeight,
-    overscan: 5, // Render 5 extra rows for smooth scrolling
+    overscan: 3, // Reduced from 5 to 3 for better performance
+    measureElement: undefined, // Use estimateSize for better performance
   });
 
   const virtualItems = virtualizer.getVirtualItems();

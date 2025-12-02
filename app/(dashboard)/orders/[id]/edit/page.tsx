@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { StandardButton } from "@/components/shared/standard-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -22,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { differenceInMinutes } from "date-fns";
 import { OrderInvoiceSection } from "@/components/orders/order-invoice-section";
 import { OrderSummarySection } from "@/components/orders/order-summary-section";
+import { PageNavbar } from "@/components/layout/page-navbar";
 
 export default function EditOrderPage() {
   const params = useParams();
@@ -276,12 +278,7 @@ export default function EditOrderPage() {
   if (orderLoading) {
     return (
       <div className="min-h-screen bg-zinc-50 pb-32">
-        <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-4 w-4 rounded" />
-            <Skeleton className="h-[9px] w-32 rounded" />
-          </div>
-        </div>
+        <PageNavbar title="Loading..." backHref={`/orders/${orderId}`} />
         <div className="p-4 space-y-6">
           <Skeleton className="h-64 rounded-xl" />
           <Skeleton className="h-48 rounded-xl" />
@@ -293,14 +290,7 @@ export default function EditOrderPage() {
   if (!order) {
     return (
       <div className="min-h-screen bg-zinc-50 pb-32">
-        <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
-          <div className="flex items-center gap-2">
-            <Link href={`/orders/${orderId}`} className="p-1 hover:bg-gray-100 rounded-md transition-colors">
-              <ArrowLeft className="h-4 w-4 text-gray-500" />
-            </Link>
-            <h1 className="text-[9px] font-normal text-gray-500 font-mono">N/A</h1>
-          </div>
-        </div>
+        <PageNavbar title="Order Not Found" backHref={`/orders/${orderId}`} />
         <div className="p-4">
           <Card className="p-8 text-center">
             <p className="text-gray-500">Order not found</p>
@@ -315,17 +305,12 @@ export default function EditOrderPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-32">
-      {/* Minimal Header */}
-      <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <Link href={`/orders/${orderId}`} className="p-1 hover:bg-gray-100 rounded-md transition-colors">
-            <ArrowLeft className="h-4 w-4 text-gray-500" />
-          </Link>
-          <h1 className="text-[9px] font-normal text-gray-500 font-mono">
-            {order?.invoice_number || "N/A"}
-          </h1>
-        </div>
-      </div>
+      {/* Modern Professional Navbar */}
+      <PageNavbar
+        title={editMode === "invoice-only" ? "Edit Invoice & Billing" : "Edit Order"}
+        subtitle={order.invoice_number || undefined}
+        backHref={`/orders/${orderId}`}
+      />
 
       {editMode === "invoice-only" ? (
         // Show only invoice/billing fields
@@ -613,13 +598,15 @@ export default function EditOrderPage() {
         </div>
 
         {/* Save Button */}
-        <Button
+        <StandardButton
           onClick={handleUpdateOrder}
+          variant="default"
           disabled={updateOrderMutation.isPending}
-          className="w-full h-14 bg-sky-500 hover:bg-sky-600 text-white text-base font-semibold rounded-xl mt-6"
+          loading={updateOrderMutation.isPending}
+          className="w-full mt-6"
         >
           {updateOrderMutation.isPending ? "Updating..." : "Update Order"}
-        </Button>
+        </StandardButton>
         </div>
       )}
 

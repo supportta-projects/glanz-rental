@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { StandardButton } from "@/components/shared/standard-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select, SelectItem } from "@/components/ui/select";
 import { IdProofUpload } from "@/components/customers/id-proof-upload";
+import { PageNavbar } from "@/components/layout/page-navbar";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -92,14 +93,11 @@ export default function NewCustomerPage() {
   return (
     <div className="min-h-screen bg-zinc-50 pb-32">
       {/* Minimal Header */}
-      <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <Link href="/customers" className="p-1 hover:bg-gray-100 rounded-md transition-colors">
-            <ArrowLeft className="h-4 w-4 text-gray-500" />
-          </Link>
-          <h1 className="text-[9px] font-normal text-gray-500">New Customer</h1>
-        </div>
-      </div>
+      <PageNavbar
+        title="New Customer"
+        subtitle="Add a new customer to the system"
+        backHref="/customers"
+      />
 
       <form onSubmit={handleSubmit} className="p-4 space-y-6">
         {/* Basic Information */}
@@ -209,21 +207,23 @@ export default function NewCustomerPage() {
 
         {/* Submit Button */}
         <div className="flex gap-4 pb-8">
-          <Button
+          <StandardButton
             type="button"
             variant="outline"
             onClick={() => router.back()}
-            className="flex-1 h-14 text-base rounded-xl"
+            className="flex-1"
           >
             Cancel
-          </Button>
-          <Button
+          </StandardButton>
+          <StandardButton
             type="submit"
+            variant="default"
+            className="flex-1"
             disabled={saving}
-            className="flex-1 h-14 bg-[#273492] hover:bg-[#1f2a7a] text-white text-base font-semibold rounded-xl"
+            loading={saving}
           >
             {saving ? "Saving..." : "Save Customer"}
-          </Button>
+          </StandardButton>
         </div>
       </form>
     </div>

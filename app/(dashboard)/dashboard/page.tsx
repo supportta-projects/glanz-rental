@@ -30,6 +30,7 @@ import { ScrollToTop } from "@/components/layout/scroll-to-top";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
 import { startOfToday, subDays, endOfToday } from "date-fns";
+import { RouteGuard } from "@/components/auth/route-guard";
 
 export default function DashboardPage() {
   const { user } = useUserStore();
@@ -49,51 +50,7 @@ export default function DashboardPage() {
     user?.branch_id || null
   );
 
-  // Debug logging
-  useEffect(() => {
-    console.log("[Dashboard] Current state:", {
-      statsLoading,
-      hasStats: !!stats,
-      stats: stats,
-      statsError: statsError?.message,
-      branchId: user?.branch_id,
-      userId: user?.id,
-    });
-    
-    if (stats) {
-      console.log("[Dashboard] ✅ Stats loaded successfully:", {
-        total_orders: stats.total_orders,
-        ongoing: stats.ongoing,
-        total_revenue: stats.total_revenue,
-        late_returns: stats.late_returns,
-        partial_returns: stats.partial_returns,
-        total_completed: stats.total_completed,
-        total_customers: stats.total_customers,
-        pending_return: stats.pending_return,
-        scheduled_today: stats.scheduled_today,
-      });
-      
-      // Warn if all values are zero (might indicate a problem)
-      if (stats.total_orders === 0 && stats.total_customers === 0 && stats.total_revenue === 0 && !statsLoading) {
-        console.warn("[Dashboard] ⚠️ All stats are zero - this might indicate:");
-        console.warn("  1. No data in database for this branch");
-        console.warn("  2. Query not running (check branchId)");
-        console.warn("  3. RPC function returning empty data");
-        console.warn("  4. Database connection issue");
-      }
-    }
-    if (statsError) {
-      console.error("[Dashboard] ❌ Stats error:", statsError);
-      console.error("[Dashboard] Error details:", {
-        message: statsError.message,
-        name: statsError.name,
-      });
-    }
-    if (!user?.branch_id) {
-      console.warn("[Dashboard] ⚠️ No branch_id in user:", user);
-      console.warn("[Dashboard] Query will not run until branch_id is available");
-    }
-  }, [stats, statsError, user, statsLoading]);
+  // Removed debug logging for better performance
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -139,8 +96,13 @@ export default function DashboardPage() {
     };
   }, [handleRefresh]);
 
+  // Show different dashboard based on role
+  const isSuperAdmin = user?.role === "super_admin";
+  const isBranchAdmin = user?.role === "branch_admin";
+
   return (
-    <div className="p-4 md:p-6 space-y-6 min-h-full">
+    <RouteGuard allowedRoles={["super_admin", "branch_admin"]}>
+      <div className="p-4 md:p-6 space-y-6 min-h-full">
       {/* Pull to Refresh Indicator */}
       {isRefreshing && (
         <div className="flex justify-center py-2">
@@ -151,8 +113,16 @@ export default function DashboardPage() {
       {/* Header with Date Range Picker */}
       <div className="flex items-center justify-between flex-wrap gap-4 pb-6 border-b border-gray-200">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-1">Dashboard</h1>
-          <p className="text-sm text-gray-500">Real-time overview of your rental business</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-1">
+            {isSuperAdmin ? "Super Admin Dashboard" : isBranchAdmin ? "Branch Admin Dashboard" : "Dashboard"}
+          </h1>
+          <p className="text-sm text-gray-500">
+            {isSuperAdmin 
+              ? "Complete overview of all branches and operations" 
+              : isBranchAdmin 
+              ? `Real-time overview of ${user?.branch?.name || "your branch"}` 
+              : "Real-time overview of your rental business"}
+          </p>
         </div>
         <DateRangePicker value={dateRange} onChange={setDateRange} />
       </div>
@@ -331,7 +301,6 @@ export default function DashboardPage() {
               value={formatCurrencyCompact(stats?.total_revenue || 0)}
               icon={IndianRupee}
               gradient="from-purple-500 to-purple-600"
-              href="/reports"
             />
           )}
 
@@ -419,15 +388,16 @@ export default function DashboardPage() {
       {/* Quick Actions - Mobile: Stacked, Desktop: Row */}
       <div className="flex flex-col md:flex-row gap-3">
         <Link href="/orders/new" className="flex-1">
-          <Button className="w-full h-9 bg-[#273492] hover:bg-[#1f2a7a] text-white text-sm font-medium rounded-lg">
-            <Plus className="h-4 w-4 mr-2" />
+          <Button variant="default" size="md" className="w-full">
+            <Plus className="h-4 w-4" />
             New Order
           </Button>
         </Link>
         <Link href="/orders" className="flex-1">
           <Button
             variant="outline"
-            className="w-full h-9 border-[#273492] text-[#273492] hover:bg-[#273492] hover:text-white text-sm font-medium rounded-lg transition-colors"
+            size="md"
+            className="w-full"
           >
             View All Orders
           </Button>
@@ -453,6 +423,7 @@ export default function DashboardPage() {
       
       {/* Scroll to Top Button - Mobile Only */}
       <ScrollToTop />
-    </div>
+      </div>
+    </RouteGuard>
   );
 }

@@ -68,6 +68,11 @@ export function OrdersHeader({
 
   const breadcrumbs = getBreadcrumbs();
 
+  // Only render on orders pages
+  if (!pathname.startsWith("/orders")) {
+    return null;
+  }
+
   return (
     <header className="bg-white border-b border-gray-200">
       <div className="px-4 py-2.5">

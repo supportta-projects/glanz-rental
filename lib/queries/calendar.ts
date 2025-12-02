@@ -108,10 +108,10 @@ export function useCalendarOrders(
       return { counts, orders: ordersByDate };
     },
     enabled: !!branchId,
-    staleTime: 0, // Always consider stale for real-time updates
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
+    staleTime: 30000, // 30s - balance between freshness and performance
+    refetchOnMount: false, // Use cached data if available
+    refetchOnReconnect: true, // Refresh after reconnection
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
   });
 }
 

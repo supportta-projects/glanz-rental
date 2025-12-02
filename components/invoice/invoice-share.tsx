@@ -661,11 +661,11 @@ export function InvoiceShare({ order, user, showInvoice: externalShowInvoice, on
             variant="outline"
             disabled={isGenerating}
             size="sm"
-            className="h-9 px-3 gap-2 border border-[#273492]/20 hover:border-[#273492]/40 hover:bg-[#273492]/10 transition-colors rounded-lg"
+            className="gap-2"
             title="View Invoice"
           >
-            <Eye className="h-4 w-4 text-[#273492]" />
-            <span className="text-xs font-medium text-gray-700 hidden sm:inline">View</span>
+            <Eye className="h-4 w-4" />
+            <span className="hidden sm:inline">View</span>
           </Button>
 
           {/* Share WhatsApp Button */}
@@ -673,11 +673,11 @@ export function InvoiceShare({ order, user, showInvoice: externalShowInvoice, on
             onClick={shareOnWhatsApp}
             disabled={isGenerating || !order.customer?.phone}
             size="sm"
-            className="h-9 px-3 gap-2 bg-green-500 hover:bg-green-600 text-white border border-green-400 transition-colors rounded-lg shadow-sm"
+            className="gap-2 bg-green-500 hover:bg-green-600 text-white border-0 shadow-md hover:shadow-lg"
             title="Share on WhatsApp"
           >
             <MessageCircle className="h-4 w-4" />
-            <span className="text-xs font-medium hidden sm:inline">WhatsApp</span>
+            <span className="hidden sm:inline">WhatsApp</span>
           </Button>
 
           {/* Download PDF Button */}
@@ -686,11 +686,11 @@ export function InvoiceShare({ order, user, showInvoice: externalShowInvoice, on
             variant="outline"
             disabled={isGenerating}
             size="sm"
-            className="h-9 px-3 gap-2 border border-[#273492]/20 hover:border-[#273492]/40 hover:bg-[#273492]/10 transition-colors rounded-lg"
+            className="gap-2"
             title="Download PDF"
           >
-            <Download className="h-4 w-4 text-[#273492]" />
-            <span className="text-xs font-medium text-gray-700 hidden sm:inline">Download</span>
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Download</span>
           </Button>
 
           {/* Print Button */}
@@ -699,11 +699,11 @@ export function InvoiceShare({ order, user, showInvoice: externalShowInvoice, on
             variant="outline"
             disabled={isGenerating}
             size="sm"
-            className="h-9 px-3 gap-2 border border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors rounded-lg"
+            className="gap-2"
             title="Print Invoice"
           >
-            <Printer className="h-4 w-4 text-gray-700" />
-            <span className="text-xs font-medium text-gray-700 hidden sm:inline">Print</span>
+            <Printer className="h-4 w-4" />
+            <span className="hidden sm:inline">Print</span>
           </Button>
         </div>
       </Card>

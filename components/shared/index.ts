@@ -7,5 +7,6 @@ export { ErrorState } from "./error-state";
 export { Pagination } from "./pagination";
 export { PageContainer } from "./page-container";
 export { ActionButton } from "./action-button";
+export { StandardButton } from "./standard-button";
 export { StatsBadge } from "./stats-badge";
 

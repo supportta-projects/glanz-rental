@@ -43,8 +43,6 @@ export function useDashboardStats(
         };
       }
 
-      console.log("[useDashboardStats] Fetching stats for branch:", branchId);
-      
       // Try RPC function first (if available), fallback to direct query
       try {
         const { data, error } = await (supabase.rpc as any)("get_dashboard_stats", {
@@ -54,32 +52,25 @@ export function useDashboardStats(
         });
 
         if (error) {
-          console.error("[useDashboardStats] RPC function error:", error);
-          // Continue to fallback query
+          // Continue to fallback query silently
         } else if (data) {
           // Validate that RPC returned actual data structure
           const rpcStats = data as DashboardStats;
           // Check if it has the required fields and they're valid numbers
           if (rpcStats && typeof rpcStats.total_orders === 'number') {
-            console.log("[useDashboardStats] ✅ RPC function returned data:", rpcStats);
             return rpcStats;
-          } else {
-            console.warn("[useDashboardStats] ⚠️ RPC function returned invalid data structure, using fallback");
-            console.log("[useDashboardStats] RPC data:", data);
           }
         }
       } catch (rpcError: any) {
-        // Fallback if RPC function doesn't exist (404) or fails
-        if (rpcError?.code === "PGRST116" || rpcError?.status === 404) {
-          console.warn("[useDashboardStats] RPC function not found, using fallback query");
-        } else {
+        // Fallback if RPC function doesn't exist (404) or fails - silent fallback
+        // Only log critical errors in development
+        if (process.env.NODE_ENV === 'development' && rpcError?.code !== "PGRST116" && rpcError?.status !== 404) {
           console.error("[useDashboardStats] RPC function exception:", rpcError);
         }
       }
 
       // Fallback to comprehensive direct queries
       // Use dateRange to filter orders, or default to today if not provided
-      console.log("[useDashboardStats] Using date range:", { rangeStart, rangeEnd });
 
       // Fetch orders for the branch WITHIN DATE RANGE (for filtered stats)
       const { data: allOrders, error: allOrdersError } = await supabase
@@ -95,16 +86,7 @@ export function useDashboardStats(
       }
 
       const fetchedOrdersCount = allOrders?.length || 0;
-      console.log("[useDashboardStats] ✅ Fetched all orders:", fetchedOrdersCount, "orders");
-      
-      if (fetchedOrdersCount === 0) {
-        console.warn("[useDashboardStats] ⚠️ No orders found for branch:", branchId);
-        console.log("[useDashboardStats] This might be normal if no orders exist yet");
-      } else {
-        console.log("[useDashboardStats] Sample order statuses:", 
-          allOrders?.slice(0, 5).map((o: any) => ({ id: o.id, status: o.status }))
-        );
-      }
+      // Removed verbose logging for better performance
 
       // Fetch orders within date range (for "today's activity" section - filtered by date range)
       const { data: todayOrders, error: todayOrdersError } = await supabase
@@ -207,7 +189,7 @@ export function useDashboardStats(
         
         if (customersError) {
           // Try with branch_id filter if the error suggests the column doesn't exist
-          console.warn("[useDashboardStats] Customers query without branch_id failed, trying with branch_id:", customersError);
+          // Fallback to query with branch_id if needed
           const { count: countWithBranch, error: branchError } = await supabase
             .from("customers")
             .select("*", { count: "exact", head: true })
@@ -232,17 +214,8 @@ export function useDashboardStats(
       const orders = allOrders || [];
       const todayOrdersList = todayOrders || [];
 
-      console.log("[useDashboardStats] Processing orders:", {
-        totalOrders: orders.length,
-        ordersByStatus: {
-          active: orders.filter((o: any) => o.status === "active").length,
-          completed: orders.filter((o: any) => o.status === "completed").length,
-          scheduled: orders.filter((o: any) => o.status === "scheduled").length,
-          partially_returned: orders.filter((o: any) => o.status === "partially_returned").length,
-          pending_return: orders.filter((o: any) => o.status === "pending_return").length,
-          cancelled: orders.filter((o: any) => o.status === "cancelled").length,
-        }
-      });
+      // Process orders for stats calculation
+      // Removed verbose logging for better performance
 
       // Current day operational stats
       const scheduled_today = scheduledToday;
@@ -286,41 +259,15 @@ export function useDashboardStats(
         completed: today_completed,
       };
 
-      // Debug logging
-      const ordersCount = orders.length;
-      console.log("[useDashboardStats] 📊 Calculated stats:", {
-        scheduled_today,
-        ongoing,
-        late_returns,
-        partial_returns,
-        total_orders,
-        total_completed,
-        total_revenue,
-        total_customers: total_customers_count,
-        today_collection,
-        today_completed,
-        today_new_orders,
-        pending_return: orders.filter((o: any) => o.status === "pending_return").length,
-      });
-      
-      // Validate stats before returning
-      if (total_orders === 0 && ordersCount > 0) {
-        console.error("[useDashboardStats] ⚠️ WARNING: Orders fetched but total_orders is 0!");
-      }
-      
-      if (total_orders === 0 && ordersCount === 0) {
-        console.log("[useDashboardStats] ℹ️ No orders found in database for branch:", branchId);
-      } else if (total_orders > 0) {
-        console.log("[useDashboardStats] ✅ Successfully calculated stats from", total_orders, "orders");
-      }
+      // Removed verbose logging for better performance
 
       return stats;
     },
     enabled: !!branchId, // Only enable if branchId exists
-    staleTime: 0, // Always consider stale to ensure fresh data
+    staleTime: 30000, // 30s - balance between freshness and performance
     gcTime: 300000, // 5m as per requirements
-    refetchOnWindowFocus: true, // Refresh when user returns to tab
-    refetchOnMount: true, // CRITICAL: Load data on mount
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
+    refetchOnMount: false, // Use cached data if available
     refetchOnReconnect: true, // Refresh after reconnection
   });
 }
@@ -349,10 +296,10 @@ export function useRecentOrders(branchId: string | null) {
       return data as Order[];
     },
     enabled: !!branchId,
-    staleTime: 0, // Always consider stale to ensure fresh data
+    staleTime: 30000, // 30s - balance between freshness and performance
     gcTime: 300000, // 5m as per requirements
-    refetchOnWindowFocus: true, // Refresh when user returns to tab
-    refetchOnMount: true, // CRITICAL: Load data on mount
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
+    refetchOnMount: false, // Use cached data if available
     refetchOnReconnect: true, // Refresh after reconnection
   });
 }

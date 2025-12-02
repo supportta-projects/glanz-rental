@@ -6,26 +6,16 @@ import { PageHeader, EmptyState, ActionButton, LoadingState, ErrorState } from "
 import { useBranches } from "@/lib/queries/branches";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { RouteGuard } from "@/components/auth/route-guard";
 
 export default function BranchesPage() {
   const { user } = useUserStore();
   const { data: branches, isLoading, error } = useBranches();
 
-  // Only Super Admin can access
-  if (user?.role !== "super_admin") {
-    return (
-      <div className="min-h-screen bg-[#f7f9fb] p-4 md:p-6 flex items-center justify-center">
-        <EmptyState
-          icon={<ShieldX className="h-16 w-16" />}
-          title="Access denied"
-          description="Only Super Admin can manage branches"
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#f7f9fb] pb-24">
+    <RouteGuard allowedRoles={["super_admin"]} redirectTo="/orders">
+
+      <div className="min-h-screen bg-[#f7f9fb] pb-24">
       <PageHeader
         title="Branches"
         description={branches ? `${branches.length} branch${branches.length !== 1 ? "es" : ""}` : undefined}
@@ -81,6 +71,7 @@ export default function BranchesPage() {
         )}
       </div>
     </div>
+    </RouteGuard>
   );
 }
 

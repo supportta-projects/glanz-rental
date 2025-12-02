@@ -13,6 +13,7 @@ export interface User {
   branch_id: string | null;
   full_name: string;
   phone: string;
+  is_active?: boolean; // Whether the staff account is active (can log in)
   gst_number?: string;
   gst_enabled?: boolean; // true = GST enabled, false = GST disabled
   gst_rate?: number; // GST rate as percentage (e.g., 5.00 for 5%)

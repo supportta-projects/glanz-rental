@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { StandardButton } from "@/components/shared/standard-button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useUserStore } from "@/lib/stores/useUserStore";
@@ -25,6 +25,7 @@ import { OrderDateTimeSection } from "@/components/orders/order-datetime-section
 import { OrderItemsSection } from "@/components/orders/order-items-section";
 import { OrderSummarySection } from "@/components/orders/order-summary-section";
 import { OrderInvoiceSection } from "@/components/orders/order-invoice-section";
+import { PageNavbar } from "@/components/layout/page-navbar";
 
 /**
  * New Order Page
@@ -190,14 +191,11 @@ export default function CreateOrderPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
       {/* Minimal Header */}
-      <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <Link href="/orders" className="p-1 hover:bg-gray-100 rounded-md transition-colors">
-            <ArrowLeft className="h-4 w-4 text-gray-500" />
-          </Link>
-          <h1 className="text-[9px] font-normal text-gray-500">New Order</h1>
-        </div>
-      </div>
+      <PageNavbar
+        title="New Order"
+        subtitle="Create a new rental order"
+        backHref="/orders"
+      />
 
       <div className="px-4 md:px-6 py-4 md:py-6 space-y-6 max-w-4xl mx-auto">
         {/* Customer Section */}
@@ -244,13 +242,15 @@ export default function CreateOrderPage() {
         />
 
         {/* Save Button */}
-        <Button
+        <StandardButton
           onClick={handleSaveOrder}
+          variant="default"
           disabled={createOrderMutation.isPending}
-          className="w-full h-10 bg-[#273492] hover:bg-[#1f2a7a] text-white text-sm font-medium rounded-lg mt-6"
+          loading={createOrderMutation.isPending}
+          className="w-full mt-6"
         >
           {createOrderMutation.isPending ? "Saving..." : "Save Order"}
-        </Button>
+        </StandardButton>
       </div>
 
       {/* Image Lightbox */}
