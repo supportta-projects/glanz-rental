@@ -25,7 +25,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
             className={cn(
               index === items.length - 1
                 ? "text-gray-900 font-medium"
-                : "text-[#0b63ff] hover:text-[#0a5ce6]"
+                : "text-[#273492] hover:text-[#1f2a7a]"
             )}
           >
             {item.label}

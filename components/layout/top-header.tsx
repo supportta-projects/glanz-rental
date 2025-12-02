@@ -57,12 +57,12 @@ export function TopHeader() {
               onClick={() => setShowMenu(true)}
               className={`
                 relative flex-shrink-0 w-8 h-8 rounded-full 
-                bg-[#0b63ff]
+                bg-[#273492]
                 text-white flex items-center justify-center 
                 font-medium text-xs
-                hover:bg-[#0a5ce6]
+                hover:bg-[#1f2a7a]
                 transition-all duration-200 ease-out
-                ${showMenu ? 'ring-2 ring-[#0b63ff] ring-offset-2' : ''}
+                ${showMenu ? 'ring-2 ring-[#273492] ring-offset-2' : ''}
               `}
               aria-label="User menu"
             >
@@ -127,7 +127,7 @@ export function TopHeader() {
             {/* User Info Header */}
             <div className="px-4 py-3 bg-[#f1f5f9] border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="relative flex-shrink-0 w-9 h-9 rounded-full bg-[#0b63ff] text-white flex items-center justify-center font-medium text-xs">
+                <div className="relative flex-shrink-0 w-9 h-9 rounded-full bg-[#273492] text-white flex items-center justify-center font-medium text-xs">
                   <span>{user?.full_name ? getInitials(user.full_name) : "U"}</span>
                 </div>
                 <div className="flex-1 min-w-0">

@@ -74,7 +74,7 @@ export default function OrderDetailsPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#273492]" />
       </div>
     );
   }
@@ -139,44 +139,45 @@ export default function OrderDetailsPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-24">
-      {/* Header */}
-      <div className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/orders">
-            <ArrowLeft className="h-6 w-6 text-gray-600 hover:text-gray-900 transition-colors" />
+      {/* Minimal Header */}
+      <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-2">
+          <Link href="/orders" className="p-1 hover:bg-gray-100 rounded-md transition-colors">
+            <ArrowLeft className="h-4 w-4 text-gray-500" />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
+          <h1 className="text-[9px] font-normal text-gray-500 font-mono">
+            {order.invoice_number || "N/A"}
+          </h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5">
           {/* Always show Edit button - invoice/billing can be edited for any order */}
           <Link href={`/orders/${orderId}/edit`}>
-            <Button
-              variant="outline"
-              className="h-10 px-4 border-sky-500 text-sky-500 hover:bg-sky-50 rounded-xl"
+            <button
+              className="p-1.5 hover:bg-[#273492]/10 rounded-md transition-colors text-[#273492] hover:text-[#1f2a7a]"
+              aria-label="Edit order"
             >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
+              <Edit className="h-4 w-4" />
+            </button>
           </Link>
-          {/* Show "Start Rental" button for scheduled orders - Professional Design */}
+          {/* Show "Start Rental" button for scheduled orders */}
           {isScheduled && (
-            <Button
+            <button
               onClick={handleStartRental}
               disabled={startRentalMutation.isPending}
-              className="h-11 px-6 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 border-2 border-orange-400"
+              className="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5"
             >
               {startRentalMutation.isPending ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                  <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
                   <span>Starting...</span>
                 </>
               ) : (
                 <>
-                  <PlayCircle className="h-5 w-5" />
-                  <span>Start Rental</span>
+                  <PlayCircle className="h-3.5 w-3.5" />
+                  <span>Start</span>
                 </>
               )}
-            </Button>
+            </button>
           )}
         </div>
       </div>
@@ -226,15 +227,15 @@ export default function OrderDetailsPage() {
         {/* Customer Card - Professional Design */}
         {order.customer && (
           <Link href={`/customers/${order.customer.id}`}>
-            <Card className="p-6 rounded-xl bg-gradient-to-br from-white to-gray-50 shadow-sm border border-gray-200 hover:shadow-md hover:border-sky-300 transition-all duration-200 cursor-pointer group">
+            <Card className="p-6 rounded-xl bg-gradient-to-br from-white to-gray-50 shadow-sm border border-gray-200 hover:shadow-md hover:border-[#273492]/30 transition-all duration-200 cursor-pointer group">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-gradient-to-br from-sky-100 to-blue-100 rounded-xl group-hover:from-sky-200 group-hover:to-blue-200 transition-colors">
-                    <User className="h-6 w-6 text-sky-600" />
+                    <User className="h-6 w-6 text-[#273492]" />
                   </div>
                   <div>
                     <h2 className="text-sm font-medium text-gray-500 mb-1">Customer Information</h2>
-                    <p className="text-2xl font-bold text-gray-900 group-hover:text-sky-600 transition-colors flex items-center gap-2">
+                    <p className="text-2xl font-bold text-gray-900 group-hover:text-[#273492] transition-colors flex items-center gap-2">
                       {order.customer.name || "Unknown"}
                       <ExternalLink className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </p>
@@ -244,8 +245,8 @@ export default function OrderDetailsPage() {
               <div className="space-y-3 pt-3 border-t border-gray-100">
                 {order.customer.phone && (
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-sky-50 transition-colors">
-                      <Phone className="h-4 w-4 text-gray-600 group-hover:text-sky-600" />
+                    <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-[#273492]/10 transition-colors">
+                      <Phone className="h-4 w-4 text-gray-600 group-hover:text-[#273492]" />
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Phone</p>
@@ -255,8 +256,8 @@ export default function OrderDetailsPage() {
                 )}
                 {order.customer.address && (
                   <div className="flex items-start gap-3">
-                    <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-sky-50 transition-colors mt-0.5">
-                      <MapPin className="h-4 w-4 text-gray-600 group-hover:text-sky-600" />
+                    <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-[#273492]/10 transition-colors mt-0.5">
+                      <MapPin className="h-4 w-4 text-gray-600 group-hover:text-[#273492]" />
                     </div>
                     <div className="flex-1">
                       <p className="text-xs text-gray-500">Address</p>
@@ -470,45 +471,45 @@ export default function OrderDetailsPage() {
           </Card>
         )}
 
-        {/* Order Summary with GST - Moved to bottom */}
-        <Card className="p-5 rounded-xl bg-sky-50 shadow-sm space-y-3">
-          {gstEnabled && order.gst_amount && order.gst_amount > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-base font-medium text-gray-700">
-                GST ({gstRate}%)
-              </span>
-              <span className="text-lg font-semibold text-gray-900">
-                {formatCurrency(order.gst_amount)}
-              </span>
-            </div>
-          )}
-          {order.late_fee && order.late_fee > 0 && (
-            <div className="flex items-center justify-between border-t pt-3">
-              <span className="text-base font-medium text-orange-700">
+        {/* Order Summary - Professional & Minimal */}
+        <Card className="p-4 rounded-lg bg-white border border-gray-200 shadow-sm">
+          <div className="space-y-2.5">
+            {gstEnabled && order.gst_amount && order.gst_amount > 0 && (
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-sm text-gray-600">
+                  GST ({gstRate}%)
+                </span>
+                <span className="text-sm font-medium text-gray-900">
+                  {formatCurrency(order.gst_amount)}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between py-1.5 border-t border-gray-100">
+              <span className="text-sm text-gray-600">
                 Late Fee
               </span>
-              <span className="text-lg font-semibold text-orange-700">
-                {formatCurrency(order.late_fee)}
+              <span className="text-sm font-medium text-gray-900">
+                {formatCurrency(order.late_fee || 0)}
               </span>
             </div>
-          )}
-          {order.subtotal !== undefined && (
-            <div className="flex items-center justify-between border-t pt-3">
-              <span className="text-base font-medium text-gray-700">
-                Subtotal
+            {order.subtotal !== undefined && (
+              <div className="flex items-center justify-between py-1.5 border-t border-gray-100">
+                <span className="text-sm text-gray-600">
+                  Subtotal
+                </span>
+                <span className="text-sm font-medium text-gray-900">
+                  {formatCurrency(order.subtotal)}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-2.5 mt-2 border-t-2 border-gray-200">
+              <span className="text-base font-semibold text-gray-900">
+                Grand Total
               </span>
-              <span className="text-lg font-semibold text-gray-900">
-                {formatCurrency(order.subtotal)}
+              <span className="text-xl font-bold text-[#273492]">
+                {formatCurrency(order.total_amount)}
               </span>
             </div>
-          )}
-          <div className="flex items-center justify-between border-t pt-3">
-            <span className="text-xl font-semibold text-gray-700">
-              Grand Total
-            </span>
-            <span className="text-3xl font-bold text-sky-600">
-              {formatCurrency(order.total_amount)}
-            </span>
           </div>
         </Card>
 

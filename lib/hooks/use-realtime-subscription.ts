@@ -65,6 +65,10 @@ export function useRealtimeSubscription(
         queryKey: ["order"],
         type: "active"
       });
+      queryClient.refetchQueries({ 
+        queryKey: ["calendar-orders"],
+        type: "active"
+      });
     };
 
     // Subscribe to orders table changes

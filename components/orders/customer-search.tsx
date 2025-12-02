@@ -120,7 +120,7 @@ export function CustomerSearch({ onSelectCustomer, selectedCustomer }: CustomerS
         <Button
           type="button"
           onClick={() => setShowAddModal(true)}
-          className="h-14 px-4 bg-sky-500 hover:bg-sky-600 text-white rounded-xl flex-shrink-0"
+          className="h-14 px-4 bg-[#273492] hover:bg-[#1f2a7a] text-white rounded-xl flex-shrink-0"
           aria-label="Add new customer"
         >
           <Plus className="h-5 w-5 md:mr-2" />
@@ -130,7 +130,7 @@ export function CustomerSearch({ onSelectCustomer, selectedCustomer }: CustomerS
 
       {/* Selected Customer Display */}
       {selectedCustomer && !showDropdown && (
-        <Card className="p-3 bg-sky-50 rounded-xl border-sky-200">
+        <Card className="p-3 bg-[#273492]/10 rounded-xl border-[#273492]/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               {isCustomerVerified(selectedCustomer) && (

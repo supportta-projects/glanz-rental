@@ -61,7 +61,7 @@ export function MobileNav() {
               onMouseEnter={() => handleLinkInteraction(item.href)}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 flex-1 h-full",
-                isActive ? "text-sky-500" : "text-gray-500"
+                isActive ? "text-[#273492]" : "text-gray-500"
               )}
             >
               <Icon className="h-6 w-6" />

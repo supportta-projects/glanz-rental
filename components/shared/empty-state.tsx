@@ -46,7 +46,7 @@ export function EmptyState({
           variant={action.variant || "default"}
           className={cn(
             action.variant === "default"
-              ? "bg-[#0b63ff] hover:bg-[#0a5ce6] text-white"
+              ? "bg-[#273492] hover:bg-[#1f2a7a] text-white"
               : "",
             "h-8 px-3 text-xs font-medium rounded-lg"
           )}

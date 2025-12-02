@@ -164,11 +164,13 @@ export default function CustomerDetailsPage() {
   if (!customer) {
     return (
       <div className="min-h-screen bg-zinc-50 pb-24">
-        <div className="bg-white border-b p-4 flex items-center gap-4 sticky top-0 z-10">
-          <Link href="/customers">
-            <ArrowLeft className="h-6 w-6 text-gray-600" />
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Customer Not Found</h1>
+        <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
+          <div className="flex items-center gap-2">
+            <Link href="/customers" className="p-1 hover:bg-gray-100 rounded-md transition-colors">
+              <ArrowLeft className="h-4 w-4 text-gray-500" />
+            </Link>
+            <h1 className="text-[9px] font-normal text-gray-500">Not Found</h1>
+          </div>
         </div>
         <div className="p-4">
           <Card className="p-8 text-center">
@@ -184,23 +186,24 @@ export default function CustomerDetailsPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-24">
-      {/* Header */}
-      <div className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-4">
-          <Link href="/customers">
-            <ArrowLeft className="h-6 w-6 text-gray-600" />
+      {/* Minimal Header */}
+      <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-2">
+          <Link href="/customers" className="p-1 hover:bg-gray-100 rounded-md transition-colors">
+            <ArrowLeft className="h-4 w-4 text-gray-500" />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Customer Details</h1>
+          <h1 className="text-[9px] font-normal text-gray-500">
+            {customer.name || "Customer"}
+          </h1>
         </div>
         {!isEditing && (
-          <Button
+          <button
             onClick={() => setIsEditing(true)}
-            variant="outline"
-            className="h-10 gap-2"
+            className="p-1.5 hover:bg-[#273492]/10 rounded-md transition-colors text-[#273492] hover:text-[#1f2a7a]"
+            aria-label="Edit customer"
           >
             <Edit2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Edit</span>
-          </Button>
+          </button>
         )}
       </div>
 
@@ -223,7 +226,7 @@ export default function CustomerDetailsPage() {
                 <Button
                   onClick={handleSave}
                   size="sm"
-                  className="h-9 bg-sky-500 hover:bg-sky-600"
+                  className="h-9 bg-[#273492] hover:bg-[#1f2a7a]"
                   disabled={updateCustomerMutation.isPending}
                 >
                   <Save className="h-4 w-4 mr-1" />
@@ -343,7 +346,7 @@ export default function CustomerDetailsPage() {
                 <div className="flex items-start gap-3">
                   <div className="flex-1">
                     <Label className="text-xs text-gray-500 mb-1">Customer ID</Label>
-                    <p className="text-base font-semibold text-[#0b63ff] font-mono">{customer.customer_number}</p>
+                    <p className="text-base font-semibold text-[#273492] font-mono">{customer.customer_number}</p>
                   </div>
                 </div>
               )}

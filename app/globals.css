@@ -8,18 +8,18 @@
   --foreground: #0f1724;
   --border: #00000000;
   --input: #ffffff;
-  --primary: #0b63ff;
+  --primary: #273492;
   --primary-foreground: #ffffff;
-  --primary-hover: #0a5ce6;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f1724;
+  --primary-hover: #1f2a7a;
+  --secondary: #e7342f;
+  --secondary-foreground: #ffffff;
   --muted: #e6eef8;
   --muted-foreground: #6b7280;
   --success: #0f9d58;
   --success-foreground: #ffffff;
   --accent: #ffb020;
   --accent-foreground: #0f1724;
-  --destructive: #d7263d;
+  --destructive: #e7342f;
   --destructive-foreground: #ffffff;
   --warning: #d97706;
   --warning-foreground: #ffffff;
@@ -27,7 +27,7 @@
   --card-foreground: #0f1724;
   --sidebar: #ffffff;
   --sidebar-foreground: #0f1724;
-  --sidebar-primary: #0b63ff;
+  --sidebar-primary: #273492;
   --sidebar-primary-foreground: #ffffff;
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -35,7 +35,7 @@
   --radius-xl: 12px;
   
   /* Legacy support */
-  --danger: #d7263d;
+  --danger: #e7342f;
   
   /* shadcn/ui overrides */
   --radius: 0.5rem; /* rounded-lg */

@@ -18,7 +18,7 @@ export function LoadingState({
     return (
       <div className={cn("flex justify-center items-center py-12", className)}>
         <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0b63ff]" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#273492]" />
           {message && <p className="text-sm text-[#6b7280]">{message}</p>}
         </div>
       </div>

@@ -249,7 +249,7 @@ export default function CustomersPage() {
                               <div className="flex flex-col gap-0.5">
                                 <Link
                                   href={`/customers/${customer.id}`}
-                                  className="font-semibold text-sm text-[#0f1724] hover:text-[#0b63ff] transition-colors"
+                                  className="font-semibold text-sm text-[#0f1724] hover:text-[#273492] transition-colors"
                                 >
                                   {customer.name}
                                 </Link>

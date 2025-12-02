@@ -664,7 +664,7 @@ export default function OrdersPage() {
           {/* Pull to Refresh Indicator */}
           {isRefreshing && (
             <div className="flex justify-center py-2 mb-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#0b63ff]" />
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#273492]" />
             </div>
           )}
 
@@ -725,7 +725,7 @@ export default function OrdersPage() {
                               <div className="flex items-center gap-2">
                                 <Link
                                   href={`/orders/${order.id}`}
-                                  className="font-semibold text-sm text-gray-900 hover:text-[#0b63ff]"
+                                  className="font-semibold text-sm text-gray-900 hover:text-[#273492]"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   #{order.invoice_number}
@@ -765,7 +765,7 @@ export default function OrdersPage() {
                                 Scheduled
                               </Badge>
                             ) : orderCategory === "late" ? (
-                              <Badge className="bg-[#ef4444] text-white flex items-center gap-1 w-fit">
+                              <Badge className="bg-[#e7342f] text-white flex items-center gap-1 w-fit">
                                 <AlertTriangle className="h-3 w-3" />
                                 Late
                               </Badge>
@@ -775,7 +775,7 @@ export default function OrdersPage() {
                                 Ongoing
                               </Badge>
                             ) : (
-                              <Badge className="bg-[#3b82f6] text-white flex items-center gap-1 w-fit">
+                              <Badge className="bg-[#273492] text-white flex items-center gap-1 w-fit">
                                 <CheckCircle className="h-3 w-3" />
                                 Returned
                               </Badge>
@@ -785,7 +785,7 @@ export default function OrdersPage() {
                         <TableCell className="align-middle">
                             <Link
                               href={`tel:${order.customer?.phone || ""}`}
-                              className="text-sm text-gray-900 hover:text-[#0b63ff] flex items-center gap-1.5"
+                              className="text-sm text-gray-900 hover:text-[#273492] flex items-center gap-1.5"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <Phone className="h-3.5 w-3.5 text-gray-500" />
@@ -828,7 +828,7 @@ export default function OrdersPage() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      className="h-8 w-8 p-0 text-[#273492] hover:text-[#1f2a7a] hover:bg-[#273492]/10"
                                     >
                                       <Package className="h-4 w-4" />
                                     </Button>
@@ -897,7 +897,7 @@ export default function OrdersPage() {
               <p className="text-gray-400 text-sm mb-6">Create your first order to get started</p>
               <Button
                 onClick={() => router.push("/orders/new")}
-                className="bg-[#0b63ff] hover:bg-[#0a5ce6] text-white"
+                className="bg-[#273492] hover:bg-[#1f2a7a] text-white"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 New Order
@@ -944,7 +944,7 @@ export default function OrdersPage() {
               <p className="text-gray-400 text-sm mb-6">Create your first order to get started</p>
               <Button
                 onClick={() => router.push("/orders/new")}
-                className="bg-[#0b63ff] hover:bg-[#0a5ce6] text-white"
+                className="bg-[#273492] hover:bg-[#1f2a7a] text-white"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 New Order
@@ -996,7 +996,7 @@ export default function OrdersPage() {
         <div className="md:hidden fixed bottom-20 right-4 z-30">
           <Button
             onClick={() => router.push("/orders/new")}
-            className="h-14 w-14 rounded-full bg-[#0b63ff] hover:bg-[#0a5ce6] text-white shadow-lg"
+            className="h-14 w-14 rounded-full bg-[#273492] hover:bg-[#1f2a7a] text-white shadow-lg"
           >
             <Plus className="h-6 w-6" />
           </Button>

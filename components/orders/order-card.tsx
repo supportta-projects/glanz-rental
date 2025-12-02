@@ -73,7 +73,7 @@ export const OrderCard = memo(function OrderCard({ order, onCancel, canCancel }:
     <Card
       className={`group relative overflow-hidden transition-all duration-200 hover:shadow-md border border-gray-200 bg-white ${
         orderCategory === "late"
-          ? "border-l-4 border-l-red-500"
+          ? "border-l-4 border-l-[#e7342f]"
           : orderCategory === "cancelled"
           ? "opacity-75"
           : ""
@@ -84,7 +84,7 @@ export const OrderCard = memo(function OrderCard({ order, onCancel, canCancel }:
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-              <Link href={`/orders/${order.id}`} className="font-semibold text-base text-[#0f1724] hover:text-[#0b63ff]">
+              <Link href={`/orders/${order.id}`} className="font-semibold text-base text-[#0f1724] hover:text-[#273492]">
                 #{order.invoice_number}
               </Link>
               {itemsCount > 0 && (
@@ -100,7 +100,7 @@ export const OrderCard = memo(function OrderCard({ order, onCancel, canCancel }:
             {order.customer?.phone && (
               <Link
                 href={`tel:${order.customer.phone}`}
-                className="text-sm text-[#6b7280] hover:text-[#0b63ff] flex items-center gap-1.5 mt-1"
+                className="text-sm text-[#6b7280] hover:text-[#273492] flex items-center gap-1.5 mt-1"
                 onClick={(e) => e.stopPropagation()}
               >
                 <Phone className="h-3.5 w-3.5" />
@@ -131,7 +131,7 @@ export const OrderCard = memo(function OrderCard({ order, onCancel, canCancel }:
                 Ongoing
               </Badge>
             ) : (
-              <Badge className="bg-[#3b82f6] text-white flex items-center gap-1 text-xs">
+              <Badge className="bg-[#273492] text-white flex items-center gap-1 text-xs">
                 <CheckCircle className="h-3 w-3" />
                 Returned
               </Badge>
@@ -172,7 +172,7 @@ export const OrderCard = memo(function OrderCard({ order, onCancel, canCancel }:
                 variant="ghost"
                 size="sm"
                 onClick={handleCancelClick}
-                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="h-8 w-8 p-0 text-[#e7342f] hover:text-[#d12a26] hover:bg-[#e7342f]/10"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -183,7 +183,7 @@ export const OrderCard = memo(function OrderCard({ order, onCancel, canCancel }:
                 variant="ghost"
                 size="sm"
                 onClick={handleViewClick}
-                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                className="h-8 w-8 p-0 text-[#273492] hover:text-[#1f2a7a] hover:bg-[#273492]/10"
               >
                 <Package className="h-4 w-4" />
               </Button>

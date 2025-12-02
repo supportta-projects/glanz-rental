@@ -144,7 +144,7 @@ export default function DashboardPage() {
       {/* Pull to Refresh Indicator */}
       {isRefreshing && (
         <div className="flex justify-center py-2">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#0b63ff]" />
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#273492]" />
         </div>
       )}
 
@@ -179,7 +179,7 @@ export default function DashboardPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-blue-600" />
+            <Clock className="h-5 w-5 text-[#273492]" />
             Operational Overview
           </h2>
           <span className="text-sm text-gray-500">
@@ -419,7 +419,7 @@ export default function DashboardPage() {
       {/* Quick Actions - Mobile: Stacked, Desktop: Row */}
       <div className="flex flex-col md:flex-row gap-3">
         <Link href="/orders/new" className="flex-1">
-          <Button className="w-full h-9 bg-[#0b63ff] hover:bg-[#0a5ce6] text-white text-sm font-medium rounded-lg">
+          <Button className="w-full h-9 bg-[#273492] hover:bg-[#1f2a7a] text-white text-sm font-medium rounded-lg">
             <Plus className="h-4 w-4 mr-2" />
             New Order
           </Button>
@@ -427,7 +427,7 @@ export default function DashboardPage() {
         <Link href="/orders" className="flex-1">
           <Button
             variant="outline"
-            className="w-full h-9 border-[#0b63ff] text-[#0b63ff] hover:bg-[#0b63ff] hover:text-white text-sm font-medium rounded-lg transition-colors"
+            className="w-full h-9 border-[#273492] text-[#273492] hover:bg-[#273492] hover:text-white text-sm font-medium rounded-lg transition-colors"
           >
             View All Orders
           </Button>

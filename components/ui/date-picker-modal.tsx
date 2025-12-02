@@ -133,9 +133,9 @@ export function DatePickerModal({
                   className={cn(
                     "h-10 rounded-lg text-sm transition-colors",
                     isSelected
-                      ? "bg-sky-500 text-white font-semibold"
+                      ? "bg-[#273492] text-white font-semibold"
                       : isToday
-                      ? "bg-sky-100 text-sky-700 font-medium"
+                      ? "bg-[#273492]/10 text-[#273492] font-medium"
                       : isDisabled
                       ? "text-gray-300 cursor-not-allowed"
                       : isCurrentMonth
@@ -174,7 +174,7 @@ export function DatePickerModal({
               type="button"
               onClick={handleConfirm}
               disabled={!selectedDate}
-              className="flex-1 bg-sky-500 hover:bg-sky-600"
+              className="flex-1 bg-[#273492] hover:bg-[#1f2a7a]"
             >
               Confirm
             </Button>

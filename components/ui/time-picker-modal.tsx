@@ -74,7 +74,7 @@ export function TimePickerModal({
                   className={cn(
                     "h-10 rounded-lg text-sm font-medium transition-colors",
                     selectedTime.hour === i
-                      ? "bg-sky-500 text-white"
+                      ? "bg-[#273492] text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   )}
                 >
@@ -96,7 +96,7 @@ export function TimePickerModal({
                   className={cn(
                     "h-10 rounded-lg text-sm font-medium transition-colors",
                     selectedTime.minute === minute
-                      ? "bg-sky-500 text-white"
+                      ? "bg-[#273492] text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   )}
                 >
@@ -119,7 +119,7 @@ export function TimePickerModal({
             <Button
               type="button"
               onClick={handleConfirm}
-              className="flex-1 bg-sky-500 hover:bg-sky-600"
+              className="flex-1 bg-[#273492] hover:bg-[#1f2a7a]"
             >
               Confirm
             </Button>

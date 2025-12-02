@@ -276,9 +276,11 @@ export default function EditOrderPage() {
   if (orderLoading) {
     return (
       <div className="min-h-screen bg-zinc-50 pb-32">
-        <div className="bg-white border-b p-4 flex items-center gap-4 sticky top-0 z-10">
-          <Skeleton className="h-6 w-6 rounded" />
-          <Skeleton className="h-8 w-48 rounded" />
+        <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-4 rounded" />
+            <Skeleton className="h-[9px] w-32 rounded" />
+          </div>
         </div>
         <div className="p-4 space-y-6">
           <Skeleton className="h-64 rounded-xl" />
@@ -291,11 +293,13 @@ export default function EditOrderPage() {
   if (!order) {
     return (
       <div className="min-h-screen bg-zinc-50 pb-32">
-        <div className="bg-white border-b p-4 flex items-center gap-4 sticky top-0 z-10">
-          <Link href={`/orders/${orderId}`}>
-            <ArrowLeft className="h-6 w-6 text-gray-600" />
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Edit Order</h1>
+        <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
+          <div className="flex items-center gap-2">
+            <Link href={`/orders/${orderId}`} className="p-1 hover:bg-gray-100 rounded-md transition-colors">
+              <ArrowLeft className="h-4 w-4 text-gray-500" />
+            </Link>
+            <h1 className="text-[9px] font-normal text-gray-500 font-mono">N/A</h1>
+          </div>
         </div>
         <div className="p-4">
           <Card className="p-8 text-center">
@@ -311,14 +315,16 @@ export default function EditOrderPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-32">
-      {/* Header */}
-      <div className="bg-white border-b p-4 flex items-center gap-4 sticky top-0 z-10">
-        <Link href={`/orders/${orderId}`}>
-          <ArrowLeft className="h-6 w-6 text-gray-600" />
-        </Link>
-        <h1 className="text-2xl font-bold text-gray-900">
-          {editMode === "invoice-only" ? "Edit Invoice & Billing" : "Edit Order"}
-        </h1>
+      {/* Minimal Header */}
+      <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-2">
+          <Link href={`/orders/${orderId}`} className="p-1 hover:bg-gray-100 rounded-md transition-colors">
+            <ArrowLeft className="h-4 w-4 text-gray-500" />
+          </Link>
+          <h1 className="text-[9px] font-normal text-gray-500 font-mono">
+            {order?.invoice_number || "N/A"}
+          </h1>
+        </div>
       </div>
 
       {editMode === "invoice-only" ? (

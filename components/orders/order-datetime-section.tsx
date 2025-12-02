@@ -128,7 +128,7 @@ export function OrderDateTimeSection({
       {/* Start Date & Time */}
       <div className="space-y-2">
         <Label className="text-sm font-medium text-gray-700">
-          Rental Start Date & Time <span className="text-red-500">*</span>
+          Rental Start Date & Time <span className="text-[#e7342f]">*</span>
         </Label>
         <div className="grid grid-cols-2 gap-3">
           <Button
@@ -162,7 +162,7 @@ export function OrderDateTimeSection({
       {/* End Date & Time */}
       <div className="space-y-2">
         <Label className="text-sm font-medium text-gray-700">
-          Rental End Date & Time <span className="text-red-500">*</span>
+          Rental End Date & Time <span className="text-[#e7342f]">*</span>
         </Label>
         <div className="grid grid-cols-2 gap-3">
           <Button

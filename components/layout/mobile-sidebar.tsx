@@ -13,15 +13,21 @@ import {
   LogOut,
   Settings,
   X,
+  Calendar,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { createClient } from "@/lib/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useBranches } from "@/lib/queries/branches";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const menuItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
   { href: "/orders", icon: ShoppingBag, label: "Orders" },
+  { href: "/calendar", icon: Calendar, label: "Calendar" },
   { href: "/customers", icon: Users, label: "Customers" },
   { href: "/reports", icon: BarChart3, label: "Reports" },
 ];
@@ -40,6 +46,79 @@ const adminMenuItems = [
     role: ["super_admin", "branch_admin"],
   },
 ];
+
+function MobileBranchSwitcher({ onClose }: { onClose: () => void }) {
+  const { user, switchBranch } = useUserStore();
+  const { data: branches } = useBranches();
+  const [isOpen, setIsOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  const currentBranch = user?.branch;
+
+  const handleBranchSwitch = async (branchId: string | null) => {
+    const selectedBranch = branches?.find((b) => b.id === branchId);
+    switchBranch(branchId, selectedBranch);
+    
+    // Invalidate all queries to refresh data for new branch
+    queryClient.invalidateQueries();
+    
+    // Refresh the page to reload data
+    router.refresh();
+    setIsOpen(false);
+    onClose();
+  };
+
+  return (
+    <div className="border-t border-gray-200 pt-2 mt-2">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <Building2 className="h-5 w-5 flex-shrink-0 text-gray-500" />
+          <span className="text-sm font-medium truncate">
+            {currentBranch?.name || "No Branch"}
+          </span>
+        </div>
+        <ChevronDown className={cn(
+          "h-4 w-4 flex-shrink-0 text-gray-500 transition-transform",
+          isOpen && "rotate-180"
+        )} />
+      </button>
+
+      {isOpen && (
+        <div className="mt-2 space-y-1">
+          <button
+            onClick={() => handleBranchSwitch(null)}
+            className={cn(
+              "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
+              !user?.branch_id
+                ? "bg-[#273492]/10 text-[#273492] font-medium"
+                : "text-gray-700 hover:bg-gray-50"
+            )}
+          >
+            All Branches
+          </button>
+          {branches?.map((branch) => (
+            <button
+              key={branch.id}
+              onClick={() => handleBranchSwitch(branch.id)}
+              className={cn(
+                "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
+                user?.branch_id === branch.id
+                  ? "bg-[#273492]/10 text-[#273492] font-medium"
+                  : "text-gray-700 hover:bg-gray-50"
+              )}
+            >
+              {branch.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface MobileSidebarProps {
   open: boolean;
@@ -73,8 +152,12 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
         <SheetHeader className="px-6 pt-6 pb-4 border-b">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">G</span>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+                <img 
+                  src="/glanz_logo.png" 
+                  alt="Glanz Logo" 
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div>
                 <div className="text-sm font-bold text-gray-900">GLANZ</div>
@@ -103,9 +186,9 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
                 onClick={() => onOpenChange(false)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
-                  isActive
-                    ? "bg-sky-500 text-white font-medium"
-                    : "text-gray-700 hover:bg-gray-50"
+                    isActive
+                      ? "bg-[#273492] text-white font-medium"
+                      : "text-gray-700 hover:bg-gray-50"
                 )}
               >
                 <Icon className="h-5 w-5 flex-shrink-0" />
@@ -135,9 +218,9 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
                       onClick={() => onOpenChange(false)}
                       className={cn(
                         "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
-                        isActive
-                          ? "bg-sky-500 text-white font-medium"
-                          : "text-gray-700 hover:bg-gray-50"
+                    isActive
+                      ? "bg-[#273492] text-white font-medium"
+                      : "text-gray-700 hover:bg-gray-50"
                       )}
                     >
                       <Icon className="h-5 w-5 flex-shrink-0" />
@@ -146,6 +229,11 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
                   );
                 })}
             </>
+          )}
+
+          {/* Branch Switcher - Only for Super Admin */}
+          {user?.role === "super_admin" && (
+            <MobileBranchSwitcher onClose={() => onOpenChange(false)} />
           )}
         </nav>
 
@@ -156,7 +244,7 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
               pathname === "/profile"
-                ? "bg-sky-50 text-sky-600 font-medium"
+                ? "bg-[#273492]/10 text-[#273492] font-medium"
                 : "text-gray-700 hover:bg-gray-50"
             )}
           >
@@ -169,7 +257,7 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
               pathname === "/settings"
-                ? "bg-sky-50 text-sky-600 font-medium"
+                ? "bg-[#273492]/10 text-[#273492] font-medium"
                 : "text-gray-700 hover:bg-gray-50"
             )}
           >

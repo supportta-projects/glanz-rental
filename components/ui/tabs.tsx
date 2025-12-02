@@ -56,7 +56,7 @@ function TabsTrigger({ value, children, className }: TabsTriggerProps) {
       className={cn(
         "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
         isActive
-          ? "bg-white text-[#0b63ff] shadow-sm font-semibold"
+          ? "bg-white text-[#273492] shadow-sm font-semibold"
           : "text-gray-600 hover:text-gray-900 hover:bg-gray-50",
         className
       )}

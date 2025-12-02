@@ -193,33 +193,46 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
 
   return (
     <div className="space-y-4">
-      {/* Summary Card */}
-      <Card className="p-5 bg-sky-50 border-2 border-sky-200">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">Return Items</h2>
+      {/* Professional Summary Card */}
+      <Card className="p-4 sm:p-5 rounded-xl bg-white border border-gray-200 shadow-sm">
+        <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-[#273492]/10 rounded-lg">
+              <CheckCircle className="h-4 w-4 text-[#273492]" />
+            </div>
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Return Status</h2>
+          </div>
           {isLate && (
-            <Badge className="bg-red-500 text-white">
-              <AlertCircle className="h-3 w-3 mr-1" />
+            <Badge className="bg-red-500 text-white text-xs px-2.5 py-1">
+              <AlertCircle className="h-3 w-3 mr-1.5" />
               Late Return
             </Badge>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <p className="text-xs text-gray-500">Total Items</p>
-            <p className="text-2xl font-bold text-gray-900">{returnStats.total}</p>
+        
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          {/* Total Items */}
+          <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+            <p className="text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">Total Items</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">{returnStats.total}</p>
           </div>
-          <div>
-            <p className="text-xs text-gray-500">Returned</p>
-            <p className="text-2xl font-bold text-green-600">{returnStats.returned}</p>
+          
+          {/* Returned */}
+          <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+            <p className="text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wide">Returned</p>
+            <p className="text-xl sm:text-2xl font-bold text-green-600">{returnStats.returned}</p>
           </div>
-          <div>
-            <p className="text-xs text-gray-500">Pending</p>
-            <p className="text-2xl font-bold text-orange-600">{returnStats.notReturned}</p>
+          
+          {/* Pending */}
+          <div className="p-3 rounded-lg bg-orange-50 border border-orange-200">
+            <p className="text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wide">Pending</p>
+            <p className="text-xl sm:text-2xl font-bold text-orange-600">{returnStats.notReturned}</p>
           </div>
-          <div>
-            <p className="text-xs text-gray-500">Status</p>
-            <p className="text-lg font-bold text-gray-900">
+          
+          {/* Status */}
+          <div className="p-3 rounded-lg bg-[#273492]/10 border border-[#273492]/20">
+            <p className="text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wide">Status</p>
+            <p className="text-base sm:text-lg font-bold text-[#273492]">
               {allItemsReturned ? "Completed" : returnStats.returned > 0 ? "Partial" : "Pending"}
             </p>
           </div>

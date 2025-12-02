@@ -79,7 +79,14 @@ export default function LoginPage() {
       <Card className="w-full max-w-md p-6 md:p-8 shadow-lg rounded-2xl">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-sky-500">GLANZ RENTAL</h1>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <img 
+              src="/glanz_logo.png" 
+              alt="Glanz Logo" 
+              className="w-12 h-12 object-contain"
+            />
+            <h1 className="text-3xl font-bold text-[#273492]">GLANZ RENTAL</h1>
+          </div>
         </div>
 
         {/* Form */}
@@ -87,15 +94,15 @@ export default function LoginPage() {
           {/* Username */}
           <div className="space-y-2">
             <Label htmlFor="username" className="text-base font-semibold">
-              Username
+              Email
             </Label>
             <Input
               id="username"
               type="text"
-              placeholder="Enter username"
+              placeholder="Enter email address"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="h-14 text-base rounded-xl border-2 focus:border-sky-500"
+              className="h-14 text-base rounded-xl border-2 focus:border-[#273492]"
               autoFocus
               required
             />
@@ -135,7 +142,7 @@ export default function LoginPage() {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full h-14 bg-sky-500 hover:bg-sky-600 text-white text-base font-semibold rounded-xl"
+            className="w-full h-14 bg-[#273492] hover:bg-[#1f2a7a] text-white text-base font-semibold rounded-xl"
           >
             {loading ? "Logging in..." : "Login"}
           </Button>

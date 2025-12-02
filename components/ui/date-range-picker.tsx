@@ -197,9 +197,9 @@ export function DateRangePicker({
         onClick={() => setShowPicker(!showPicker)}
         className={cn(
           "h-7 px-2.5 gap-1.5 text-xs font-medium transition-all duration-200",
-          "border-gray-300 hover:border-[#0b63ff] hover:bg-[#0b63ff]/5",
+          "border-gray-300 hover:border-[#273492] hover:bg-[#273492]/5",
           "active:scale-[0.98]",
-          isFiltered && "border-[#0b63ff] text-[#0b63ff] bg-[#0b63ff]/5"
+          isFiltered && "border-[#273492] text-[#273492] bg-[#273492]/5"
         )}
         size="sm"
       >
@@ -225,10 +225,10 @@ export function DateRangePicker({
               });
               setShowPicker(false);
             }}
-            className="ml-0.5 p-0.5 rounded hover:bg-[#0b63ff]/10 transition-colors"
+            className="ml-0.5 p-0.5 rounded hover:bg-[#273492]/10 transition-colors"
             aria-label="Clear filter"
           >
-            <X className="h-3 w-3 text-[#0b63ff] hover:text-red-600" />
+            <X className="h-3 w-3 text-[#273492] hover:text-[#e7342f]" />
           </button>
         )}
       </Button>
@@ -263,7 +263,7 @@ export function DateRangePicker({
                     "text-left px-2 py-1.5 rounded-md text-xs font-medium transition-all duration-150",
                     "hover:bg-gray-50 active:scale-[0.98]",
                     value.option === preset.value || (preset.value === "alltime" && value.option === "clear")
-                      ? "bg-[#0b63ff] text-white shadow-sm"
+                      ? "bg-[#273492] text-white shadow-sm"
                       : "text-gray-700 bg-white border border-gray-200 hover:border-gray-300"
                   )}
                 >
@@ -284,7 +284,7 @@ export function DateRangePicker({
                       value={customStart}
                       onChange={(e) => setCustomStart(e.target.value)}
                       max={format(endOfToday(), "yyyy-MM-dd")}
-                      className="w-full h-7 px-2 rounded border border-gray-300 focus:border-[#0b63ff] focus:outline-none focus:ring-1 focus:ring-[#0b63ff] text-xs"
+                      className="w-full h-7 px-2 rounded border border-gray-300 focus:border-[#273492] focus:outline-none focus:ring-1 focus:ring-[#273492] text-xs"
                     />
                   </div>
                   <div>
@@ -295,13 +295,13 @@ export function DateRangePicker({
                       onChange={(e) => setCustomEnd(e.target.value)}
                       min={customStart || format(startOfToday(), "yyyy-MM-dd")}
                       max={format(addYears(new Date(), 1), "yyyy-MM-dd")}
-                      className="w-full h-7 px-2 rounded border border-gray-300 focus:border-[#0b63ff] focus:outline-none focus:ring-1 focus:ring-[#0b63ff] text-xs"
+                      className="w-full h-7 px-2 rounded border border-gray-300 focus:border-[#273492] focus:outline-none focus:ring-1 focus:ring-[#273492] text-xs"
                     />
                   </div>
                 </div>
                 <Button
                   onClick={handleCustomApply}
-                  className="w-full h-7 bg-[#0b63ff] hover:bg-[#0a5ce6] text-white text-xs font-medium"
+                  className="w-full h-7 bg-[#273492] hover:bg-[#1f2a7a] text-white text-xs font-medium"
                   disabled={!customStart || !customEnd}
                   size="sm"
                 >

@@ -39,7 +39,7 @@ export function OrderSummarySection({
   if (grandTotal <= 0) return null;
 
   return (
-    <Card className="p-5 bg-[#0b63ff]/5 rounded-lg border border-gray-200 space-y-3">
+    <Card className="p-5 bg-[#273492]/5 rounded-lg border border-gray-200 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-base font-medium text-gray-700">Subtotal</span>
         <span className="text-lg font-semibold text-gray-900">
@@ -58,7 +58,7 @@ export function OrderSummarySection({
       )}
       <div className="flex items-center justify-between border-t pt-3">
         <span className="text-xl font-semibold text-gray-700">Grand Total</span>
-        <span className="text-3xl font-bold text-sky-600">
+        <span className="text-3xl font-bold text-[#273492]">
           ₹{grandTotal.toLocaleString()}
         </span>
       </div>

@@ -2,7 +2,6 @@
 
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { DesktopSidebar } from "@/components/layout/desktop-sidebar";
-import { TopHeader } from "@/components/layout/top-header";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useUserStore } from "@/lib/stores/useUserStore";
@@ -63,12 +62,10 @@ export default function DashboardLayout({
     checkUser();
   }, [router, user, setUser, supabase]);
 
-  const isOrdersPage = pathname === "/orders";
-
   if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0b63ff]" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#273492]" />
       </div>
     );
   }
@@ -80,9 +77,6 @@ export default function DashboardLayout({
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:ml-[250px] min-w-0 overflow-hidden">
-        {/* Top Header - Only show on non-orders pages */}
-        {!isOrdersPage && <TopHeader />}
-
         {/* Page Content - Scrollable with optimized rendering */}
         <main 
           data-scroll-container="true"

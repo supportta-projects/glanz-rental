@@ -188,7 +188,7 @@ export function DateTimePicker({
     <div className={cn("relative", className)}>
       {label && (
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          {label} {required && <span className="text-red-500">*</span>}
+          {label} {required && <span className="text-[#e7342f]">*</span>}
         </label>
       )}
 
@@ -299,8 +299,8 @@ export function DateTimePicker({
                         "h-10 rounded-lg text-sm font-medium transition-colors",
                         disabled && "text-gray-300 cursor-not-allowed",
                         !disabled && "hover:bg-gray-100",
-                        selected && "bg-sky-500 text-white hover:bg-sky-600",
-                        !selected && today && "bg-sky-50 text-sky-600 font-semibold",
+                        selected && "bg-[#273492] text-white hover:bg-[#1f2a7a]",
+                        !selected && today && "bg-[#273492]/10 text-[#273492] font-semibold",
                         !selected && !today && !disabled && "text-gray-700"
                       )}
                     >
@@ -359,7 +359,7 @@ export function DateTimePicker({
                   type="button"
                   onClick={handleApply}
                   disabled={!selectedDate}
-                  className="flex-1 h-12 bg-sky-500 hover:bg-sky-600"
+                  className="flex-1 h-12 bg-[#273492] hover:bg-[#1f2a7a]"
                 >
                   Apply
                 </Button>

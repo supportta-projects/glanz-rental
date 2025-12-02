@@ -37,8 +37,8 @@ export function ActionButton({
       className={cn(
         sizeClasses[size],
         variant === "default"
-          ? "bg-[#0b63ff] hover:bg-[#0a5ce6] text-white"
-          : "border-[#0b63ff] text-[#0b63ff] hover:bg-[#0b63ff] hover:text-white",
+          ? "bg-[#273492] hover:bg-[#1f2a7a] text-white"
+          : "border-[#273492] text-[#273492] hover:bg-[#273492] hover:text-white",
         "gap-1.5 font-medium rounded-lg transition-colors",
         mobileOnly && "md:hidden",
         className

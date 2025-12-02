@@ -128,7 +128,7 @@ export function OrderItemsSection({
             }}
             className={`p-4 rounded-lg border border-gray-200 bg-white transition-all duration-500 ${
               newItemIndex === index
-                ? "ring-2 ring-[#0b63ff] bg-[#0b63ff]/5 shadow-lg"
+                ? "ring-2 ring-[#273492] bg-[#273492]/5 shadow-lg"
                 : ""
             }`}
           >
@@ -181,7 +181,7 @@ export function OrderItemsSection({
                     onFocus={(e) => {
                       e.target.select();
                     }}
-                    className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#0b63ff] focus:ring-1 focus:ring-[#0b63ff]"
+                    className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#273492] focus:ring-1 focus:ring-[#273492]"
                     inputMode="numeric"
                     min="0"
                     step="1"
@@ -206,7 +206,7 @@ export function OrderItemsSection({
                     onFocus={(e) => {
                       e.target.select();
                     }}
-                    className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#0b63ff] focus:ring-1 focus:ring-[#0b63ff]"
+                    className="h-10 text-sm rounded-lg border-gray-200 focus:border-[#273492] focus:ring-1 focus:ring-[#273492]"
                     inputMode="decimal"
                     min="0"
                     step="0.01"

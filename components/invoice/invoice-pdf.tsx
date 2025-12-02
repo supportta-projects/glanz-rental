@@ -25,7 +25,7 @@ function formatCurrencyNumber(amount: number | null | undefined): string {
 // A4 = 210mm x 297mm = 595.28pt x 841.89pt
 const A4_WIDTH = 595.28;
 const A4_HEIGHT = 841.89;
-const MARGIN = 20; // 20pt margins (within 18-24px range)
+const MARGIN = 16; // Compact margins to fit everything on one page
 
 // Professional, accountant-grade invoice styles
 const styles = StyleSheet.create({
@@ -35,80 +35,82 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica",
     backgroundColor: "#ffffff",
     width: A4_WIDTH,
-    minHeight: A4_HEIGHT,
+    height: A4_HEIGHT, // Fixed height to ensure single page
+    display: "flex",
+    flexDirection: "column",
   },
-  // Header Section - Logo + Shop Info
+  // Header Section - Clean Minimalist Design
   header: {
     flexDirection: "row",
-    marginBottom: 18,
-    paddingBottom: 12,
-    borderBottom: "2px solid #1f2937",
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottom: "1px solid #d1d5db",
   },
   logoContainer: {
-    width: 70,
-    height: 70,
+    width: 56,
+    height: 56,
     marginRight: 12,
-    border: "1px solid #e5e7eb",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fafafa",
   },
   logo: {
-    width: 65,
-    height: 65,
+    width: 56,
+    height: 56,
     objectFit: "contain",
   },
   headerText: {
     flex: 1,
   },
   shopName: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 22,
+    fontWeight: "600",
     color: "#111827",
-    marginBottom: 3,
-    letterSpacing: 0.5,
+    marginBottom: 6,
+    lineHeight: 1.2,
+    letterSpacing: -0.5,
   },
   shopAddress: {
-    fontSize: 8,
-    color: "#4b5563",
-    lineHeight: 1.4,
-    marginBottom: 1,
+    fontSize: 8.5,
+    color: "#6b7280",
+    lineHeight: 1.6,
+    marginBottom: 3,
   },
   shopPhone: {
-    fontSize: 8,
-    color: "#4b5563",
-    marginTop: 2,
+    fontSize: 8.5,
+    color: "#6b7280",
+    marginTop: 4,
   },
   invoiceLabelContainer: {
     width: 140,
     alignItems: "flex-end",
-    paddingLeft: 10,
-    borderLeft: "1px solid #e5e7eb",
+    paddingLeft: 24,
+    textAlign: "right",
   },
   invoiceLabel: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 12,
+    fontWeight: "600",
     color: "#111827",
-    marginBottom: 8,
-    letterSpacing: 0.3,
+    marginBottom: 10,
+    letterSpacing: 0.5,
   },
   invoiceNumberText: {
-    fontSize: 9,
+    fontSize: 9.5,
     color: "#374151",
-    fontWeight: "bold",
-    marginBottom: 2,
+    fontWeight: "500",
+    marginBottom: 6,
   },
   invoiceDateText: {
-    fontSize: 8,
-    color: "#6b7280",
+    fontSize: 8.5,
+    color: "#9ca3af",
+    fontWeight: "400",
   },
-  // Customer & Invoice Details Section
+  // Customer & Invoice Details Section - Clean
   detailsSection: {
     flexDirection: "row",
-    marginTop: 12,
-    marginBottom: 16,
-    paddingBottom: 12,
+    marginTop: 14,
+    marginBottom: 14,
+    paddingBottom: 14,
     borderBottom: "1px solid #e5e7eb",
   },
   customerDetails: {
@@ -117,59 +119,57 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 7,
-    color: "#6b7280",
+    color: "#9ca3af",
     textTransform: "uppercase",
-    fontWeight: "bold",
-    marginBottom: 4,
-    letterSpacing: 0.5,
+    fontWeight: "600",
+    marginBottom: 8,
+    letterSpacing: 1.2,
   },
   customerName: {
-    fontSize: 11,
-    fontWeight: "bold",
+    fontSize: 12,
+    fontWeight: "600",
     color: "#111827",
-    marginBottom: 3,
+    marginBottom: 5,
   },
   customerInfo: {
-    fontSize: 8,
-    color: "#374151",
-    lineHeight: 1.5,
-    marginBottom: 1,
+    fontSize: 8.5,
+    color: "#6b7280",
+    lineHeight: 1.6,
+    marginBottom: 3,
   },
-  // Products Table
+  // Products Table - Clean Design
   table: {
-    marginTop: 12,
-    marginBottom: 12,
+    marginTop: 14,
+    marginBottom: 14,
   },
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: "#f3f4f6",
-    paddingVertical: 6,
-    paddingHorizontal: 5,
-    borderTop: "1px solid #d1d5db",
-    borderBottom: "2px solid #1f2937",
+    backgroundColor: "#f8f9fa",
+    paddingVertical: 11,
+    paddingHorizontal: 10,
+    borderBottom: "1px solid #e5e7eb",
   },
   tableHeaderText: {
-    fontSize: 7,
-    fontWeight: "bold",
-    color: "#111827",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
+    fontSize: 8,
+    fontWeight: "600",
+    color: "#374151",
+    letterSpacing: 0.2,
   },
   tableRow: {
     flexDirection: "row",
-    paddingVertical: 6,
-    paddingHorizontal: 5,
-    borderBottom: "1px solid #e5e7eb",
-    minHeight: 50,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderBottom: "1px solid #f3f4f6",
+    minHeight: 45,
   },
   tableRowEven: {
-    backgroundColor: "#fafafa",
+    backgroundColor: "#ffffff",
   },
-  // Table Cell Widths: S.No: 6%, Photo: 10%, Name: 32%, Qty: 8%, Price: 22%, Total: 22%
+  // Table Cell Widths: S.No: 5%, Photo: 10%, Name: 35%, Qty: 8%, Price: 21%, Total: 21%
   cellSNo: { 
-    width: "6%", 
+    width: "5%", 
     fontSize: 8, 
-    color: "#111827", 
+    color: "#9ca3af", 
     textAlign: "center",
     paddingRight: 2,
   },
@@ -181,163 +181,170 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cellName: { 
-    width: "32%", 
-    fontSize: 8, 
+    width: "35%", 
+    fontSize: 8.5, 
     color: "#111827", 
     paddingRight: 4,
-    lineHeight: 1.3,
+    lineHeight: 1.5,
+    fontWeight: "500",
   },
   cellQty: { 
     width: "8%", 
-    fontSize: 8, 
-    color: "#111827", 
+    fontSize: 8.5, 
+    color: "#374151", 
     textAlign: "center",
     paddingRight: 2,
+    fontWeight: "500",
   },
   cellPrice: { 
-    width: "22%", 
-    fontSize: 8, 
-    color: "#111827", 
+    width: "21%", 
+    fontSize: 8.5, 
+    color: "#6b7280", 
     textAlign: "right", 
     paddingRight: 4,
     fontFamily: "Helvetica",
     textRendering: "optimizeLegibility",
   },
   cellTotal: { 
-    width: "22%", 
-    fontSize: 8, 
-    fontWeight: "bold", 
+    width: "21%", 
+    fontSize: 9, 
+    fontWeight: "600", 
     color: "#111827", 
     textAlign: "right",
     fontFamily: "Helvetica",
     textRendering: "optimizeLegibility",
   },
   productImage: {
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
     objectFit: "contain",
-    border: "1px solid #e5e7eb",
-    backgroundColor: "#ffffff",
+    borderRadius: 3,
   },
-  // Summary Section
+  // Summary Section - Clean Professional
   summary: {
-    marginTop: 16,
+    marginTop: 12,
     marginLeft: "auto",
-    width: 240,
-    border: "1px solid #d1d5db",
-    padding: 10,
-    backgroundColor: "#fafafa",
+    width: 270,
+    padding: 12,
   },
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 3,
+    paddingVertical: 8,
     borderBottom: "1px solid #e5e7eb",
+    marginBottom: 8,
+    paddingBottom: 8,
   },
   summaryLabel: {
-    fontSize: 8,
-    color: "#4b5563",
-    fontWeight: "medium",
+    fontSize: 8.5,
+    color: "#6b7280",
+    fontWeight: "400",
   },
   summaryValue: {
-    fontSize: 8,
+    fontSize: 8.5,
     color: "#111827",
-    fontWeight: "bold",
+    fontWeight: "500",
     fontFamily: "Helvetica",
   },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingTop: 6,
-    marginTop: 6,
-    borderTop: "2px solid #1f2937",
+    paddingTop: 12,
+    marginTop: 10,
+    borderTop: "2px solid #111827",
   },
   totalLabel: {
-    fontSize: 11,
-    fontWeight: "bold",
+    fontSize: 12,
+    fontWeight: "600",
     color: "#111827",
   },
   totalValue: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#0b63ff",
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
     fontFamily: "Helvetica",
     textRendering: "optimizeLegibility",
+    letterSpacing: -0.5,
   },
-  // Footer Section
+  // Footer Section - Clean Design
   footer: {
     marginTop: "auto",
-    paddingTop: 12,
-    borderTop: "1px solid #d1d5db",
+    paddingTop: 16,
+    borderTop: "1px solid #e5e7eb",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    minHeight: 120,
+    minHeight: 110,
   },
   footerLeft: {
     flex: 1,
-    paddingRight: 15,
+    paddingRight: 32,
   },
   footerRight: {
-    width: 110,
+    width: 120,
     textAlign: "right",
+    padding: 10,
   },
   termsTitle: {
-    fontSize: 7,
-    fontWeight: "bold",
-    color: "#374151",
-    marginBottom: 3,
+    fontSize: 7.5,
+    fontWeight: "600",
+    color: "#9ca3af",
+    marginBottom: 8,
     textTransform: "uppercase",
-    letterSpacing: 0.3,
+    letterSpacing: 1,
   },
   termsText: {
-    fontSize: 7,
+    fontSize: 7.5,
     color: "#6b7280",
-    lineHeight: 1.4,
-    marginBottom: 2,
+    lineHeight: 1.7,
+    marginBottom: 4,
   },
   signatureLine: {
-    fontSize: 7,
-    color: "#6b7280",
-    marginTop: 15,
-    borderTop: "1px solid #d1d5db",
-    paddingTop: 4,
-    width: 150,
+    fontSize: 7.5,
+    color: "#9ca3af",
+    marginTop: 20,
+    borderTop: "1px solid #e5e7eb",
+    paddingTop: 12,
+    width: 180,
   },
   qrContainer: {
     backgroundColor: "#ffffff",
-    padding: 6,
+    padding: 8,
     border: "1px solid #e5e7eb",
-    marginBottom: 4,
+    marginBottom: 8,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 4,
   },
   qrImage: {
-    width: 90,
-    height: 90,
+    width: 85,
+    height: 85,
     objectFit: "contain",
   },
   qrLabel: {
-    fontSize: 6,
-    color: "#374151",
-    fontWeight: "bold",
-    marginBottom: 3,
+    fontSize: 7.5,
+    color: "#9ca3af",
+    fontWeight: "600",
+    marginBottom: 10,
     textTransform: "uppercase",
-    letterSpacing: 0.3,
+    letterSpacing: 1,
   },
   qrInfo: {
-    fontSize: 6,
+    fontSize: 7,
     color: "#6b7280",
-    marginTop: 2,
-    lineHeight: 1.3,
+    marginTop: 6,
+    lineHeight: 1.5,
+    fontWeight: "400",
   },
   disclaimer: {
-    fontSize: 6,
-    color: "#9ca3af",
+    fontSize: 7,
+    color: "#d1d5db",
     textAlign: "center",
-    marginTop: 8,
+    marginTop: 16,
     fontStyle: "italic",
+    paddingTop: 16,
+    borderTop: "1px solid #f3f4f6",
   },
 });
 
@@ -369,14 +376,12 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
         <View style={styles.header}>
           {/* Logo Area (Top Left) */}
           <View style={styles.logoContainer}>
-            {user?.branch && (user.branch as any).logo_url ? (
-              <Image 
-                src={(user.branch as any).logo_url} 
-                style={styles.logo}
-              />
-            ) : (
-              <Text style={{ fontSize: 7, color: "#9ca3af" }}>LOGO</Text>
-            )}
+            <Image 
+              src={user?.branch && (user.branch as any).logo_url 
+                ? (user.branch as any).logo_url 
+                : "/glanz_logo.png"} 
+              style={styles.logo}
+            />
           </View>
           
           {/* Shop Name & Address */}
@@ -394,7 +399,13 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
               </>
             )}
             {user?.branch?.phone && (
-              <Text style={styles.shopPhone}>Phone: {user.branch.phone}</Text>
+              <>
+                {user.branch.phone.split(',').map((phone, index) => (
+                  <Text key={index} style={styles.shopPhone}>
+                    {index === 0 ? 'Phone: ' : ''}{phone.trim()}
+                  </Text>
+                ))}
+              </>
             )}
           </View>
 
@@ -442,57 +453,59 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
             <Text style={[styles.tableHeaderText, styles.cellTotal]}>Total</Text>
           </View>
 
-          {/* Table Rows */}
-          {displayItems.map((item, index) => {
-            const rowStyles = index % 2 === 1 
-              ? [styles.tableRow, styles.tableRowEven]
-              : [styles.tableRow];
-            
-            return (
-            <View 
-              key={index} 
-              style={rowStyles}
-            >
-              <Text style={styles.cellSNo}>{index + 1}</Text>
-              <View style={styles.cellPhoto}>
-                {item.photo_url ? (
-                  <Image
-                    src={item.photo_url}
-                    style={styles.productImage}
-                  />
-                ) : (
-                  <View style={[styles.productImage, { 
-                    backgroundColor: "#f3f4f6",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }]}>
-                    <Text style={{ fontSize: 6, color: "#9ca3af" }}>No Image</Text>
-                  </View>
-                )}
+          {/* Table Rows - Fixed height container */}
+          <View style={{ maxHeight: 320 }}>
+            {displayItems.map((item, index) => {
+              const rowStyles = index % 2 === 1 
+                ? [styles.tableRow, styles.tableRowEven]
+                : [styles.tableRow];
+              
+              return (
+              <View 
+                key={index} 
+                style={rowStyles}
+              >
+                <Text style={styles.cellSNo}>{index + 1}</Text>
+                <View style={styles.cellPhoto}>
+                  {item.photo_url ? (
+                    <Image
+                      src={item.photo_url}
+                      style={styles.productImage}
+                    />
+                  ) : (
+                    <View style={[styles.productImage, { 
+                      backgroundColor: "#f3f4f6",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }]}>
+                      <Text style={{ fontSize: 6, color: "#9ca3af" }}>No Image</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.cellName}>
+                  {item.product_name || "Unnamed Product"}
+                </Text>
+                <Text style={styles.cellQty}>{item.quantity}</Text>
+                <Text style={styles.cellPrice}>
+                  {`Rs. ${formatCurrencyNumber(item.price_per_day)}`}
+                </Text>
+                <Text style={styles.cellTotal}>
+                  {`Rs. ${formatCurrencyNumber(item.line_total)}`}
+                </Text>
               </View>
-              <Text style={styles.cellName}>
-                {item.product_name || "Unnamed Product"}
-              </Text>
-              <Text style={styles.cellQty}>{item.quantity}</Text>
-              <Text style={styles.cellPrice}>
-                {`Rs. ${formatCurrencyNumber(item.price_per_day)}`}
-              </Text>
-              <Text style={styles.cellTotal}>
-                {`Rs. ${formatCurrencyNumber(item.line_total)}`}
-              </Text>
-            </View>
-            );
-          })}
-          
-          {/* Warning if more than 12 items */}
-          {hasMoreItems && (
-            <View style={[styles.tableRow, { backgroundColor: "#fef3c7", paddingVertical: 4 }]}>
-              <Text style={[styles.cellName, { width: "100%", textAlign: "center", fontSize: 7, color: "#92400e" }]}>
-                * Additional {order.items!.length - 12} item(s) not shown. Please refer to order details.
-              </Text>
-            </View>
-          )}
+              );
+            })}
+            
+            {/* Warning if more than 12 items */}
+            {hasMoreItems && (
+              <View style={[styles.tableRow, { backgroundColor: "#fef3c7", paddingVertical: 4 }]}>
+                <Text style={[styles.cellName, { width: "100%", textAlign: "center", fontSize: 7, color: "#92400e" }]}>
+                  * Additional {order.items!.length - 12} item(s) not shown. Please refer to order details.
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Summary Section */}
@@ -573,36 +586,49 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
 
 // Export function to generate and download PDF
 export async function generateAndDownloadPDF(order: Order, user: User | null): Promise<void> {
-  const React = await import("react");
-  const { pdf } = await import("@react-pdf/renderer");
-  const { generateQRCodeDataURL } = await import("@/lib/utils/qr-code");
-  
-  // Generate UPI payment string
-  const upiPaymentString = user?.upi_id 
-    ? `upi://pay?pa=${user.upi_id}&am=${order.total_amount.toFixed(2)}&cu=INR&tn=Order ${order.invoice_number}`
-    : null;
-  
-  // Pre-generate QR code before rendering PDF
-  let qrCodeDataUrl: string | undefined;
-  if (upiPaymentString) {
-    try {
-      qrCodeDataUrl = await generateQRCodeDataURL(upiPaymentString, 180);
-    } catch (error) {
-      console.error("Failed to generate QR code:", error);
+  try {
+    const React = await import("react");
+    const { pdf } = await import("@react-pdf/renderer");
+    const { generateQRCodeDataURL } = await import("@/lib/utils/qr-code");
+    
+    // Generate UPI payment string
+    const upiPaymentString = user?.upi_id 
+      ? `upi://pay?pa=${user.upi_id}&am=${order.total_amount.toFixed(2)}&cu=INR&tn=Order ${order.invoice_number}`
+      : null;
+    
+    // Pre-generate QR code before rendering PDF
+    let qrCodeDataUrl: string | undefined;
+    if (upiPaymentString) {
+      try {
+        qrCodeDataUrl = await generateQRCodeDataURL(upiPaymentString, 200);
+        if (!qrCodeDataUrl) {
+          console.warn("QR code generation returned empty string");
+        }
+      } catch (error) {
+        console.error("Failed to generate QR code:", error);
+        // Continue without QR code rather than failing completely
+      }
     }
+    
+    // Create PDF document instance with pre-generated QR code
+    const doc = pdf(React.createElement(InvoicePDF, { order, user, qrCodeDataUrl }) as any);
+    
+    // Generate blob and download
+    const blob = await doc.toBlob();
+    if (!blob) {
+      throw new Error("Failed to generate PDF blob");
+    }
+    
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Invoice-${order.invoice_number || "invoice"}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    throw error;
   }
-  
-  // Create PDF document instance with pre-generated QR code
-  const doc = pdf(React.createElement(InvoicePDF, { order, user, qrCodeDataUrl }) as any);
-  
-  // Generate blob and download
-  const blob = await doc.toBlob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `Invoice-${order.invoice_number}.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 }

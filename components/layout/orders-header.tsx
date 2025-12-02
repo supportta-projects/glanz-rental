@@ -96,7 +96,7 @@ export function OrdersHeader({
             <div className="relative">
               <button
                 onClick={() => setShowAvatarMenu(!showAvatarMenu)}
-                className="w-7 h-7 rounded-full bg-[#0b63ff] text-white flex items-center justify-center text-xs font-medium hover:bg-[#0a5ce6] transition-colors"
+                className="w-7 h-7 rounded-full bg-[#273492] text-white flex items-center justify-center text-xs font-medium hover:bg-[#1f2a7a] transition-colors"
               >
                 {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
               </button>
@@ -119,7 +119,7 @@ export function OrdersHeader({
                     </button>
                     <button
                       onClick={handleLogout}
-                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      className="w-full px-4 py-2 text-left text-sm text-[#e7342f] hover:bg-[#e7342f]/10 flex items-center gap-2"
                     >
                       Logout
                     </button>
@@ -139,7 +139,7 @@ export function OrdersHeader({
               placeholder="Search order, customer, phone"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-9 pr-9 h-8 rounded-lg border-gray-200 bg-white text-sm placeholder:text-gray-400 focus:border-[#0b63ff] focus:ring-1 focus:ring-[#0b63ff] transition-all w-full"
+              className="pl-9 pr-9 h-8 rounded-lg border-gray-200 bg-white text-sm placeholder:text-gray-400 focus:border-[#273492] focus:ring-1 focus:ring-[#273492] transition-all w-full"
             />
             {searchQuery && (
               <button
@@ -162,7 +162,7 @@ export function OrdersHeader({
             {/* New Order Button - Reduced Height */}
             <Button
               onClick={onNewOrder}
-              className="h-7 px-2 bg-[#0b63ff] hover:bg-[#0a5ce6] text-white gap-1.5 text-xs font-medium flex-shrink-0"
+              className="h-7 px-2 bg-[#273492] hover:bg-[#1f2a7a] text-white gap-1.5 text-xs font-medium flex-shrink-0"
             >
               <Plus className="h-3 w-3" />
               <span className="hidden sm:inline">New Order</span>
