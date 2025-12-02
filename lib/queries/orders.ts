@@ -1,7 +1,8 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import type { Order } from "@/lib/types";
+import type { Order, OrderStatus, OrderItemReturnStatus } from "@/lib/types";
 import { useRealtimeSubscription } from "@/lib/hooks/use-realtime-subscription";
+import { isOrderLate } from "@/lib/utils/date";
 
 const PAGE_SIZE = 50; // Optimized page size for infinite scroll
 
@@ -9,7 +10,7 @@ const PAGE_SIZE = 50; // Optimized page size for infinite scroll
 export function useOrdersInfinite(
   branchId: string | null,
   filters?: {
-    status?: "all" | "active" | "pending" | "completed" | "cancelled";
+    status?: "all" | "active" | "pending" | "completed" | "cancelled" | "partially_returned";
     searchQuery?: string; // Client-side only
     dateRange?: { start: Date; end: Date };
   }
@@ -52,7 +53,7 @@ export function useOrdersInfinite(
 
         let query = supabase
           .from("orders")
-          .select("id, invoice_number, branch_id, staff_id, customer_id, start_date, end_date, start_datetime, end_datetime, status, total_amount, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id)", { count: "exact" })
+          .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id, return_status, actual_return_date, late_return, missing_note)", { count: "exact" })
           .eq("branch_id", branchId)
           .order("created_at", { ascending: false });
 
@@ -71,6 +72,8 @@ export function useOrdersInfinite(
             query = query.eq("status", "completed");
           } else if (filters.status === "cancelled") {
             query = query.eq("status", "cancelled");
+          } else if (filters.status === "partially_returned") {
+            query = query.eq("status", "partially_returned");
           }
         }
 
@@ -108,7 +111,7 @@ export function useOrders(
   page: number = 1, 
   pageSize: number = 20,
   filters?: {
-    status?: "all" | "active" | "pending" | "completed" | "cancelled";
+    status?: "all" | "active" | "pending" | "completed" | "cancelled" | "partially_returned";
     searchQuery?: string;
     dateRange?: { start: Date; end: Date };
   }
@@ -125,7 +128,7 @@ export function useOrders(
 
       let query = supabase
         .from("orders")
-        .select("id, invoice_number, branch_id, staff_id, customer_id, start_date, end_date, start_datetime, end_datetime, status, total_amount, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id)", { count: "exact" })
+        .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id, return_status, actual_return_date, late_return, missing_note)", { count: "exact" })
         .order("created_at", { ascending: false });
 
       if (branchId) {
@@ -261,17 +264,35 @@ export function useCreateOrder() {
       const startDateOnly = orderData.start_date.split("T")[0];
       const endDateOnly = orderData.end_date.split("T")[0];
       
+      // Determine order status: scheduled if start date is in future, active if today or past
+      const startDate = new Date(orderData.start_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      startDate.setHours(0, 0, 0, 0);
+      
+      // Calculate status with proper date comparison
+      const orderStatus: OrderStatus = startDate > today ? "scheduled" : "active";
+      
+      // Log for debugging
+      console.log("[useCreateOrder] Status calculation:", {
+        startDate: startDate.toISOString(),
+        today: today.toISOString(),
+        calculatedStatus: orderStatus,
+        isFuture: startDate > today
+      });
+      
       // Prepare order data
       const orderInsert = {
         branch_id: orderData.branch_id,
         staff_id: orderData.staff_id,
         customer_id: orderData.customer_id,
         invoice_number: orderData.invoice_number,
+        booking_date: new Date().toISOString(), // When order was booked/created
         start_date: startDateOnly,
         end_date: endDateOnly,
         start_datetime: orderData.start_date,
         end_datetime: orderData.end_date,
-        status: "active" as const,
+        status: orderStatus, // Use calculated status instead of hardcoded "active"
         total_amount: orderData.total_amount,
         subtotal: orderData.subtotal ?? null,
         gst_amount: orderData.gst_amount ?? null,
@@ -465,6 +486,213 @@ export function useUpdateOrderStatus() {
       queryClient.invalidateQueries({ queryKey: ["recent-orders"] });
       queryClient.invalidateQueries({ queryKey: ["customer-orders"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+    },
+  });
+}
+
+/**
+ * Start Rental: Convert scheduled order to active
+ * Simple one-click action for staff when customer picks up items
+ */
+export function useStartRental() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      // Update status to active and optionally update start_datetime to now
+      const { data, error } = await supabase
+        .from("orders")
+        .update({ 
+          status: "active",
+          // Update start_datetime to current time if rental is starting now
+          start_datetime: new Date().toISOString()
+        })
+        .eq("id", orderId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, orderId) => {
+      // Invalidate all order-related queries
+      queryClient.invalidateQueries({ queryKey: ["orders-infinite"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["order", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-orders"] });
+    },
+  });
+}
+
+/**
+ * Optimized: Process item-wise order return using single database function
+ * Reduces 6-10 network calls to 1 call (~50-100ms total)
+ * Includes optimistic updates for instant UI feedback (<1ms)
+ */
+export function useProcessOrderReturn() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+      itemReturns,
+      lateFee = 0,
+    }: {
+      orderId: string;
+      itemReturns: Array<{
+        itemId: string;
+        returnStatus: "returned" | "missing";
+        actualReturnDate?: string;
+        missingNote?: string;
+      }>;
+      lateFee?: number;
+    }) => {
+      // Get current authenticated user (cached, fast)
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) {
+        throw new Error("Authentication required");
+      }
+
+      // Prepare item returns JSONB format
+      const itemReturnsJsonb = itemReturns.map((ir) => ({
+        item_id: ir.itemId,
+        return_status: ir.returnStatus,
+        actual_return_date: ir.actualReturnDate || new Date().toISOString(),
+        missing_note: ir.missingNote || null,
+      }));
+
+      // Single database function call - all operations in one transaction (~50-100ms)
+      const { data, error } = await supabase.rpc("process_order_return_optimized", {
+        p_order_id: orderId,
+        p_item_returns: itemReturnsJsonb,
+        p_user_id: authUser.id,
+        p_late_fee: lateFee,
+      });
+
+      if (error) {
+        console.error("[useProcessOrderReturn] Database function error:", error);
+        throw error;
+      }
+
+      return {
+        orderId,
+        newStatus: data.new_status as OrderStatus,
+        totalAmount: data.total_amount as number,
+      };
+    },
+    // Optimistic update for instant UI feedback (<1ms)
+    onMutate: async ({ orderId, itemReturns, lateFee = 0 }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["order", orderId] });
+      await queryClient.cancelQueries({ queryKey: ["orders-infinite"] });
+      await queryClient.cancelQueries({ queryKey: ["orders"] });
+
+      // Snapshot previous values
+      const previousOrder = queryClient.getQueryData<Order>(["order", orderId]);
+      
+      if (!previousOrder) return { previousOrder: null };
+
+      // Optimistically update order items
+      const updatedItems = previousOrder.items?.map((item) => {
+        const itemReturn = itemReturns.find((ir) => ir.itemId === item.id);
+        if (itemReturn) {
+          const endDate = (previousOrder as any).end_datetime || previousOrder.end_date;
+          return {
+            ...item,
+            return_status: itemReturn.returnStatus as OrderItemReturnStatus,
+            actual_return_date: itemReturn.actualReturnDate || new Date().toISOString(),
+            late_return: isOrderLate(endDate),
+            missing_note: itemReturn.missingNote || undefined,
+          };
+        }
+        return item;
+      });
+
+      // Calculate new status
+      const allReturned = updatedItems?.every((item) => item.return_status === "returned");
+      const hasMissing = updatedItems?.some((item) => item.return_status === "missing");
+      const hasNotReturned = updatedItems?.some(
+        (item) => !item.return_status || item.return_status === "not_yet_returned"
+      );
+
+      let newStatus: OrderStatus = previousOrder.status;
+      if (allReturned) {
+        newStatus = "completed";
+      } else if (hasMissing || hasNotReturned) {
+        newStatus = "partially_returned";
+      }
+
+      // Calculate new total
+      const originalTotal = (previousOrder.total_amount || 0) - (previousOrder.late_fee || 0);
+      const newTotal = originalTotal + lateFee;
+      const endDate = (previousOrder as any).end_datetime || previousOrder.end_date;
+
+      // Optimistically update order
+      const optimisticOrder: Order = {
+        ...previousOrder,
+        status: newStatus,
+        late_fee: lateFee,
+        late_returned: lateFee > 0 || isOrderLate(endDate),
+        total_amount: newTotal,
+        items: updatedItems,
+      };
+
+      // Update cache immediately (instant UI update)
+      queryClient.setQueryData<Order>(["order", orderId], optimisticOrder);
+
+      // Optimistically update orders list (all query keys)
+      queryClient.setQueriesData({ queryKey: ["orders-infinite"] }, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            data: page.data.map((order: Order) => {
+              if (order.id === orderId) {
+                // Return the optimistic order with updated status
+                return optimisticOrder;
+              }
+              return order;
+            }),
+          })),
+        };
+      });
+
+      // Also update the regular orders query cache
+      queryClient.setQueriesData({ queryKey: ["orders"] }, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: old.data.map((order: Order) =>
+            order.id === orderId ? optimisticOrder : order
+          ),
+        };
+      });
+
+      return { previousOrder };
+    },
+    // On error, rollback optimistic update
+    onError: (err, variables, context) => {
+      if (context?.previousOrder) {
+        queryClient.setQueryData(["order", variables.orderId], context.previousOrder);
+      }
+    },
+    // On success, invalidate to ensure consistency (background refetch)
+    onSuccess: (_, variables) => {
+      // Invalidate queries (will refetch in background, but UI already updated)
+      queryClient.invalidateQueries({ queryKey: ["orders-infinite"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["order", variables.orderId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-orders"] });
+      
+      // Force immediate refetch for orders list (ensures category updates)
+      queryClient.refetchQueries({ queryKey: ["orders-infinite"] });
     },
   });
 }

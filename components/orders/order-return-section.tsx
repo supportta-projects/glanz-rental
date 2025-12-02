@@ -1,0 +1,405 @@
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { OrderItem, Order } from "@/lib/types";
+import { formatDateTime, isOrderLate, formatCurrency } from "@/lib/utils/date";
+import { useProcessOrderReturn } from "@/lib/queries/orders";
+import { useToast } from "@/components/ui/toast";
+import { CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+interface OrderReturnSectionProps {
+  order: Order;
+  onReturnComplete?: () => void;
+}
+
+export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSectionProps) {
+  const { showToast } = useToast();
+  const processReturnMutation = useProcessOrderReturn();
+  
+  const items = order.items || [];
+  const endDate = (order as any).end_datetime || order.end_date;
+  const isLate = isOrderLate(endDate);
+
+  // Initialize selectedItems with already returned items
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(() => {
+    const returned = new Set<string>();
+    items.forEach((item) => {
+      if (item.return_status === "returned" && item.id) {
+        returned.add(item.id);
+      }
+    });
+    return returned;
+  });
+
+  const [lateFee, setLateFee] = useState(() => {
+    return order.late_fee ? order.late_fee.toString() : "0";
+  });
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  // Update selectedItems when order changes (e.g., after refetch)
+  useEffect(() => {
+    const returned = new Set<string>();
+    items.forEach((item) => {
+      if (item.return_status === "returned" && item.id) {
+        returned.add(item.id);
+      }
+    });
+    setSelectedItems(returned);
+  }, [items]);
+
+  // Calculate return statistics
+  const returnStats = useMemo(() => {
+    const returned = items.filter(
+      (item) => item.return_status === "returned"
+    ).length;
+    const notReturned = items.filter(
+      (item) => !item.return_status || item.return_status === "not_yet_returned"
+    ).length;
+    const missing = items.filter(
+      (item) => item.return_status === "missing"
+    ).length;
+
+    return { returned, notReturned, missing, total: items.length };
+  }, [items]);
+
+  // Get items that are not yet returned (can be marked as returned)
+  const returnableItems = useMemo(() => {
+    return items.filter(
+      (item) => !item.return_status || item.return_status === "not_yet_returned"
+    );
+  }, [items]);
+
+  const handleToggleItem = (itemId: string) => {
+    const item = items.find((i) => i.id === itemId);
+    if (!item) return;
+
+    // If item is already returned, don't allow unchecking (read-only)
+    if (item.return_status === "returned") {
+      return;
+    }
+
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(itemId)) {
+      newSelected.delete(itemId);
+    } else {
+      newSelected.add(itemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleMarkAllReturned = () => {
+    const allIds = new Set(returnableItems.map((item) => item.id!));
+    setSelectedItems(allIds);
+  };
+
+  const handleSubmitReturn = async () => {
+    if (selectedItems.size === 0) {
+      showToast("Please select at least one item to return", "error");
+      return;
+    }
+
+    // Determine which items are being marked as returned (newly selected items that weren't already returned)
+    const newlyReturnedItems: string[] = [];
+    items.forEach((item) => {
+      if (item.id && selectedItems.has(item.id)) {
+        // Only include items that weren't already returned
+        if (!item.return_status || item.return_status === "not_yet_returned") {
+          newlyReturnedItems.push(item.id);
+        }
+      }
+    });
+
+    if (newlyReturnedItems.length === 0) {
+      showToast("No new items to return", "info");
+      return;
+    }
+
+    try {
+      const fee = parseFloat(lateFee) || 0;
+
+      const itemReturns = newlyReturnedItems.map((itemId) => ({
+        itemId,
+        returnStatus: "returned" as const,
+        actualReturnDate: new Date().toISOString(),
+      }));
+
+      // Mutation with optimistic updates - UI updates instantly (<1ms)
+      await processReturnMutation.mutateAsync({
+        orderId: order.id,
+        itemReturns,
+        lateFee: fee,
+      });
+
+      // Reset late fee input after successful submission
+      setLateFee("0");
+
+      // Check completion status (using optimistic data that's already updated)
+      const allItemsNowReturned = items.every((item) => {
+        if (!item.id) return false;
+        // Item is returned if it was already returned OR if it's in the newly returned list
+        return item.return_status === "returned" || newlyReturnedItems.includes(item.id);
+      });
+
+      if (allItemsNowReturned) {
+        showToast("All items returned successfully. Order completed!", "success");
+      } else {
+        showToast("Items returned successfully. Order marked as partially returned.", "success");
+      }
+
+      // No manual refetch needed - optimistic update already handled it
+      // Background refetch will happen automatically via query invalidation
+      onReturnComplete?.();
+    } catch (error: any) {
+      showToast(error.message || "Failed to process return", "error");
+    }
+  };
+
+  const isItemReturned = (item: OrderItem) => {
+    return item.return_status === "returned";
+  };
+
+  const isItemLate = (item: OrderItem) => {
+    if (item.return_status === "returned" && item.late_return) return true;
+    if (!item.return_status || item.return_status === "not_yet_returned") {
+      return isLate;
+    }
+    return false;
+  };
+
+  const allItemsReturned = useMemo(() => {
+    return items.every((item) => {
+      if (!item.id) return false;
+      return selectedItems.has(item.id) || item.return_status === "returned";
+    });
+  }, [items, selectedItems]);
+
+  const hasNewlySelectedItems = useMemo(() => {
+    return items.some((item) => {
+      if (!item.id) return false;
+      return (
+        selectedItems.has(item.id) &&
+        (!item.return_status || item.return_status === "not_yet_returned")
+      );
+    });
+  }, [items, selectedItems]);
+
+  return (
+    <div className="space-y-4">
+      {/* Summary Card */}
+      <Card className="p-5 bg-sky-50 border-2 border-sky-200">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-gray-900">Return Items</h2>
+          {isLate && (
+            <Badge className="bg-red-500 text-white">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              Late Return
+            </Badge>
+          )}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <p className="text-xs text-gray-500">Total Items</p>
+            <p className="text-2xl font-bold text-gray-900">{returnStats.total}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Returned</p>
+            <p className="text-2xl font-bold text-green-600">{returnStats.returned}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Pending</p>
+            <p className="text-2xl font-bold text-orange-600">{returnStats.notReturned}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Status</p>
+            <p className="text-lg font-bold text-gray-900">
+              {allItemsReturned ? "Completed" : returnStats.returned > 0 ? "Partial" : "Pending"}
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Unified Items Table */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">All Items</h2>
+          {returnableItems.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleMarkAllReturned}
+              className="text-xs"
+            >
+              Mark All as Returned
+            </Button>
+          )}
+        </div>
+
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12"></TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Price/Day</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => {
+                const returned = isItemReturned(item);
+                const checked = selectedItems.has(item.id!);
+                const itemLate = isItemLate(item);
+
+                return (
+                  <TableRow
+                    key={item.id}
+                    className={returned ? "bg-green-50" : itemLate ? "bg-orange-50" : ""}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        id={`return-${item.id}`}
+                        checked={checked}
+                        onCheckedChange={() => handleToggleItem(item.id!)}
+                        disabled={returned} // Don't allow unchecking already returned items
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {item.photo_url && (
+                          <img
+                            src={item.photo_url}
+                            alt={item.product_name || "Product"}
+                            className="w-16 h-16 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:opacity-80"
+                            onClick={() => setSelectedImage(item.photo_url)}
+                          />
+                        )}
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {item.product_name || "Unnamed Product"}
+                          </p>
+                          {itemLate && !returned && (
+                            <Badge className="bg-orange-500 text-white text-xs mt-1">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Late
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium">{item.quantity}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{formatCurrency(item.price_per_day)}</span>
+                        <span className="text-xs text-gray-500">per day</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-semibold text-gray-900">
+                        {formatCurrency(item.line_total)}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {item.quantity} × {formatCurrency(item.price_per_day)}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      {returned ? (
+                        <Badge className="bg-green-500 text-white">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Returned
+                          {item.actual_return_date && (
+                            <span className="ml-1 text-xs">
+                              ({formatDateTime(item.actual_return_date, false)})
+                            </span>
+                          )}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-gray-600">
+                          Not Returned
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
+      {/* Late Fee Input */}
+      <Card className="p-4">
+        <div className="space-y-2">
+          <Label htmlFor="late-fee" className="text-sm font-medium">
+            Late Fee (₹) {isLate && <span className="text-orange-600">* Optional</span>}
+          </Label>
+          <Input
+            id="late-fee"
+            type="number"
+            value={lateFee}
+            onChange={(e) => setLateFee(e.target.value)}
+            placeholder="0"
+            min="0"
+            step="0.01"
+            className="h-12"
+          />
+          {isLate && (
+            <p className="text-xs text-gray-500">
+              This order was returned after the due date ({formatDateTime(endDate, false)}). 
+              Enter a late fee if applicable.
+            </p>
+          )}
+        </div>
+      </Card>
+
+      {/* Submit Button */}
+      {hasNewlySelectedItems && (
+        <Button
+          onClick={handleSubmitReturn}
+          disabled={processReturnMutation.isPending}
+          className="w-full h-14 bg-green-500 hover:bg-green-600 text-white text-base font-semibold rounded-xl"
+        >
+          <CheckCircle className="h-5 w-5 mr-2" />
+          {processReturnMutation.isPending
+            ? "Processing..."
+            : allItemsReturned
+            ? "Complete Return (All Items)"
+            : `Submit Return (${selectedItems.size - returnStats.returned} new items)`}
+        </Button>
+      )}
+
+      {/* Completion Message */}
+      {allItemsReturned && returnStats.returned === returnStats.total && (
+        <Card className="p-4 bg-green-50 border-green-200">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <p className="text-green-800 font-medium">
+              All items have been returned. Order is completed.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* Image Lightbox */}
+      {selectedImage && (
+        <ImageLightbox
+          imageUrl={selectedImage}
+          isOpen={!!selectedImage}
+          onClose={() => setSelectedImage(null)}
+          alt="Product image"
+        />
+      )}
+    </div>
+  );
+}

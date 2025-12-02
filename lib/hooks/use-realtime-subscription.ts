@@ -7,8 +7,8 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 
 /**
  * Optimized Realtime subscription hook
- * Only subscribes to orders for dashboard/orders pages (as per requirements)
- * Channel format: orders:${branch_id} - unsubscribe on unmount
+ * Subscribes to orders AND order_items for complete real-time updates
+ * Channel format: orders:${branch_id} and order_items:${branch_id}
  */
 export function useRealtimeSubscription(
   table: "orders" | "customers" | "order_items",
@@ -22,13 +22,12 @@ export function useRealtimeSubscription(
     const supabase = supabaseRef.current;
     if (!supabase) return;
 
-    // Only subscribe to orders for realtime (as per requirements)
-    if (table !== "orders") return;
+    // Subscribe to orders and order_items for realtime updates
+    if (table !== "orders" && table !== "order_items") return;
 
-    // Channel format: orders:${branch_id} (as per requirements)
     const channelName = branchId 
-      ? `orders:${branchId}` 
-      : `orders:global`;
+      ? `${table}:${branchId}` 
+      : `${table}:global`;
 
     // Cleanup previous channel before creating new one
     if (channelRef.current) {
@@ -44,15 +43,18 @@ export function useRealtimeSubscription(
     });
 
     const invalidateQueries = () => {
-      queryClient.invalidateQueries({ queryKey: ["orders-infinite", branchId] });
-      queryClient.invalidateQueries({ queryKey: ["orders", branchId] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-stats", branchId] });
-      queryClient.invalidateQueries({ queryKey: ["recent-orders", branchId] });
+      // Invalidate all order-related queries when orders or order_items change
+      queryClient.invalidateQueries({ queryKey: ["orders-infinite"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-orders"] });
+      // Also invalidate individual order queries that might be affected
+      queryClient.invalidateQueries({ queryKey: ["order"] });
     };
 
-    // Subscribe to all postgres changes with branch filter
-    channel
-      .on(
+    // Subscribe to orders table changes
+    if (table === "orders") {
+      channel.on(
         "postgres_changes",
         {
           event: "*",
@@ -61,19 +63,34 @@ export function useRealtimeSubscription(
           filter: branchId ? `branch_id=eq.${branchId}` : undefined,
         },
         () => invalidateQueries()
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          // Success - subscription active
-        } else if (status === "CHANNEL_ERROR") {
-          // Realtime failed - app continues with cache
-        }
-      });
+      );
+    }
+
+    // Subscribe to order_items table changes (for return status updates)
+    if (table === "order_items") {
+      channel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "order_items",
+        },
+        () => invalidateQueries()
+      );
+    }
+
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        console.log(`[Realtime] ✅ Subscribed to ${table}`);
+      } else if (status === "CHANNEL_ERROR") {
+        console.warn(`[Realtime] ⚠️ Channel error for ${table}`);
+      }
+    });
 
     channelRef.current = channel;
 
     return () => {
-      // Unsubscribe on unmount (as per requirements)
+      // Unsubscribe on unmount
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;

@@ -93,7 +93,7 @@ export const useOrderDraftStore = create<OrderDraftState>()(
       set((state) => ({
         draft: {
           ...state.draft,
-          items: [item, ...state.draft.items],
+          items: [...state.draft.items, item], // Append to end - new items appear below existing ones
         },
       })),
     

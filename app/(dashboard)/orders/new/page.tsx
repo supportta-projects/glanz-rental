@@ -16,6 +16,7 @@ import { useCreateOrder } from "@/lib/queries/orders";
 import { calculateDays } from "@/lib/utils/date";
 import { useToast } from "@/components/ui/toast";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
+import { generateInvoiceNumber } from "@/lib/utils/invoice";
 import type { OrderItem, Customer } from "@/lib/types";
 
 // Reusable Components
@@ -119,10 +120,8 @@ export default function CreateOrderPage() {
       return;
     }
 
-    if (!draft.invoice_number) {
-      showToast("Please enter an invoice number", "error");
-      return;
-    }
+    // Auto-generate invoice number if not provided
+    const finalInvoiceNumber = draft.invoice_number || generateInvoiceNumber();
 
     if (!user?.branch_id || !user?.id) {
       showToast("User information missing", "error");
@@ -149,7 +148,7 @@ export default function CreateOrderPage() {
         branch_id: user.branch_id,
         staff_id: user.id,
         customer_id: selectedCustomer.id,
-        invoice_number: draft.invoice_number,
+        invoice_number: finalInvoiceNumber,
         start_date: draft.start_date,
         end_date: draft.end_date,
         total_amount: grandTotal,
@@ -216,10 +215,11 @@ export default function CreateOrderPage() {
           gstIncluded={gstIncluded}
         />
 
-        {/* Invoice Number */}
+        {/* Invoice Number - Optional with auto-generation */}
         <OrderInvoiceSection
           invoiceNumber={draft.invoice_number}
           onInvoiceNumberChange={setInvoiceNumber}
+          autoGenerate={true}
         />
 
         {/* Save Button */}

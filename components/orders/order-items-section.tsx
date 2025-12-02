@@ -44,7 +44,13 @@ export function OrderItemsSection({
   days = 0,
 }: OrderItemsSectionProps) {
   const itemsSectionRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [newItemIndex, setNewItemIndex] = useState<number | null>(null);
+
+  // Clean up refs array when items change to prevent memory leaks
+  useEffect(() => {
+    itemRefs.current = itemRefs.current.slice(0, items.length);
+  }, [items.length]);
 
   const handleAddItem = (photoUrl: string) => {
     if (!photoUrl) return;
@@ -58,19 +64,33 @@ export function OrderItemsSection({
       line_total: 0,
     };
 
+    // Calculate the index where the new item will be (at the end)
+    const newIndex = items.length;
+
     onAddItem(newItem);
 
-    // Mark the first item (index 0) as newly added for highlight animation
-    setNewItemIndex(0);
+    // Mark the newly added item (at the end) for highlight animation
+    setNewItemIndex(newIndex);
 
     // Smooth scroll to the newly added item after a brief delay
     setTimeout(() => {
-      if (itemsSectionRef.current) {
-        itemsSectionRef.current.scrollIntoView({
+      // Try to scroll to the specific item card
+      const newItemRef = itemRefs.current[newIndex];
+      if (newItemRef) {
+        newItemRef.scrollIntoView({
           behavior: "smooth",
-          block: "start",
+          block: "nearest",
           inline: "nearest",
         });
+      } else {
+        // Fallback: scroll to the camera button area (below items)
+        if (itemsSectionRef.current) {
+          itemsSectionRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "end",
+            inline: "nearest",
+          });
+        }
       }
 
       // Remove highlight after animation completes
@@ -96,16 +116,16 @@ export function OrderItemsSection({
 
   return (
     <div className="space-y-4" ref={itemsSectionRef}>
-      <div className="flex items-center justify-between">
-        <Label className="text-lg font-bold text-[#0f1724]">Items</Label>
-        <CameraUpload onUploadComplete={handleAddItem} />
-      </div>
+      <Label className="text-lg font-bold text-[#0f1724]">Items</Label>
 
       {/* Items List */}
       <div className="space-y-4">
         {items.map((item, index) => (
           <Card
             key={index}
+            ref={(el) => {
+              itemRefs.current[index] = el;
+            }}
             className={`p-4 rounded-lg border border-gray-200 bg-white transition-all duration-500 ${
               newItemIndex === index
                 ? "ring-2 ring-[#0b63ff] bg-[#0b63ff]/5 shadow-lg"
@@ -215,6 +235,11 @@ export function OrderItemsSection({
             </div>
           </Card>
         ))}
+      </div>
+
+      {/* Camera Upload - Moved below items for easier next product addition */}
+      <div className="flex justify-center pt-2">
+        <CameraUpload onUploadComplete={handleAddItem} />
       </div>
     </div>
   );

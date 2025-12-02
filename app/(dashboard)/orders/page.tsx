@@ -25,8 +25,9 @@ import {
   X,
 } from "lucide-react";
 import { useUserStore } from "@/lib/stores/useUserStore";
-import { useOrders, useOrdersInfinite, useUpdateOrderStatus } from "@/lib/queries/orders";
+import { useOrders, useOrdersInfinite, useUpdateOrderStatus, useStartRental } from "@/lib/queries/orders";
 import { useToast } from "@/components/ui/toast";
+import { useRealtimeSubscription } from "@/lib/hooks/use-realtime-subscription";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,11 +51,16 @@ export default function OrdersPage() {
   const { user } = useUserStore();
   const { showToast } = useToast();
   const updateStatusMutation = useUpdateOrderStatus();
+  const startRentalMutation = useStartRental();
   const queryClient = useQueryClient();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  // Subscribe to both orders and order_items for real-time updates
+  useRealtimeSubscription("orders", user?.branch_id || null);
+  useRealtimeSubscription("order_items", user?.branch_id || null);
+
   // State
-  const [activeTab, setActiveTab] = useState<"all" | "scheduled" | "ongoing" | "late" | "returned" | "cancelled">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "scheduled" | "ongoing" | "late" | "returned" | "partially_returned" | "cancelled">("all");
   const [searchQuery, setSearchQuery] = useState("");
   // Debounce: 300ms as per requirements for search/filters
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -74,6 +80,7 @@ export default function OrdersPage() {
     if (activeTab === "ongoing") return "active";
     if (activeTab === "late") return "all"; // Changed to "all" - filter client-side (late orders can have "active" status)
     if (activeTab === "returned") return "completed";
+    if (activeTab === "partially_returned") return "partially_returned"; // Filter partially returned orders
     if (activeTab === "cancelled") return "cancelled"; // Filter cancelled orders
     return "all";
   }, [activeTab]);
@@ -101,30 +108,68 @@ export default function OrdersPage() {
   }, [infiniteData]);
 
   // Helper function to check if order can be cancelled
-  // Only scheduled orders can be cancelled, and only within 5 minutes of creation
+  // Scheduled orders: Can be cancelled anytime until they become ongoing
+  // Ongoing orders: Can be cancelled only within 10 minutes of becoming active
   const canCancelOrder = useCallback((order: any): boolean => {
-    // Only scheduled orders can be cancelled
-    const startDate = (order as any).start_datetime || order.start_date;
-    const isFutureBooking = isBooking(startDate);
+    const status = order.status;
     
-    if (!isFutureBooking || order.status === "completed" || order.status === "cancelled") {
+    // Already cancelled or completed orders cannot be cancelled
+    if (status === "cancelled" || status === "completed") {
       return false;
     }
     
-    // Check if order was created within last 5 minutes
-    const createdAt = new Date(order.created_at);
-    const now = new Date();
-    const minutesSinceCreation = differenceInMinutes(now, createdAt);
+    // Scheduled orders can be cancelled anytime (until they become ongoing)
+    if (status === "scheduled") {
+      return true;
+    }
     
-    return minutesSinceCreation <= 5;
+    // Ongoing orders can be cancelled only within 10 minutes of becoming active
+    if (status === "active") {
+      // Use start_datetime as the timestamp when rental became active
+      const activeSince = (order as any).start_datetime || order.start_date;
+      if (!activeSince) {
+        // If no start_datetime, use created_at as fallback
+        const createdAt = new Date(order.created_at);
+        const now = new Date();
+        const minutesSinceCreation = differenceInMinutes(now, createdAt);
+        return minutesSinceCreation <= 10;
+      }
+      
+      // Calculate minutes since order became active
+      const activeSinceDate = new Date(activeSince);
+      const now = new Date();
+      const minutesSinceActive = differenceInMinutes(now, activeSinceDate);
+      
+      // Can cancel if less than 10 minutes since becoming active
+      return minutesSinceActive <= 10;
+    }
+    
+    // Other statuses (pending_return, partially_returned) cannot be cancelled
+    return false;
   }, []);
 
   // Ultra-optimized category calculation - memoized date parsing for performance
-  const getOrderCategory = useCallback((order: any): "scheduled" | "ongoing" | "late" | "returned" | "cancelled" => {
+  const getOrderCategory = useCallback((order: any): "scheduled" | "ongoing" | "late" | "returned" | "cancelled" | "partially_returned" => {
     // Fast path: Check status first (most common filter)
     const status = order.status;
     if (status === "cancelled") return "cancelled";
+    if (status === "partially_returned") return "partially_returned";
     if (status === "completed") return "returned";
+    
+    // Check if order has items with return status (for detecting partial returns)
+    const items = order.items || [];
+    if (items.length > 0) {
+      const hasReturnedItems = items.some((item: any) => item.return_status === "returned");
+      const hasNotReturnedItems = items.some((item: any) => 
+        !item.return_status || item.return_status === "not_yet_returned"
+      );
+      const hasMissingItems = items.some((item: any) => item.return_status === "missing");
+      
+      // If some items are returned but not all, it's partially returned
+      if (hasReturnedItems && (hasNotReturnedItems || hasMissingItems)) {
+        return "partially_returned";
+      }
+    }
     
     // Parse dates once and reuse
     const startDate = (order as any).start_datetime || order.start_date;
@@ -135,15 +180,24 @@ export default function OrdersPage() {
     const end = new Date(endDate);
     const now = new Date();
     
-    // Optimized date checks (single pass)
-    const isFutureBooking = start > now;
-    const isLate = end < now && status !== "completed" && status !== "cancelled";
+    // Get today's date at midnight for comparison
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    
+    // If status is scheduled AND start date is in future → scheduled
+    // BUT: If start date is today, it's ongoing (not scheduled) - rental starts today
+    if (status === "scheduled" && startDay > today) {
+      return "scheduled";
+    }
+    
+    // If start date is today or past → ongoing (rental has started or starts today)
+    const isLate = end < now && status !== "completed" && status !== "cancelled" && status !== "partially_returned";
     
     // Priority-based return (early exits for performance)
     if (isLate) return "late";
-    if (isFutureBooking) return "scheduled";
-    if (status === "active") return "ongoing";
+    if (status === "active" || startDay <= today) return "ongoing";
     
+    // Default to ongoing for safety
     return "ongoing";
   }, []);
 
@@ -211,7 +265,7 @@ export default function OrdersPage() {
   // Calculate stats - each order counted in exactly ONE category
   const stats = useMemo(() => {
     if (!allOrdersFromServer.length) {
-      return { total: 0, scheduled: 0, ongoing: 0, late: 0, returned: 0, cancelled: 0 };
+      return { total: 0, scheduled: 0, ongoing: 0, late: 0, returned: 0, partially_returned: 0, cancelled: 0 };
     }
     
     let ongoing = 0;
@@ -219,6 +273,7 @@ export default function OrdersPage() {
     let returned = 0;
     let scheduled = 0;
     let cancelled = 0;
+    let partially_returned = 0;
 
     // Single pass through orders - optimized counting
     for (let i = 0; i < allOrdersFromServer.length; i++) {
@@ -226,6 +281,7 @@ export default function OrdersPage() {
       switch (category) {
         case "cancelled": cancelled++; break;
         case "returned": returned++; break;
+        case "partially_returned": partially_returned++; break;
         case "late": late++; break;
         case "scheduled": scheduled++; break;
         case "ongoing": ongoing++; break;
@@ -238,6 +294,7 @@ export default function OrdersPage() {
       ongoing,
       late,
       returned,
+      partially_returned,
       cancelled,
     };
   }, [allOrdersFromServer, infiniteData, getOrderCategory]);
@@ -270,6 +327,16 @@ export default function OrdersPage() {
       showToast(error.message || "Failed to cancel order", "error");
     }
   }, [updateStatusMutation, showToast]);
+
+  // Handle Start Rental: Convert scheduled order to active
+  const handleStartRental = useCallback(async (orderId: string) => {
+    try {
+      await startRentalMutation.mutateAsync(orderId);
+      showToast("Rental started successfully", "success");
+    } catch (error: any) {
+      showToast(error.message || "Failed to start rental", "error");
+    }
+  }, [startRentalMutation, showToast]);
 
   // Format phone number
   const formatPhone = (phone: string) => {
@@ -453,6 +520,10 @@ export default function OrdersPage() {
                   <RefreshCw className="h-3.5 w-3.5" />
                   Returned
                 </TabsTrigger>
+                <TabsTrigger value="partially_returned" className={`gap-1.5 whitespace-nowrap ${stats.partially_returned > 0 ? "text-orange-600" : ""}`}>
+                  <Package className="h-3.5 w-3.5" />
+                  Partial
+                </TabsTrigger>
                 <TabsTrigger value="cancelled" className="gap-1.5 whitespace-nowrap">
                   <X className="h-3.5 w-3.5" />
                   Cancelled
@@ -479,6 +550,14 @@ export default function OrdersPage() {
               <Badge variant="outline" className={`flex items-center gap-1.5 px-2 py-1 h-8 border-gray-200 whitespace-nowrap ${stats.late > 0 ? "border-red-200" : ""}`}>
                 <AlertTriangle className={`h-4 w-4 ${stats.late > 0 ? "text-red-600" : "text-gray-600"}`} />
                 <span className={`text-sm font-medium ${stats.late > 0 ? "text-red-600" : ""}`}>{stats.late} late</span>
+              </Badge>
+              <Badge variant="outline" className="flex items-center gap-1.5 px-2 py-1 h-8 border-gray-200 whitespace-nowrap">
+                <RefreshCw className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium">{stats.returned} returned</span>
+              </Badge>
+              <Badge variant="outline" className={`flex items-center gap-1.5 px-2 py-1 h-8 border-gray-200 whitespace-nowrap ${stats.partially_returned > 0 ? "border-orange-200" : ""}`}>
+                <Package className={`h-4 w-4 ${stats.partially_returned > 0 ? "text-orange-600" : "text-gray-500"}`} />
+                <span className={`text-sm font-medium ${stats.partially_returned > 0 ? "text-orange-600" : ""}`}>{stats.partially_returned} partial</span>
               </Badge>
               <Badge variant="outline" className="flex items-center gap-1.5 px-2 py-1 h-8 border-gray-200 whitespace-nowrap">
                 <X className="h-4 w-4 text-gray-500" />
@@ -531,54 +610,59 @@ export default function OrdersPage() {
                 ) : !error && paginatedOrders.length > 0 ? (
                   // Table rows with paginated orders
                   paginatedOrders.map((order) => {
-                    const startDate = (order as any).start_datetime || order.start_date;
-                    const endDate = (order as any).end_datetime || order.end_date;
-                    const orderCategory = getOrderCategory(order);
-                    const duration = getDuration(startDate, endDate);
-                    const itemsCount = getItemsCount(order);
+                      const startDate = (order as any).start_datetime || order.start_date;
+                      const endDate = (order as any).end_datetime || order.end_date;
+                      const orderCategory = getOrderCategory(order);
+                      const duration = getDuration(startDate, endDate);
+                      const itemsCount = getItemsCount(order);
 
-                    return (
-                      <TableRow
-                        key={order.id}
+                      return (
+                        <TableRow
+                          key={order.id}
                         className="cursor-pointer border-b border-gray-200 hover:bg-zinc-50 transition-colors"
-                        onClick={(e) => {
-                          if ((e.target as HTMLElement).closest('button, a')) return;
-                          router.push(`/orders/${order.id}`);
-                        }}
-                      >
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <Link
-                                href={`/orders/${order.id}`}
-                                className="font-semibold text-sm text-gray-900 hover:text-[#0b63ff]"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                #{order.invoice_number}
-                              </Link>
-                              <Badge variant="outline" className="text-xs px-1.5 py-0.5 h-5 border-gray-200">
-                                {itemsCount} {itemsCount === 1 ? "item" : "items"}
-                              </Badge>
+                          onClick={(e) => {
+                            if ((e.target as HTMLElement).closest('button, a')) return;
+                            router.push(`/orders/${order.id}`);
+                          }}
+                        >
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2">
+                                <Link
+                                  href={`/orders/${order.id}`}
+                                  className="font-semibold text-sm text-gray-900 hover:text-[#0b63ff]"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  #{order.invoice_number}
+                                </Link>
+                                <Badge variant="outline" className="text-xs px-1.5 py-0.5 h-5 border-gray-200">
+                                  {itemsCount} {itemsCount === 1 ? "item" : "items"}
+                                </Badge>
+                              </div>
+                              <div className="font-medium text-sm text-gray-900">{order.customer?.name || "Unknown"}</div>
                             </div>
-                            <div className="font-medium text-sm text-gray-900">{order.customer?.name || "Unknown"}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-0.5">
-                            <div className="text-sm text-gray-900 tabular-nums">
-                              From {format(new Date(startDate), "dd MMM, HH:mm")} to {format(new Date(endDate), "dd MMM, HH:mm")}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-0.5">
+                              <div className="text-sm text-gray-900 tabular-nums">
+                                From {format(new Date(startDate), "dd MMM, HH:mm")} to {format(new Date(endDate), "dd MMM, HH:mm")}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Duration: {duration.days} day{duration.days !== 1 ? "s" : ""} {duration.hours} hour{duration.hours !== 1 ? "s" : ""}
+                              </div>
                             </div>
-                            <div className="text-xs text-gray-500">
-                              Duration: {duration.days} day{duration.days !== 1 ? "s" : ""} {duration.hours} hour{duration.hours !== 1 ? "s" : ""}
-                            </div>
-                          </div>
-                        </TableCell>
+                          </TableCell>
                         <TableCell className="align-middle">
                           <div className="flex items-center">
                             {orderCategory === "cancelled" ? (
                               <Badge className="bg-gray-500 text-white flex items-center gap-1 w-fit">
                                 <AlertTriangle className="h-3 w-3" />
                                 Cancelled
+                              </Badge>
+                            ) : orderCategory === "partially_returned" ? (
+                              <Badge className="bg-orange-500 text-white flex items-center gap-1 w-fit">
+                                <Package className="h-3 w-3" />
+                                Partially Returned
                               </Badge>
                             ) : orderCategory === "scheduled" ? (
                               <Badge className="bg-[#9ca3af] text-white flex items-center gap-1 w-fit">
@@ -602,59 +686,72 @@ export default function OrdersPage() {
                               </Badge>
                             )}
                           </div>
-                        </TableCell>
+                          </TableCell>
                         <TableCell className="align-middle">
-                          <Link
-                            href={`tel:${order.customer?.phone || ""}`}
-                            className="text-sm text-gray-900 hover:text-[#0b63ff] flex items-center gap-1.5"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Phone className="h-3.5 w-3.5 text-gray-500" />
-                            <span className="tabular-nums font-semibold">{order.customer?.phone || "N/A"}</span>
-                          </Link>
-                        </TableCell>
+                            <Link
+                              href={`tel:${order.customer?.phone || ""}`}
+                              className="text-sm text-gray-900 hover:text-[#0b63ff] flex items-center gap-1.5"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Phone className="h-3.5 w-3.5 text-gray-500" />
+                              <span className="tabular-nums font-semibold">{order.customer?.phone || "N/A"}</span>
+                            </Link>
+                          </TableCell>
                         <TableCell className="align-middle" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
-                            {canCancelOrder(order) && (
-                              <Tooltip content="Cancel Order">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleCancelOrder(order.id)}
-                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
+                              {order.status === "scheduled" && (
+                                <Tooltip content="Start Rental">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleStartRental(order.id)}
+                                    disabled={startRentalMutation.isPending}
+                                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                </Tooltip>
+                              )}
+                              {canCancelOrder(order) && (
+                                <Tooltip content="Cancel Order">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleCancelOrder(order.id)}
+                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </Tooltip>
+                              )}
+                              {(orderCategory === "ongoing" || orderCategory === "late") && (
+                                <Tooltip content="Mark as Returned">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleMarkReturned(order.id)}
+                                    className="h-8 w-8 p-0 text-[#10b981] hover:text-[#10b981] hover:bg-green-50"
+                                  >
+                                    <ArrowLeftCircle className="h-4 w-4" />
+                                  </Button>
+                                </Tooltip>
+                              )}
+                              <Tooltip content="View Details">
+                                <Link href={`/orders/${order.id}`}>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </Link>
                               </Tooltip>
-                            )}
-                            {(orderCategory === "ongoing" || orderCategory === "late") && (
-                              <Tooltip content="Mark as Returned">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleMarkReturned(order.id)}
-                                  className="h-8 w-8 p-0 text-[#10b981] hover:text-[#10b981] hover:bg-green-50"
-                                >
-                                  <ArrowLeftCircle className="h-4 w-4" />
-                                </Button>
-                              </Tooltip>
-                            )}
-                            <Tooltip content="View Details">
-                              <Link href={`/orders/${order.id}`}>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </Link>
-                            </Tooltip>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                 ) : null}
               </TableBody>
             </Table>

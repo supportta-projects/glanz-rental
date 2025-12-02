@@ -2,7 +2,9 @@
 
 export type UserRole = "super_admin" | "branch_admin" | "staff";
 
-export type OrderStatus = "active" | "pending_return" | "completed" | "cancelled";
+export type OrderStatus = "scheduled" | "active" | "pending_return" | "completed" | "cancelled" | "partially_returned";
+
+export type OrderItemReturnStatus = "not_yet_returned" | "returned" | "missing";
 
 export interface User {
   id: string;
@@ -49,6 +51,11 @@ export interface OrderItem {
   price_per_day: number;
   days: number;
   line_total: number;
+  // Return tracking fields
+  return_status?: OrderItemReturnStatus;
+  actual_return_date?: string;
+  late_return?: boolean;
+  missing_note?: string;
 }
 
 export interface Order {
@@ -57,6 +64,7 @@ export interface Order {
   staff_id: string;
   customer_id: string;
   invoice_number: string;
+  booking_date?: string; // When order was booked/created (different from start_date)
   start_date: string; // Legacy DATE field (for backward compatibility)
   end_date: string; // Legacy DATE field (for backward compatibility)
   start_datetime?: string; // New TIMESTAMP field with time
@@ -66,11 +74,25 @@ export interface Order {
   subtotal?: number; // Subtotal before GST
   gst_amount?: number; // GST amount (5% of subtotal)
   late_fee?: number; // Late fee amount
+  late_returned?: boolean; // True if order has any items returned late
   created_at: string;
   customer?: Customer;
   staff?: User;
   branch?: Branch;
   items?: OrderItem[];
+}
+
+// Audit log for return operations
+export interface OrderReturnAudit {
+  id: string;
+  order_id: string;
+  order_item_id?: string;
+  action: string; // 'marked_returned', 'marked_missing', 'updated_return_date', 'order_status_updated', etc.
+  previous_status?: string;
+  new_status?: string;
+  user_id: string;
+  notes?: string;
+  created_at: string;
 }
 
 export interface OrderDraft {
