@@ -10,12 +10,13 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useOrder } from "@/lib/queries/orders";
+import { useOrder, useStartRental } from "@/lib/queries/orders";
 import { formatDate, formatDateTime, calculateDays, formatCurrency, isOrderLate } from "@/lib/utils/date";
 import { useToast } from "@/components/ui/toast";
 import { InvoiceShare } from "@/components/invoice/invoice-share";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { OrderReturnSection } from "@/components/orders/order-return-section";
+import { PlayCircle, Calendar } from "lucide-react";
 
 export default function OrderDetailsPage() {
   const params = useParams();
@@ -55,6 +56,7 @@ export default function OrderDetailsPage() {
 
   // Add error state to the query
   const { data: order, isLoading, error: orderError } = useOrder(orderId);
+  const startRentalMutation = useStartRental();
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   
   // Handle print parameter from URL
@@ -120,10 +122,21 @@ export default function OrderDetailsPage() {
 
   const days = calculateDays(order.start_date, order.end_date);
   const isCompleted = order.status === "completed";
+  const isScheduled = order.status === "scheduled"; // Check if order is scheduled
   const endDate = (order as any).end_datetime || order.end_date;
-  const isLate = !isCompleted && isOrderLate(endDate);
+  const isLate = !isCompleted && !isScheduled && isOrderLate(endDate); // Don't show late for scheduled orders
   const gstEnabled = user?.gst_enabled ?? false;
   const gstRate = user?.gst_rate || 5.00;
+
+  const handleStartRental = async () => {
+    try {
+      await startRentalMutation.mutateAsync(orderId);
+      showToast("Rental started successfully!", "success");
+      router.refresh(); // Refresh to show updated status
+    } catch (error: any) {
+      showToast(error.message || "Failed to start rental", "error");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-24">
@@ -135,7 +148,7 @@ export default function OrderDetailsPage() {
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
         </div>
-        {!isCompleted && (
+        {!isCompleted && !isScheduled && (
           <Link href={`/orders/${orderId}/edit`}>
             <Button
               variant="outline"
@@ -145,6 +158,17 @@ export default function OrderDetailsPage() {
               Edit
             </Button>
           </Link>
+        )}
+        {/* Show "Start Rental" button for scheduled orders */}
+        {isScheduled && (
+          <Button
+            onClick={handleStartRental}
+            disabled={startRentalMutation.isPending}
+            className="h-10 px-4 bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-md"
+          >
+            <PlayCircle className="h-4 w-4 mr-2" />
+            {startRentalMutation.isPending ? "Starting..." : "Start Rental"}
+          </Button>
         )}
       </div>
 
@@ -181,12 +205,24 @@ export default function OrderDetailsPage() {
           </div>
         </Card>
 
-        {/* Dates Card */}
-        <Card className={`p-5 rounded-xl shadow-sm ${isLate ? "bg-red-50 border-2 border-red-200" : "bg-white"}`}>
+        {/* Dates Card - Show scheduled badge for scheduled orders */}
+        <Card className={`p-5 rounded-xl shadow-sm ${
+          isScheduled 
+            ? "bg-blue-50 border-2 border-blue-200" 
+            : isLate 
+            ? "bg-red-50 border-2 border-red-200" 
+            : "bg-white"
+        }`}>
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold text-gray-900">
               Rental Period
             </h2>
+            {isScheduled && (
+              <Badge className="bg-blue-500 text-white">
+                <Calendar className="h-3 w-3 mr-1" />
+                Scheduled
+              </Badge>
+            )}
             {isLate && (
               <Badge className="bg-red-500 text-white animate-pulse">
                 <AlertCircle className="h-3 w-3 mr-1" />
@@ -228,8 +264,8 @@ export default function OrderDetailsPage() {
           />
         </div>
 
-        {/* Return Section - Show for all non-cancelled orders */}
-        {order.status !== "cancelled" && (
+        {/* Return Section - ONLY show for active/ongoing orders, NOT scheduled */}
+        {order.status !== "cancelled" && order.status !== "scheduled" && (
           <div className="pt-4">
             <OrderReturnSection
               order={order}
@@ -239,6 +275,28 @@ export default function OrderDetailsPage() {
               }}
             />
           </div>
+        )}
+
+        {/* Scheduled Order Info Card - Show for scheduled orders */}
+        {isScheduled && (
+          <Card className="p-5 rounded-xl bg-blue-50 border-2 border-blue-200">
+            <div className="flex items-center gap-3 mb-3">
+              <Calendar className="h-5 w-5 text-blue-600" />
+              <h2 className="text-lg font-semibold text-blue-900">Scheduled Rental</h2>
+            </div>
+            <p className="text-sm text-blue-700 mb-4">
+              This rental is scheduled to start on {formatDateTime((order as any).start_datetime || order.start_date)}.
+              Click "Start Rental" above when you're ready to begin the rental period.
+            </p>
+            <Button
+              onClick={handleStartRental}
+              disabled={startRentalMutation.isPending}
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white shadow-md"
+            >
+              <PlayCircle className="h-4 w-4 mr-2" />
+              {startRentalMutation.isPending ? "Starting Rental..." : "Start Rental Now"}
+            </Button>
+          </Card>
         )}
 
         {/* Order Summary with GST - Moved to bottom */}

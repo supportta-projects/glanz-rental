@@ -42,14 +42,29 @@ export function useRealtimeSubscription(
       },
     });
 
-    const invalidateQueries = () => {
-      // Invalidate all order-related queries when orders or order_items change
-      queryClient.invalidateQueries({ queryKey: ["orders-infinite"] });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["recent-orders"] });
-      // Also invalidate individual order queries that might be affected
-      queryClient.invalidateQueries({ queryKey: ["order"] });
+    const refetchQueries = () => {
+      // Force immediate refetch of all order-related queries when orders or order_items change
+      // Using refetchQueries instead of invalidateQueries ensures immediate update
+      queryClient.refetchQueries({ 
+        queryKey: ["orders-infinite"],
+        type: "active" // Only refetch active queries (currently being used)
+      });
+      queryClient.refetchQueries({ 
+        queryKey: ["orders"],
+        type: "active"
+      });
+      queryClient.refetchQueries({ 
+        queryKey: ["dashboard-stats"],
+        type: "active"
+      });
+      queryClient.refetchQueries({ 
+        queryKey: ["recent-orders"],
+        type: "active"
+      });
+      queryClient.refetchQueries({ 
+        queryKey: ["order"],
+        type: "active"
+      });
     };
 
     // Subscribe to orders table changes
@@ -57,12 +72,15 @@ export function useRealtimeSubscription(
       channel.on(
         "postgres_changes",
         {
-          event: "*",
+          event: "*", // INSERT, UPDATE, DELETE
           schema: "public",
           table: "orders",
           filter: branchId ? `branch_id=eq.${branchId}` : undefined,
         },
-        () => invalidateQueries()
+        (payload) => {
+          console.log("[Realtime] Orders changed:", payload.eventType, payload.new?.id || payload.old?.id);
+          refetchQueries();
+        }
       );
     }
 
@@ -71,19 +89,28 @@ export function useRealtimeSubscription(
       channel.on(
         "postgres_changes",
         {
-          event: "*",
+          event: "*", // INSERT, UPDATE, DELETE
           schema: "public",
           table: "order_items",
         },
-        () => invalidateQueries()
+        (payload) => {
+          console.log("[Realtime] Order items changed:", payload.eventType, payload.new?.order_id || payload.old?.order_id);
+          refetchQueries();
+        }
       );
     }
 
     channel.subscribe((status) => {
       if (status === "SUBSCRIBED") {
-        console.log(`[Realtime] ✅ Subscribed to ${table}`);
+        console.log(`[Realtime] ✅ Subscribed to ${table}${branchId ? ` (branch: ${branchId})` : " (global)"}`);
       } else if (status === "CHANNEL_ERROR") {
         console.warn(`[Realtime] ⚠️ Channel error for ${table}`);
+      } else if (status === "TIMED_OUT") {
+        console.warn(`[Realtime] ⚠️ Channel timeout for ${table}, resubscribing...`);
+        // Auto-resubscribe on timeout
+        setTimeout(() => {
+          channel.subscribe();
+        }, 1000);
       }
     });
 

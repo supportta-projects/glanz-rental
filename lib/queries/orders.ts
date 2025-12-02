@@ -97,11 +97,11 @@ export function useOrdersInfinite(
     getNextPageParam: (lastPage, pages) => lastPage.nextPage,
     initialPageParam: 0,
     enabled: !!branchId,
-    staleTime: 30000, // 30s as per requirements
+    staleTime: 0, // Mark as stale immediately so real-time updates trigger refetch
     gcTime: 300000, // 5m as per requirements
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    refetchOnMount: true, // Allow refetch on mount for real-time updates
+    refetchOnReconnect: true, // Refetch on reconnect to catch missed updates
   });
 }
 

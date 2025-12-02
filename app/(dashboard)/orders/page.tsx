@@ -156,6 +156,12 @@ export default function OrdersPage() {
     if (status === "partially_returned") return "partially_returned";
     if (status === "completed") return "returned";
     
+    // IMPORTANT: If status is "scheduled", always return "scheduled" regardless of date
+    // Scheduled orders remain scheduled until explicitly started via "Start Rental" action
+    if (status === "scheduled") {
+      return "scheduled";
+    }
+    
     // Check if order has items with return status (for detecting partial returns)
     const items = order.items || [];
     if (items.length > 0) {
@@ -180,22 +186,12 @@ export default function OrdersPage() {
     const end = new Date(endDate);
     const now = new Date();
     
-    // Get today's date at midnight for comparison
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-    
-    // If status is scheduled AND start date is in future → scheduled
-    // BUT: If start date is today, it's ongoing (not scheduled) - rental starts today
-    if (status === "scheduled" && startDay > today) {
-      return "scheduled";
-    }
-    
-    // If start date is today or past → ongoing (rental has started or starts today)
+    // Check if order is late (end date passed and not completed/cancelled/partially_returned)
     const isLate = end < now && status !== "completed" && status !== "cancelled" && status !== "partially_returned";
     
     // Priority-based return (early exits for performance)
     if (isLate) return "late";
-    if (status === "active" || startDay <= today) return "ongoing";
+    if (status === "active") return "ongoing";
     
     // Default to ongoing for safety
     return "ongoing";
@@ -699,19 +695,21 @@ export default function OrdersPage() {
                           </TableCell>
                         <TableCell className="align-middle" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
-                              {order.status === "scheduled" && (
+                              {/* Show "Start Rental" for scheduled orders */}
+                              {orderCategory === "scheduled" && (
                                 <Tooltip content="Start Rental">
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleStartRental(order.id)}
                                     disabled={startRentalMutation.isPending}
-                                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                                   >
-                                    <CheckCircle className="h-4 w-4" />
+                                    <PlayCircle className="h-4 w-4" />
                                   </Button>
                                 </Tooltip>
                               )}
+                              {/* Show cancel button for scheduled orders and active orders within 10 mins */}
                               {canCancelOrder(order) && (
                                 <Tooltip content="Cancel Order">
                                   <Button
@@ -724,6 +722,7 @@ export default function OrdersPage() {
                                   </Button>
                                 </Tooltip>
                               )}
+                              {/* Show "Mark as Returned" ONLY for ongoing/late orders (NOT scheduled) */}
                               {(orderCategory === "ongoing" || orderCategory === "late") && (
                                 <Tooltip content="Mark as Returned">
                                   <Button
