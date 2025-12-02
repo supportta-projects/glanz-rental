@@ -1,7 +1,6 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
-import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils/date";
+import { formatCurrency, formatDate } from "@/lib/utils/date";
 import type { Order, User } from "@/lib/types";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -11,206 +10,268 @@ interface InvoicePreviewProps {
   onClose?: () => void;
 }
 
+// Format currency number only (without symbol) - matching PDF format
+function formatCurrencyNumber(amount: number | null | undefined): string {
+  const safeAmount = amount ?? 0;
+  const fixed = safeAmount.toFixed(2);
+  const parts = fixed.split(".");
+  const integerPart = parts[0];
+  const decimalPart = parts[1] || "00";
+  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${formattedInteger}.${decimalPart}`;
+}
+
 export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
   const subtotal = order.subtotal || 0;
   const gstAmount = order.gst_amount || 0;
   const lateFee = order.late_fee || 0;
-  const totalItems = order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
   const gstEnabled = user?.gst_enabled ?? false;
   const gstRate = user?.gst_rate || 5.00;
   
+  // Limit items to 12 per page (matching PDF)
+  const displayItems = (order.items || []).slice(0, 12);
+  const hasMoreItems = (order.items || []).length > 12;
+  
   // Generate UPI payment string
   const upiPaymentString = user?.upi_id 
-    ? `upi://pay?pa=${user.upi_id}&am=${order.total_amount}&cu=INR&tn=Order ${order.invoice_number}`
+    ? `upi://pay?pa=${user.upi_id}&am=${order.total_amount.toFixed(2)}&cu=INR&tn=Order ${order.invoice_number}`
     : null;
 
-  // Generate unique ID for this invoice instance (for hidden container)
-  const invoiceId = `invoice-preview-${order.id}`;
-  
+  // Format shop address (handle multi-line)
+  const shopAddressLines = user?.branch?.address 
+    ? user.branch.address.split("\n").filter(line => line.trim())
+    : [];
+
   return (
     <div 
-      className="bg-white p-6 md:p-10 max-w-3xl mx-auto print:p-0 print:max-w-full" 
-      id="invoice-preview"
-      data-invoice-id={invoiceId}
+      className="bg-white p-5 print:p-5 max-w-[595px] mx-auto print:max-w-full"
       style={{ 
-        colorScheme: 'light',
-        // Force standard color format to avoid lab() parsing issues
-        color: 'rgb(0, 0, 0)',
-        backgroundColor: 'rgb(255, 255, 255)'
+        width: "595px",
+        minHeight: "842px",
+        fontFamily: "Helvetica, Arial, sans-serif",
+        fontSize: "9pt",
+        color: "#111827",
+        backgroundColor: "#ffffff"
       }}
     >
-      {/* Professional Header with Logo Area */}
-      <div className="text-center mb-8 border-b-2 border-gray-300 pb-6 print:mb-4 print:pb-3">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2 tracking-tight print:text-3xl print:mb-1">GLANZ RENTAL</h1>
-        <p className="text-base text-gray-600 font-medium print:text-sm">Rental Invoice</p>
-      </div>
-
-      {/* Business Info Section */}
-      <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 print:mb-4 print:gap-4">
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">From</h3>
-          {user?.branch && (
-            <>
-              <p className="text-lg font-bold text-gray-900">{user.branch.name}</p>
-              {user.branch.address && (
-                <p className="text-sm text-gray-600 leading-relaxed">{user.branch.address}</p>
-              )}
-              {user.branch.phone && (
-                <p className="text-sm text-gray-600">Phone: {user.branch.phone}</p>
-              )}
-            </>
+      {/* Header with Logo - Matching PDF Design */}
+      <div className="flex items-start justify-between mb-4 pb-3 border-b-2 border-gray-800 print:mb-3 print:pb-2">
+        {/* Logo Area (Top Left) */}
+        <div className="w-[70px] h-[70px] mr-3 border border-gray-200 bg-gray-50 flex items-center justify-center print:w-[70px] print:h-[70px]">
+          {user?.branch && (user.branch as any).logo_url ? (
+            <img 
+              src={(user.branch as any).logo_url} 
+              alt="Logo"
+              className="w-[65px] h-[65px] object-contain"
+            />
+          ) : (
+            <span className="text-[7pt] text-gray-400">LOGO</span>
           )}
-          {user?.gst_number && (
-            <p className="text-sm text-gray-600 font-medium">GSTIN: {user.gst_number}</p>
+        </div>
+        
+        {/* Shop Name & Address */}
+        <div className="flex-1">
+          <h1 className="text-[20pt] font-bold text-gray-900 mb-1 leading-tight">
+            {user?.branch?.name || "GLANZ RENTAL"}
+          </h1>
+          {shopAddressLines.length > 0 && (
+            <div className="space-y-0.5">
+              {shopAddressLines.map((line, i) => (
+                <p key={i} className="text-[8pt] text-gray-600 leading-snug">
+                  {line}
+                </p>
+              ))}
+            </div>
           )}
-          {user?.upi_id && (
-            <p className="text-sm text-gray-600 font-medium">UPI ID: {user.upi_id}</p>
+          {user?.branch?.phone && (
+            <p className="text-[8pt] text-gray-600 mt-1">Phone: {user.branch.phone}</p>
           )}
         </div>
 
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Bill To</h3>
-          <p className="text-lg font-bold text-gray-900">{order.customer?.name || "N/A"}</p>
+        {/* Invoice Label & Details (Top Right) */}
+        <div className="w-[140px] pl-2.5 border-l border-gray-200 text-right">
+          <p className="text-[16pt] font-bold text-gray-900 mb-2">INVOICE</p>
+          <p className="text-[9pt] font-bold text-gray-700 mb-0.5">
+            {order.invoice_number || "N/A"}
+          </p>
+          <p className="text-[8pt] text-gray-500">
+            {formatDate(order.booking_date || order.created_at, "dd MMM yyyy")}
+          </p>
+        </div>
+      </div>
+
+      {/* Customer Details - Matching PDF Design */}
+      <div className="flex items-start mb-4 pb-3 border-b border-gray-200 print:mb-3 print:pb-2">
+        <div className="flex-1 pr-4">
+          <p className="text-[7pt] text-gray-600 uppercase font-bold tracking-wide mb-1">Bill To</p>
+          <p className="text-[11pt] font-bold text-gray-900 mb-1">
+            {order.customer?.name || "N/A"}
+          </p>
           {order.customer?.phone && (
-            <p className="text-sm text-gray-600">Phone: {order.customer.phone}</p>
+            <p className="text-[8pt] text-gray-600 mb-0.5">
+              Phone: {order.customer.phone}
+            </p>
           )}
           {order.customer?.address && (
-            <p className="text-sm text-gray-600 leading-relaxed">{order.customer.address}</p>
+            <p className="text-[8pt] text-gray-600 leading-relaxed">
+              {order.customer.address}
+            </p>
           )}
         </div>
       </div>
 
-      {/* Invoice Details */}
-      <div className="mb-8 grid grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg print:mb-4 print:gap-3 print:p-3">
-        <div>
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Invoice Number</p>
-          <p className="text-lg font-bold text-gray-900">{order.invoice_number}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Invoice Date</p>
-          <p className="text-lg font-bold text-gray-900">{formatDate(order.created_at, "dd MMM yyyy")}</p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Rental Start</p>
-          <p className="text-sm font-semibold text-gray-900">
-            {formatDateTime((order as any).start_datetime || order.start_date, false)}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Rental End</p>
-          <p className="text-sm font-semibold text-gray-900">
-            {formatDateTime((order as any).end_datetime || order.end_date, false)}
-          </p>
-        </div>
-      </div>
-
-      {/* Items Table - Professional Design */}
-      <div className="mb-8 overflow-x-auto print:mb-4">
-        <table className="w-full border-collapse print:text-xs">
-          <thead>
-            <tr className="bg-gray-100 border-b-2 border-gray-300">
-              <th className="text-left py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide print:py-2 print:px-2">Image</th>
-              <th className="text-left py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide print:py-2 print:px-2">Product Name</th>
-              <th className="text-center py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide print:py-2 print:px-2">Quantity</th>
-              <th className="text-right py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide print:py-2 print:px-2">Price per Unit</th>
-              <th className="text-right py-4 px-4 text-xs font-bold text-gray-700 uppercase tracking-wide print:py-2 print:px-2">Total Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.items?.map((item, index) => (
-              <tr key={index} className="border-b border-gray-200 hover:bg-gray-50 transition-colors print:border-b print:border-gray-300">
-                <td className="py-4 px-4 print:py-2 print:px-2">
-                  <img 
-                    src={item.photo_url} 
-                    alt={item.product_name || "Product"} 
-                    className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200 print:w-16 print:h-16 print:rounded"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ddd' width='100' height='100'/%3E%3Ctext fill='%23999' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3ENo Image%3C/text%3E%3C/svg%3E";
-                    }}
-                  />
-                </td>
-                <td className="py-4 px-4 print:py-2 print:px-2">
-                  <p className="font-semibold text-gray-900 text-sm print:text-xs">{item.product_name || "Unnamed Product"}</p>
-                </td>
-                <td className="py-4 px-4 text-center print:py-2 print:px-2">
-                  <span className="font-semibold text-gray-900 text-sm print:text-xs">{item.quantity}</span>
-                </td>
-                <td className="py-4 px-4 text-right print:py-2 print:px-2">
-                  <span className="font-medium text-gray-700 text-sm print:text-xs">{formatCurrency(item.price_per_day)}</span>
-                </td>
-                <td className="py-4 px-4 text-right print:py-2 print:px-2">
-                  <span className="font-bold text-gray-900 text-sm print:text-xs">{formatCurrency(item.line_total)}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Summary Section - Professional Layout */}
-      <div className="mb-8 flex justify-end print:mb-4">
-        <div className="w-full md:w-80 space-y-3 print:w-full print:space-y-2">
-          <div className="flex justify-between text-sm py-2 border-b border-gray-200">
-            <span className="text-gray-600 font-medium">Total Items:</span>
-            <span className="font-bold text-gray-900">{totalItems}</span>
+      {/* Products Table - Matching PDF Design */}
+      <div className="mb-3 print:mb-2">
+        {/* Table Header */}
+        <div className="flex bg-gray-100 py-1.5 px-1.5 border-t border-b-2 border-gray-800">
+          <div className="w-[6%] text-center">
+            <p className="text-[7pt] font-bold text-gray-900 uppercase tracking-wide">S.No</p>
           </div>
-          <div className="flex justify-between text-sm py-2 border-b border-gray-200">
-            <span className="text-gray-600 font-medium">Subtotal:</span>
-            <span className="font-bold text-gray-900">{formatCurrency(subtotal)}</span>
+          <div className="w-[10%]">
+            <p className="text-[7pt] font-bold text-gray-900 uppercase tracking-wide">Photo</p>
           </div>
-          {/* Only show GST if enabled and amount > 0 */}
-          {gstEnabled && gstAmount > 0 && (
-            <div className="flex justify-between text-sm py-2 border-b border-gray-200">
-              <span className="text-gray-600 font-medium">GST ({gstRate}%):</span>
-              <span className="font-bold text-gray-900">{formatCurrency(gstAmount)}</span>
+          <div className="w-[32%]">
+            <p className="text-[7pt] font-bold text-gray-900 uppercase tracking-wide">Product Name</p>
+          </div>
+          <div className="w-[8%] text-center">
+            <p className="text-[7pt] font-bold text-gray-900 uppercase tracking-wide">Qty</p>
+          </div>
+          <div className="w-[22%] text-right pr-1">
+            <p className="text-[7pt] font-bold text-gray-900 uppercase tracking-wide">Per Day Price</p>
+          </div>
+          <div className="w-[22%] text-right">
+            <p className="text-[7pt] font-bold text-gray-900 uppercase tracking-wide">Total</p>
+          </div>
+        </div>
+
+        {/* Table Rows */}
+        {displayItems.map((item, index) => (
+          <div 
+            key={index} 
+            className={`flex py-1.5 px-1.5 border-b border-gray-200 min-h-[50px] ${
+              index % 2 === 1 ? "bg-gray-50" : ""
+            }`}
+          >
+            <div className="w-[6%] flex items-center justify-center">
+              <span className="text-[8pt] text-gray-900">{index + 1}</span>
             </div>
-          )}
-          {lateFee > 0 && (
-            <div className="flex justify-between text-sm py-2 border-b border-gray-200">
-              <span className="text-orange-600 font-medium">Late Fee:</span>
-              <span className="font-bold text-orange-600">{formatCurrency(lateFee)}</span>
+            <div className="w-[10%] flex items-center justify-center pr-1">
+              {item.photo_url ? (
+                <img
+                  src={item.photo_url}
+                  alt={item.product_name || "Product"}
+                  className="w-12 h-12 object-contain border border-gray-200 bg-white"
+                />
+              ) : (
+                <div className="w-12 h-12 border border-gray-200 bg-gray-100 flex items-center justify-center">
+                  <span className="text-[6pt] text-gray-400">No Image</span>
+                </div>
+              )}
             </div>
-          )}
-          <div className="flex justify-between text-lg font-bold pt-3 border-t-2 border-gray-400">
-            <span className="text-gray-900">Final Total Amount:</span>
-            <span className="text-sky-600">{formatCurrency(order.total_amount)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* UPI QR Code Section */}
-      {upiPaymentString && (
-        <div className="mb-8 p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 text-center print:mb-4 print:p-4 print:border">
-          <p className="font-bold text-gray-900 mb-3 text-lg print:text-base print:mb-2">Scan to Pay via UPI</p>
-          <div className="flex justify-center mb-4 print:mb-2">
-            <div className="bg-white p-4 rounded-lg shadow-lg print:p-2 print:shadow-none">
-              <QRCodeSVG 
-                value={upiPaymentString} 
-                size={220} 
-                style={{ 
-                  width: '220px', 
-                  height: '220px',
-                }}
-                className="print:w-32 print:h-32"
-              />
+            <div className="w-[32%] flex items-center pr-1">
+              <p className="text-[8pt] text-gray-900 leading-snug">
+                {item.product_name || "Unnamed Product"}
+              </p>
+            </div>
+            <div className="w-[8%] flex items-center justify-center">
+              <span className="text-[8pt] text-gray-900">{item.quantity}</span>
+            </div>
+            <div className="w-[22%] flex items-center justify-end pr-1">
+              <span className="text-[8pt] text-gray-900">
+                {`₹${formatCurrencyNumber(item.price_per_day)}`}
+              </span>
+            </div>
+            <div className="w-[22%] flex items-center justify-end">
+              <span className="text-[8pt] font-bold text-gray-900">
+                {`₹${formatCurrencyNumber(item.line_total)}`}
+              </span>
             </div>
           </div>
-          <div className="space-y-1 print:space-y-0.5">
-            <p className="text-sm font-semibold text-gray-700 print:text-xs">UPI ID: <span className="text-gray-900">{user?.upi_id || "N/A"}</span></p>
-            <p className="text-sm font-semibold text-gray-700 print:text-xs">Amount: <span className="text-sky-600">{formatCurrency(order.total_amount)}</span></p>
+        ))}
+        
+        {/* Warning if more than 12 items */}
+        {hasMoreItems && (
+          <div className="flex py-1 bg-yellow-50 border-b border-gray-200">
+            <div className="w-full text-center">
+              <p className="text-[7pt] text-yellow-800">
+                * Additional {order.items!.length - 12} item(s) not shown. Please refer to order details.
+              </p>
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Professional Footer */}
-      <div className="text-center border-t-2 border-gray-300 pt-6 space-y-2 print:pt-3 print:space-y-1">
-        <p className="text-sm font-semibold text-gray-700 print:text-xs">Thank you for your business!</p>
-        <p className="text-xs text-gray-500 print:text-[10px]">For any queries, please contact us at: {user?.phone || "N/A"}</p>
-        {user?.branch?.address && (
-          <p className="text-xs text-gray-500 print:text-[10px]">{user.branch.address}</p>
         )}
       </div>
+
+      {/* Summary Section - Matching PDF Design */}
+      <div className="mt-4 ml-auto w-[240px] border border-gray-300 p-2.5 bg-gray-50 print:mt-3 print:p-2">
+        <div className="flex justify-between py-0.75 border-b border-gray-200">
+          <span className="text-[8pt] text-gray-600 font-medium">Subtotal:</span>
+          <span className="text-[8pt] font-bold text-gray-900">
+            {`₹${formatCurrencyNumber(subtotal)}`}
+          </span>
+        </div>
+        {gstEnabled && gstAmount > 0 && (
+          <div className="flex justify-between py-0.75 border-b border-gray-200">
+            <span className="text-[8pt] text-gray-600 font-medium">GST ({gstRate}%):</span>
+            <span className="text-[8pt] font-bold text-gray-900">
+              {`₹${formatCurrencyNumber(gstAmount)}`}
+            </span>
+          </div>
+        )}
+        {lateFee > 0 && (
+          <div className="flex justify-between py-0.75 border-b border-gray-200">
+            <span className="text-[8pt] text-orange-600 font-medium">Late Fee:</span>
+            <span className="text-[8pt] font-bold text-orange-600">
+              {`₹${formatCurrencyNumber(lateFee)}`}
+            </span>
+          </div>
+        )}
+        <div className="flex justify-between pt-1.5 mt-1.5 border-t-2 border-gray-800">
+          <span className="text-[11pt] font-bold text-gray-900">Total Amount:</span>
+          <span className="text-[14pt] font-bold text-blue-600">
+            {`₹${formatCurrencyNumber(order.total_amount)}`}
+          </span>
+        </div>
+      </div>
+
+      {/* Footer with QR Code & Terms - Matching PDF Design */}
+      <div className="mt-auto pt-3 border-t border-gray-300 flex justify-between items-start min-h-[120px] print:pt-2">
+        <div className="flex-1 pr-4">
+          <p className="text-[7pt] font-bold text-gray-700 uppercase tracking-wide mb-0.75">Terms & Conditions</p>
+          <div className="text-[7pt] text-gray-600 leading-snug space-y-0.5">
+            <p>• All items must be returned in good condition</p>
+            <p>• Late returns may incur additional charges</p>
+            <p>• Please contact us for any queries or concerns</p>
+            <p>• This invoice is valid for accounting purposes</p>
+          </div>
+          <div className="mt-4 pt-1 border-t border-gray-300 w-[150px]">
+            <p className="text-[7pt] text-gray-600">Authorized Signature</p>
+          </div>
+        </div>
+        
+        {upiPaymentString && (
+          <div className="w-[110px] text-right">
+            <p className="text-[6pt] text-gray-700 font-bold uppercase tracking-wide mb-0.75">Scan & Pay</p>
+            <div className="bg-white p-1.5 border border-gray-200 mb-1 flex items-center justify-center">
+              <QRCodeSVG 
+                value={upiPaymentString} 
+                size={90}
+                style={{ width: "90px", height: "90px" }}
+              />
+            </div>
+            <p className="text-[6pt] text-gray-600 mt-0.5 leading-snug">
+              UPI: {user?.upi_id || "N/A"}
+            </p>
+            <p className="text-[6pt] text-gray-600 mt-0.5 leading-snug">
+              {`Amount: ₹${formatCurrencyNumber(order.total_amount)}`}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Disclaimer - Matching PDF Design */}
+      <p className="text-[6pt] text-gray-400 text-center mt-2 italic print:mt-1">
+        This is a system-generated invoice
+      </p>
     </div>
   );
 }
-

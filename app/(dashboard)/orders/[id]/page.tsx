@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
-import { ArrowLeft, CheckCircle, Edit, AlertCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, Edit, AlertCircle, User, Phone, MapPin, ExternalLink, Calendar, FileText, PlayCircle, Clock, CalendarDays } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,6 @@ import { useToast } from "@/components/ui/toast";
 import { InvoiceShare } from "@/components/invoice/invoice-share";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { OrderReturnSection } from "@/components/orders/order-return-section";
-import { PlayCircle, Calendar } from "lucide-react";
 
 export default function OrderDetailsPage() {
   const params = useParams();
@@ -182,90 +181,233 @@ export default function OrderDetailsPage() {
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
-        {/* Customer Card */}
-        <Card className="p-5 rounded-xl bg-white shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Customer</h2>
-          <p className="text-xl font-bold text-gray-900">
-            {order.customer?.name || "Unknown"}
-          </p>
-          <p className="text-base text-gray-600 mt-1">
-            {order.customer?.phone || "N/A"}
-          </p>
+      <div className="p-4 space-y-8">
+        {/* Booking Information Card - Professional Design */}
+        <Card className="p-6 rounded-xl bg-gradient-to-br from-white to-gray-50 shadow-sm border border-gray-200">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-xl">
+                <FileText className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-sm font-medium text-gray-500 mb-1">Booking Information</h2>
+                <p className="text-lg font-semibold text-gray-900">Order Details</p>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-4 pt-3 border-t border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-100 rounded-lg">
+                <Calendar className="h-4 w-4 text-gray-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 mb-1">Booking Date</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {order.booking_date 
+                    ? formatDateTime(order.booking_date) 
+                    : formatDateTime(order.created_at)}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-100 rounded-lg">
+                <FileText className="h-4 w-4 text-gray-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 mb-1">Invoice Number</p>
+                <p className="text-sm font-semibold text-purple-600 font-mono tracking-wide">
+                  {order.invoice_number || "N/A"}
+                </p>
+              </div>
+            </div>
+          </div>
         </Card>
 
-        {/* Booking Information Card */}
-        <Card className="p-5 rounded-xl bg-white shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Booking Information</h2>
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Booking Date</p>
-              <p className="text-base font-medium text-gray-900">
-                {order.booking_date 
-                  ? formatDateTime(order.booking_date) 
-                  : formatDateTime(order.created_at)}
-              </p>
+        {/* Customer Card - Professional Design */}
+        {order.customer && (
+          <Link href={`/customers/${order.customer.id}`}>
+            <Card className="p-6 rounded-xl bg-gradient-to-br from-white to-gray-50 shadow-sm border border-gray-200 hover:shadow-md hover:border-sky-300 transition-all duration-200 cursor-pointer group">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-br from-sky-100 to-blue-100 rounded-xl group-hover:from-sky-200 group-hover:to-blue-200 transition-colors">
+                    <User className="h-6 w-6 text-sky-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-medium text-gray-500 mb-1">Customer Information</h2>
+                    <p className="text-2xl font-bold text-gray-900 group-hover:text-sky-600 transition-colors flex items-center gap-2">
+                      {order.customer.name || "Unknown"}
+                      <ExternalLink className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3 pt-3 border-t border-gray-100">
+                {order.customer.phone && (
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-sky-50 transition-colors">
+                      <Phone className="h-4 w-4 text-gray-600 group-hover:text-sky-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Phone</p>
+                      <p className="text-sm font-medium text-gray-900">{order.customer.phone}</p>
+                    </div>
+                  </div>
+                )}
+                {order.customer.address && (
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-sky-50 transition-colors mt-0.5">
+                      <MapPin className="h-4 w-4 text-gray-600 group-hover:text-sky-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500">Address</p>
+                      <p className="text-sm font-medium text-gray-900 line-clamp-2">{order.customer.address}</p>
+                    </div>
+                  </div>
+                )}
+                {!order.customer.phone && !order.customer.address && (
+                  <p className="text-sm text-gray-500 italic">No additional information available</p>
+                )}
+              </div>
+            </Card>
+          </Link>
+        )}
+        {!order.customer && (
+          <Card className="p-6 rounded-xl bg-gray-50 border border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-gray-200 rounded-xl">
+                <User className="h-6 w-6 text-gray-400" />
+              </div>
+              <div>
+                <h2 className="text-sm font-medium text-gray-500 mb-1">Customer Information</h2>
+                <p className="text-lg font-semibold text-gray-400">Unknown Customer</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Invoice Number</p>
-              <p className="text-base font-semibold text-sky-600 font-mono">
-                {order.invoice_number || "N/A"}
-              </p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
-        {/* Dates Card - Show scheduled badge for scheduled orders */}
-        <Card className={`p-5 rounded-xl shadow-sm ${
-          isScheduled 
-            ? "bg-blue-50 border-2 border-blue-200" 
-            : isLate 
-            ? "bg-red-50 border-2 border-red-200" 
-            : "bg-white"
-        }`}>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Rental Period
-            </h2>
-            {isScheduled && (
-              <Badge className="bg-blue-500 text-white">
-                <Calendar className="h-3 w-3 mr-1" />
-                Scheduled
-              </Badge>
-            )}
-            {isLate && (
-              <Badge className="bg-red-500 text-white animate-pulse">
-                <AlertCircle className="h-3 w-3 mr-1" />
-                Late Return
-              </Badge>
-            )}
-          </div>
-          <div className="space-y-2">
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Start Date & Time</p>
-              <p className="text-base font-medium text-gray-900">
-                {formatDateTime((order as any).start_datetime || order.start_date)}
-              </p>
+        {/* Rental Period Card - Professional Design */}
+        <div className="mt-8">
+          <Card className={`p-6 rounded-xl shadow-sm border border-gray-200 ${
+            isScheduled 
+              ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200" 
+              : isLate 
+              ? "bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200" 
+              : "bg-gradient-to-br from-white to-gray-50"
+          }`}>
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-3 rounded-xl ${
+                  isScheduled 
+                    ? "bg-gradient-to-br from-blue-100 to-indigo-100" 
+                    : isLate 
+                    ? "bg-gradient-to-br from-red-100 to-pink-100" 
+                    : "bg-gradient-to-br from-emerald-100 to-teal-100"
+                }`}>
+                  <CalendarDays className={`h-6 w-6 ${
+                    isScheduled 
+                      ? "text-blue-600" 
+                      : isLate 
+                      ? "text-red-600" 
+                      : "text-emerald-600"
+                  }`} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-medium text-gray-500 mb-1">Rental Period</h2>
+                  <p className="text-lg font-semibold text-gray-900">Duration & Timeline</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {isScheduled && (
+                  <Badge className="bg-blue-500 text-white px-3 py-1">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Scheduled
+                  </Badge>
+                )}
+                {isLate && (
+                  <Badge className="bg-red-500 text-white px-3 py-1 animate-pulse">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Late Return
+                  </Badge>
+                )}
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">End Date & Time</p>
-              <p className={`text-base font-medium ${isLate ? "text-red-600" : "text-gray-900"}`}>
-                {formatDateTime((order as any).end_datetime || order.end_date)}
-              </p>
+            
+            <div className="space-y-4 pt-3 border-t border-gray-200">
+              {/* Start Date */}
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${
+                  isScheduled 
+                    ? "bg-blue-100" 
+                    : isLate 
+                    ? "bg-red-100" 
+                    : "bg-emerald-100"
+                }`}>
+                  <Clock className={`h-4 w-4 ${
+                    isScheduled 
+                      ? "text-blue-600" 
+                      : isLate 
+                      ? "text-red-600" 
+                      : "text-emerald-600"
+                  }`} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 mb-1">Start Date & Time</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {formatDateTime((order as any).start_datetime || order.start_date)}
+                  </p>
+                </div>
+              </div>
+              
+              {/* End Date */}
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${
+                  isScheduled 
+                    ? "bg-blue-100" 
+                    : isLate 
+                    ? "bg-red-100" 
+                    : "bg-emerald-100"
+                }`}>
+                  <Clock className={`h-4 w-4 ${
+                    isScheduled 
+                      ? "text-blue-600" 
+                      : isLate 
+                      ? "text-red-600" 
+                      : "text-emerald-600"
+                  }`} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 mb-1">End Date & Time</p>
+                  <p className={`text-sm font-semibold ${isLate ? "text-red-600" : "text-gray-900"}`}>
+                    {formatDateTime((order as any).end_datetime || order.end_date)}
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2 mt-3">
-            <Badge className="bg-sky-500 text-white">{days} days</Badge>
-            {isLate && order.late_fee && order.late_fee > 0 && (
-              <Badge className="bg-orange-500 text-white">
-                Late Fee: {formatCurrency(order.late_fee)}
+            
+            {/* Duration Badge */}
+            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-200">
+              <Badge className={`px-3 py-1.5 text-sm font-semibold ${
+                isScheduled 
+                  ? "bg-blue-500 text-white" 
+                  : isLate 
+                  ? "bg-red-500 text-white" 
+                  : "bg-emerald-500 text-white"
+              }`}>
+                <CalendarDays className="h-3 w-3 mr-1.5" />
+                {days} {days === 1 ? "day" : "days"}
               </Badge>
-            )}
-          </div>
-        </Card>
+              {isLate && order.late_fee && order.late_fee > 0 && (
+                <Badge className="bg-orange-500 text-white px-3 py-1.5 text-sm font-semibold">
+                  <AlertCircle className="h-3 w-3 mr-1.5" />
+                  Late Fee: {formatCurrency(order.late_fee)}
+                </Badge>
+              )}
+            </div>
+          </Card>
+        </div>
 
         {/* Invoice Share */}
-        <div className="pt-4">
+        <div>
           <InvoiceShare 
             order={order} 
             user={user}
@@ -276,7 +418,7 @@ export default function OrderDetailsPage() {
 
         {/* Return Section - ONLY show for active/ongoing orders, NOT scheduled */}
         {order.status !== "cancelled" && order.status !== "scheduled" && (
-          <div className="pt-4">
+          <div>
             <OrderReturnSection
               order={order}
               onReturnComplete={() => {

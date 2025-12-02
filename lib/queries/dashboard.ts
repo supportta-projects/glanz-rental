@@ -341,7 +341,7 @@ export function useRecentOrders(branchId: string | null) {
         .select("id, invoice_number, start_date, end_date, status, total_amount, created_at, customer:customers(id, name), branch:branches(id, name)")
         .eq("branch_id", branchId)
         .order("created_at", { ascending: false })
-        .limit(8);
+        .limit(10);
 
       const { data, error } = await query;
 

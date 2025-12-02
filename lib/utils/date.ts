@@ -48,7 +48,17 @@ export function getOrderStatus(
 
 export function formatCurrency(amount: number | null | undefined): string {
   const safeAmount = amount ?? 0;
-  return `₹${safeAmount.toLocaleString("en-IN")}`;
+  // Format with clean number formatting - avoid any locale-specific formatting that may add superscripts
+  // Use simple toFixed and manual comma insertion for guaranteed clean output
+  const fixed = safeAmount.toFixed(2);
+  const parts = fixed.split(".");
+  const integerPart = parts[0];
+  const decimalPart = parts[1] || "00";
+  
+  // Add commas for thousands (US style, clean and simple)
+  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  
+  return `₹${formattedInteger}.${decimalPart}`;
 }
 
 /**

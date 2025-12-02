@@ -43,8 +43,8 @@ const OrderItem = memo(function OrderItem({ order }: OrderItemProps) {
             : "bg-white hover:shadow-md hover:border-gray-300"
         }`}
       >
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
             <span className="font-bold text-[#0f1724] text-sm">
               {order.invoice_number}
             </span>
@@ -66,7 +66,7 @@ const OrderItem = memo(function OrderItem({ order }: OrderItemProps) {
           </div>
           <span className="text-xs text-[#6b7280]">{timeAgo}</span>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <p className="text-sm font-medium text-[#0f1724]">
             {order.customer?.name || "Unknown"}
           </p>
@@ -83,7 +83,7 @@ export const RecentActivity = memo(function RecentActivity({
   orders,
   isLoading,
 }: RecentActivityProps) {
-  const displayOrders = useMemo(() => orders.slice(0, 8), [orders]);
+  const displayOrders = useMemo(() => orders.slice(0, 10), [orders]);
 
   if (isLoading) {
     return (
@@ -107,7 +107,7 @@ export const RecentActivity = memo(function RecentActivity({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-4">
       {displayOrders.map((order) => (
         <OrderItem key={order.id} order={order} />
       ))}
