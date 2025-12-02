@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Calendar, ChevronDown } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Calendar, ChevronDown, X, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { format, startOfToday, endOfToday, subDays, startOfWeek, startOfMonth } from "date-fns";
+import { format, startOfToday, endOfToday, subDays, startOfWeek, startOfMonth, startOfDay, endOfDay, addYears, addDays } from "date-fns";
 import { cn } from "@/lib/utils/cn";
 
-export type DateRangeOption = "today" | "yesterday" | "last7days" | "thisweek" | "thismonth" | "custom" | "clear";
+export type DateRangeOption = "alltime" | "today" | "yesterday" | "tomorrow" | "thisweek" | "thismonth" | "custom" | "clear";
 
 export interface DateRange {
   start: Date;
@@ -22,13 +22,13 @@ interface DateRangePickerProps {
 }
 
 const presets = [
+  { label: "All Time", value: "alltime" as DateRangeOption },
   { label: "Today", value: "today" as DateRangeOption },
   { label: "Yesterday", value: "yesterday" as DateRangeOption },
+  { label: "Tomorrow", value: "tomorrow" as DateRangeOption },
   { label: "This Week", value: "thisweek" as DateRangeOption },
   { label: "This Month", value: "thismonth" as DateRangeOption },
-  { label: "Last 7 Days", value: "last7days" as DateRangeOption },
   { label: "Custom", value: "custom" as DateRangeOption },
-  { label: "Clear Filter", value: "clear" as DateRangeOption },
 ];
 
 export function DateRangePicker({
@@ -37,12 +37,30 @@ export function DateRangePicker({
   className,
 }: DateRangePickerProps) {
   const [showPicker, setShowPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const [customStart, setCustomStart] = useState(
     value.option === "custom" ? format(value.start, "yyyy-MM-dd") : ""
   );
   const [customEnd, setCustomEnd] = useState(
     value.option === "custom" ? format(value.end, "yyyy-MM-dd") : ""
   );
+
+  // Close picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+        setShowPicker(false);
+      }
+    };
+
+    if (showPicker) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showPicker]);
 
   // Update custom dates when value changes externally
   useEffect(() => {
@@ -57,13 +75,23 @@ export function DateRangePicker({
     let end: Date = endOfToday();
 
     switch (option) {
+      case "alltime":
+        start = subDays(startOfToday(), 365 * 2); // 2 years ago
+        end = endOfToday();
+        break;
       case "today":
         start = startOfToday();
         end = endOfToday();
         break;
       case "yesterday":
-        start = subDays(startOfToday(), 1);
-        end = subDays(startOfToday(), 1);
+        const yesterday = subDays(startOfToday(), 1);
+        start = startOfDay(yesterday);
+        end = endOfDay(yesterday);
+        break;
+      case "tomorrow":
+        const tomorrow = addDays(startOfToday(), 1); // Add 1 day
+        start = startOfDay(tomorrow);
+        end = endOfDay(tomorrow);
         break;
       case "thisweek":
         // Start of week (Monday) to today
@@ -73,10 +101,6 @@ export function DateRangePicker({
       case "thismonth":
         // Start of current month to today
         start = startOfMonth(new Date());
-        end = endOfToday();
-        break;
-      case "last7days":
-        start = subDays(startOfToday(), 6);
         end = endOfToday();
         break;
       case "custom":
@@ -114,10 +138,17 @@ export function DateRangePicker({
     if (customStart && customEnd) {
       const startDate = new Date(customStart);
       const endDate = new Date(customEnd);
+      const today = endOfToday();
       
       // Validate dates
       if (startDate > endDate) {
         alert("Start date cannot be after end date");
+        return;
+      }
+      
+      // Validate start date is not in the future
+      if (startDate > today) {
+        alert("Start date cannot be in the future");
         return;
       }
       
@@ -134,25 +165,72 @@ export function DateRangePicker({
     if (value.option === "custom") {
       return `${format(value.start, "dd MMM")} - ${format(value.end, "dd MMM yyyy")}`;
     }
-    if (value.option === "clear") {
+    if (value.option === "clear" || value.option === "alltime") {
       return "All Time";
     }
+    if (value.option === "today") {
+      return "Today";
+    }
+    if (value.option === "tomorrow") {
+      return "Tomorrow";
+    }
+    if (value.option === "thisweek") {
+      return "This Week";
+    }
+    if (value.option === "thismonth") {
+      return "This Month";
+    }
+    if (value.option === "yesterday") {
+      return "Yesterday";
+    }
     const preset = presets.find((p) => p.value === value.option);
-    return preset?.label || "Select Date Range";
+    return preset?.label || "All Time";
   };
 
+  const displayText = getDisplayText();
+  const isFiltered = value.option !== "clear" && value.option !== "alltime";
+
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative", className)} ref={pickerRef}>
       <Button
         variant="outline"
         onClick={() => setShowPicker(!showPicker)}
-        className="h-8 w-full md:w-auto md:min-w-[180px] justify-between text-xs"
+        className={cn(
+          "h-7 px-2.5 gap-1.5 text-xs font-medium transition-all duration-200",
+          "border-gray-300 hover:border-[#0b63ff] hover:bg-[#0b63ff]/5",
+          "active:scale-[0.98]",
+          isFiltered && "border-[#0b63ff] text-[#0b63ff] bg-[#0b63ff]/5"
+        )}
+        size="sm"
       >
-        <div className="flex items-center gap-2">
-          <Calendar className="h-3.5 w-3.5" />
-          <span className="font-medium">{getDisplayText()}</span>
-        </div>
-        <ChevronDown className="h-3.5 w-3.5" />
+        {isFiltered ? (
+          <Filter className="h-3 w-3 flex-shrink-0" />
+        ) : (
+          <Calendar className="h-3 w-3 flex-shrink-0" />
+        )}
+        <span className="truncate max-w-[100px] sm:max-w-[140px] font-medium">{displayText}</span>
+        <ChevronDown className={cn("h-3 w-3 flex-shrink-0 transition-transform duration-200", showPicker && "rotate-180")} />
+        {isFiltered && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const today = new Date();
+              const oneYearAgo = new Date();
+              oneYearAgo.setFullYear(today.getFullYear() - 1);
+              onChange({
+                start: oneYearAgo,
+                end: today,
+                option: "clear",
+              });
+              setShowPicker(false);
+            }}
+            className="ml-0.5 p-0.5 rounded hover:bg-[#0b63ff]/10 transition-colors"
+            aria-label="Clear filter"
+          >
+            <X className="h-3 w-3 text-[#0b63ff] hover:text-red-600" />
+          </button>
+        )}
       </Button>
 
       {showPicker && (
@@ -161,73 +239,76 @@ export function DateRangePicker({
             className="fixed inset-0 z-40"
             onClick={() => setShowPicker(false)}
           />
-          <Card className="absolute top-full left-0 mt-2 z-50 w-full md:w-80 p-4 shadow-lg">
-            <div className="space-y-3">
-              {/* Presets */}
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-gray-500 uppercase">
-                  Quick Select
-                </div>
-                {presets.map((preset) => (
-                  <button
-                    key={preset.value}
-                    onClick={() => handlePreset(preset.value)}
-                    className={cn(
-                      "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                      preset.value === "clear"
-                        ? "text-red-600 hover:bg-red-50 font-medium border-t border-gray-200 mt-2 pt-3"
-                        : value.option === preset.value
-                        ? "bg-[#0b63ff]/10 text-[#0b63ff] font-medium"
-                        : "text-gray-700 hover:bg-gray-50"
-                    )}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
+          <Card className="absolute top-full right-0 mt-1.5 z-50 w-72 p-2.5 shadow-xl border border-gray-200 bg-white rounded-lg">
+            <div className="space-y-2">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-1.5 border-b border-gray-200">
+                <span className="text-xs font-semibold text-gray-700">Date Filter</span>
+                <button
+                  onClick={() => setShowPicker(false)}
+                  className="p-1 hover:bg-gray-100 rounded transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="h-3 w-3 text-gray-500" />
+                </button>
               </div>
 
-              {/* Custom Date Range - Show when custom option is selected */}
-              {value.option === "custom" && (
-                <div className="space-y-3 pt-3 border-t">
-                  <div className="text-xs font-semibold text-gray-500 uppercase">
-                    Custom Range
+            {/* Presets Grid - Compact 2-column layout */}
+            <div className="grid grid-cols-2 gap-1.5">
+              {presets.map((preset) => (
+                <button
+                  key={preset.value}
+                  onClick={() => handlePreset(preset.value)}
+                  className={cn(
+                    "text-left px-2 py-1.5 rounded-md text-xs font-medium transition-all duration-150",
+                    "hover:bg-gray-50 active:scale-[0.98]",
+                    value.option === preset.value || (preset.value === "alltime" && value.option === "clear")
+                      ? "bg-[#0b63ff] text-white shadow-sm"
+                      : "text-gray-700 bg-white border border-gray-200 hover:border-gray-300"
+                  )}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Date Range */}
+            {value.option === "custom" && (
+              <div className="space-y-2 pt-2 border-t border-gray-200">
+                <div className="text-xs font-semibold text-gray-700 mb-1.5">Custom Range</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block">Start</label>
+                    <input
+                      type="date"
+                      value={customStart}
+                      onChange={(e) => setCustomStart(e.target.value)}
+                      max={format(endOfToday(), "yyyy-MM-dd")}
+                      className="w-full h-7 px-2 rounded border border-gray-300 focus:border-[#0b63ff] focus:outline-none focus:ring-1 focus:ring-[#0b63ff] text-xs"
+                    />
                   </div>
-                  <div className="space-y-2">
-                    <div>
-                      <label className="text-xs text-gray-600 mb-1 block font-medium">
-                        Start Date
-                      </label>
-                      <input
-                        type="date"
-                        value={customStart}
-                        onChange={(e) => setCustomStart(e.target.value)}
-                        max={customEnd || format(endOfToday(), "yyyy-MM-dd")}
-                        className="w-full h-9 px-3 rounded-lg border border-gray-300 focus:border-[#0b63ff] focus:outline-none focus:ring-2 focus:ring-[#0b63ff]/20 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-600 mb-1 block font-medium">
-                        End Date
-                      </label>
-                      <input
-                        type="date"
-                        value={customEnd}
-                        onChange={(e) => setCustomEnd(e.target.value)}
-                        min={customStart || format(startOfToday(), "yyyy-MM-dd")}
-                        max={format(endOfToday(), "yyyy-MM-dd")}
-                        className="w-full h-9 px-3 rounded-lg border border-gray-300 focus:border-[#0b63ff] focus:outline-none focus:ring-2 focus:ring-[#0b63ff]/20 text-sm"
-                      />
-                    </div>
-                    <Button
-                      onClick={handleCustomApply}
-                      className="w-full h-9 bg-[#0b63ff] hover:bg-[#0a5ce6] text-white text-sm font-medium"
-                      disabled={!customStart || !customEnd}
-                    >
-                      Apply
-                    </Button>
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block">End</label>
+                    <input
+                      type="date"
+                      value={customEnd}
+                      onChange={(e) => setCustomEnd(e.target.value)}
+                      min={customStart || format(startOfToday(), "yyyy-MM-dd")}
+                      max={format(addYears(new Date(), 1), "yyyy-MM-dd")}
+                      className="w-full h-7 px-2 rounded border border-gray-300 focus:border-[#0b63ff] focus:outline-none focus:ring-1 focus:ring-[#0b63ff] text-xs"
+                    />
                   </div>
                 </div>
-              )}
+                <Button
+                  onClick={handleCustomApply}
+                  className="w-full h-7 bg-[#0b63ff] hover:bg-[#0a5ce6] text-white text-xs font-medium"
+                  disabled={!customStart || !customEnd}
+                  size="sm"
+                >
+                  Apply
+                </Button>
+              </div>
+            )}
             </div>
           </Card>
         </>

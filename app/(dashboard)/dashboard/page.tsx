@@ -9,33 +9,91 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { DateRangePicker, type DateRange } from "@/components/ui/date-range-picker";
 import { Button } from "@/components/ui/button";
-import { Plus, ShoppingBag, AlertCircle, IndianRupee, CheckCircle } from "lucide-react";
+import { 
+  Plus, 
+  ShoppingBag, 
+  AlertCircle, 
+  IndianRupee, 
+  CheckCircle, 
+  Calendar,
+  Clock,
+  Package,
+  Users,
+  TrendingUp,
+  ArrowRight
+} from "lucide-react";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { useDashboardStats, useRecentOrders } from "@/lib/queries/dashboard";
-import { formatCurrency } from "@/lib/utils/date";
+import { formatCurrency, formatCurrencyCompact } from "@/lib/utils/date";
 import { FloatingActionButton } from "@/components/layout/floating-action-button";
 import { ScrollToTop } from "@/components/layout/scroll-to-top";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
-import { startOfToday, subDays } from "date-fns";
+import { startOfToday, subDays, endOfToday } from "date-fns";
 
 export default function DashboardPage() {
   const { user } = useUserStore();
   const queryClient = useQueryClient();
   
   const [dateRange, setDateRange] = useState<DateRange>({
-    start: startOfToday(),
-    end: startOfToday(),
-    option: "today",
+    start: subDays(startOfToday(), 365 * 2), // 2 years ago
+    end: endOfToday(),
+    option: "alltime",
   });
 
-  const { data: stats, isLoading: statsLoading } = useDashboardStats(
+  const { data: stats, isLoading: statsLoading, error: statsError } = useDashboardStats(
     user?.branch_id || null,
     dateRange
   );
-  const { data: recentOrders, isLoading: ordersLoading } = useRecentOrders(
+  const { data: recentOrders, isLoading: ordersLoading, error: ordersError } = useRecentOrders(
     user?.branch_id || null
   );
+
+  // Debug logging
+  useEffect(() => {
+    console.log("[Dashboard] Current state:", {
+      statsLoading,
+      hasStats: !!stats,
+      stats: stats,
+      statsError: statsError?.message,
+      branchId: user?.branch_id,
+      userId: user?.id,
+    });
+    
+    if (stats) {
+      console.log("[Dashboard] ✅ Stats loaded successfully:", {
+        total_orders: stats.total_orders,
+        ongoing: stats.ongoing,
+        total_revenue: stats.total_revenue,
+        late_returns: stats.late_returns,
+        partial_returns: stats.partial_returns,
+        total_completed: stats.total_completed,
+        total_customers: stats.total_customers,
+        pending_return: stats.pending_return,
+        scheduled_today: stats.scheduled_today,
+      });
+      
+      // Warn if all values are zero (might indicate a problem)
+      if (stats.total_orders === 0 && stats.total_customers === 0 && stats.total_revenue === 0 && !statsLoading) {
+        console.warn("[Dashboard] ⚠️ All stats are zero - this might indicate:");
+        console.warn("  1. No data in database for this branch");
+        console.warn("  2. Query not running (check branchId)");
+        console.warn("  3. RPC function returning empty data");
+        console.warn("  4. Database connection issue");
+      }
+    }
+    if (statsError) {
+      console.error("[Dashboard] ❌ Stats error:", statsError);
+      console.error("[Dashboard] Error details:", {
+        message: statsError.message,
+        name: statsError.name,
+      });
+    }
+    if (!user?.branch_id) {
+      console.warn("[Dashboard] ⚠️ No branch_id in user:", user);
+      console.warn("[Dashboard] Query will not run until branch_id is available");
+    }
+  }, [stats, statsError, user, statsLoading]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -91,71 +149,271 @@ export default function DashboardPage() {
       )}
 
       {/* Header with Date Range Picker */}
-      <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-gray-200">
-        <h1 className="text-2xl md:text-3xl font-bold text-[#0f1724]">Dashboard</h1>
+      <div className="flex items-center justify-between flex-wrap gap-4 pb-6 border-b border-gray-200">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-1">Dashboard</h1>
+          <p className="text-sm text-gray-500">Real-time overview of your rental business</p>
+        </div>
         <DateRangePicker value={dateRange} onChange={setDateRange} />
       </div>
 
-      {/* Stats Cards - Mobile: Stacked, Desktop: 2x2 Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Active Orders */}
-        {statsLoading ? (
-          <Skeleton className="h-24 rounded-xl" />
-        ) : (
-          <StatCard
-            title="Active Orders"
-            value={stats?.active || 0}
-            icon={ShoppingBag}
-            borderColor="border-l-green-500"
-            iconColor="text-green-500"
-          />
-        )}
+      {/* Error Display */}
+      {statsError && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-800 text-sm font-medium mb-1">Error loading dashboard statistics</p>
+          <p className="text-red-600 text-xs">{statsError.message || "Please refresh the page"}</p>
+        </div>
+      )}
+      {!user?.branch_id && (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-yellow-800 text-sm">No branch assigned. Please contact your administrator.</p>
+        </div>
+      )}
+      {!statsLoading && !stats && !statsError && (
+        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <p className="text-gray-600 text-sm">No data available. Please check your database connection.</p>
+        </div>
+      )}
 
-        {/* Pending Return */}
-        {statsLoading ? (
-          <Skeleton className="h-24 rounded-xl" />
-        ) : (
-          <StatCard
-            title="Pending Return"
-            value={stats?.pending_return || 0}
-            icon={AlertCircle}
-            borderColor="border-l-red-500"
-            bgColor="bg-red-50"
-            textColor="text-red-600"
-            iconColor="text-red-500"
-            blinking={(stats?.pending_return || 0) > 0}
-          />
-        )}
+      {/* Operational Overview Section - Current Day Focus */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-blue-600" />
+            Operational Overview
+          </h2>
+          <span className="text-sm text-gray-500">
+            {dateRange.option === "alltime" || dateRange.option === "clear" 
+              ? "All Time" 
+              : dateRange.option === "today" 
+              ? "Today" 
+              : dateRange.option === "yesterday"
+              ? "Yesterday"
+              : dateRange.option === "tomorrow"
+              ? "Tomorrow"
+              : dateRange.option === "thisweek"
+              ? "This Week"
+              : dateRange.option === "thismonth"
+              ? "This Month"
+              : "Custom Range"}
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Scheduled Orders - Title changes based on filter */}
+          {statsLoading ? (
+            <Skeleton className="h-32 rounded-xl" />
+          ) : (
+            <StatCard
+              title={
+                dateRange.option === "alltime" || dateRange.option === "clear"
+                  ? "Scheduled Orders"
+                  : dateRange.option === "today"
+                  ? "Scheduled Today"
+                  : dateRange.option === "yesterday"
+                  ? "Scheduled Yesterday"
+                  : dateRange.option === "tomorrow"
+                  ? "Scheduled Tomorrow"
+                  : dateRange.option === "thisweek"
+                  ? "Scheduled This Week"
+                  : dateRange.option === "thismonth"
+                  ? "Scheduled This Month"
+                  : "Scheduled Orders"
+              }
+              value={stats?.scheduled_today || 0}
+              icon={Calendar}
+              gradient="from-blue-500 to-blue-600"
+              href={`/orders?status=scheduled&dateOption=${dateRange.option}`}
+              blinking={(stats?.scheduled_today || 0) > 0}
+            />
+          )}
 
-        {/* Today Collection */}
-        {statsLoading ? (
-          <Skeleton className="h-24 rounded-xl" />
-        ) : (
-          <StatCard
-            title="Today Collection"
-            value={formatCurrency(stats?.today_collection || 0)}
-            icon={IndianRupee}
-            borderColor="border-l-[#0b63ff]"
-            bgColor="bg-[#0b63ff]/5"
-            textColor="text-[#0b63ff]"
-            iconColor="text-[#0b63ff]"
-          />
-        )}
+          {/* Ongoing Rentals */}
+          {statsLoading ? (
+            <Skeleton className="h-32 rounded-xl" />
+          ) : (
+            <StatCard
+              title="Ongoing Rentals"
+              value={stats?.ongoing || 0}
+              icon={ShoppingBag}
+              gradient="from-green-500 to-green-600"
+              href={`/orders?status=active&dateOption=${dateRange.option}`}
+            />
+          )}
 
-        {/* Total Completed Today */}
-        {statsLoading ? (
-          <Skeleton className="h-24 rounded-xl" />
-        ) : (
-          <StatCard
-            title="Total Completed Today"
-            value={stats?.completed || 0}
-            icon={CheckCircle}
-            borderColor="border-l-gray-500"
-            bgColor="bg-gray-50"
-            textColor="text-gray-600"
-            iconColor="text-gray-500"
-          />
-        )}
+          {/* Late Returns */}
+          {statsLoading ? (
+            <Skeleton className="h-32 rounded-xl" />
+          ) : (
+            <StatCard
+              title="Late Returns"
+              value={stats?.late_returns || 0}
+              icon={AlertCircle}
+              gradient="from-red-500 to-red-600"
+              href={`/orders?status=late&dateOption=${dateRange.option}`}
+              blinking={(stats?.late_returns || 0) > 0}
+            />
+          )}
+
+          {/* Partial Returns */}
+          {statsLoading ? (
+            <Skeleton className="h-32 rounded-xl" />
+          ) : (
+            <StatCard
+              title="Partial Returns"
+              value={stats?.partial_returns || 0}
+              icon={Package}
+              gradient="from-orange-500 to-orange-600"
+              href={`/orders?status=partially_returned&dateOption=${dateRange.option}`}
+              blinking={(stats?.partial_returns || 0) > 0}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Business Metrics Section - All-Time Overview */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-purple-600" />
+            Business Metrics
+          </h2>
+          <span className="text-sm text-gray-500">
+            {dateRange.option === "alltime" || dateRange.option === "clear" 
+              ? "All Time" 
+              : dateRange.option === "today" 
+              ? "Today" 
+              : dateRange.option === "yesterday"
+              ? "Yesterday"
+              : dateRange.option === "tomorrow"
+              ? "Tomorrow"
+              : dateRange.option === "thisweek"
+              ? "This Week"
+              : dateRange.option === "thismonth"
+              ? "This Month"
+              : "Custom Range"}
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Orders */}
+          {statsLoading ? (
+            <Skeleton className="h-32 rounded-xl" />
+          ) : (
+            <StatCard
+              title="Total Orders"
+              value={stats?.total_orders || 0}
+              icon={ShoppingBag}
+              gradient="from-indigo-500 to-indigo-600"
+              href={`/orders?dateOption=${dateRange.option}`}
+            />
+          )}
+
+          {/* Total Completed */}
+          {statsLoading ? (
+            <Skeleton className="h-32 rounded-xl" />
+          ) : (
+            <StatCard
+              title="Total Completed"
+              value={stats?.total_completed || 0}
+              icon={CheckCircle}
+              gradient="from-emerald-500 to-emerald-600"
+              href={`/orders?status=completed&dateOption=${dateRange.option}`}
+            />
+          )}
+
+          {/* Total Revenue */}
+          {statsLoading ? (
+            <Skeleton className="h-32 rounded-xl" />
+          ) : (
+            <StatCard
+              title="Total Revenue"
+              value={formatCurrencyCompact(stats?.total_revenue || 0)}
+              icon={IndianRupee}
+              gradient="from-purple-500 to-purple-600"
+              href="/reports"
+            />
+          )}
+
+          {/* Total Customers */}
+          {statsLoading ? (
+            <Skeleton className="h-32 rounded-xl" />
+          ) : (
+            <StatCard
+              title="Total Customers"
+              value={stats?.total_customers || 0}
+              icon={Users}
+              gradient="from-cyan-500 to-cyan-600"
+              href="/customers"
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Activity Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-green-600" />
+            Activity
+          </h2>
+          <span className="text-sm text-gray-500">
+            {dateRange.option === "alltime" || dateRange.option === "clear" 
+              ? "All Time" 
+              : dateRange.option === "today" 
+              ? "Today" 
+              : dateRange.option === "yesterday"
+              ? "Yesterday"
+              : dateRange.option === "tomorrow"
+              ? "Tomorrow"
+              : dateRange.option === "thisweek"
+              ? "This Week"
+              : dateRange.option === "thismonth"
+              ? "This Month"
+              : "Custom Range"}
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Today's Collection */}
+          {statsLoading ? (
+            <Skeleton className="h-32 rounded-xl" />
+          ) : (
+            <StatCard
+              title="Today's Collection"
+              value={formatCurrencyCompact(stats?.today_collection || 0)}
+              icon={IndianRupee}
+              gradient="from-teal-500 to-teal-600"
+              badge="Today"
+            />
+          )}
+
+          {/* Today's Completed */}
+          {statsLoading ? (
+            <Skeleton className="h-32 rounded-xl" />
+          ) : (
+            <StatCard
+              title="Today's Completed"
+              value={stats?.today_completed || 0}
+              icon={CheckCircle}
+              gradient="from-green-500 to-green-600"
+              badge="Today"
+            />
+          )}
+
+          {/* Today's New Orders */}
+          {statsLoading ? (
+            <Skeleton className="h-32 rounded-xl" />
+          ) : (
+            <StatCard
+              title="Today's New Orders"
+              value={stats?.today_new_orders || 0}
+              icon={Plus}
+              gradient="from-blue-500 to-blue-600"
+              badge="Today"
+            />
+          )}
+        </div>
       </div>
 
       {/* Quick Actions - Mobile: Stacked, Desktop: Row */}

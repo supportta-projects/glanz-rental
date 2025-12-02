@@ -12,7 +12,7 @@ export function useOrdersInfinite(
   filters?: {
     status?: "all" | "active" | "pending" | "completed" | "cancelled" | "partially_returned";
     searchQuery?: string; // Client-side only
-    dateRange?: { start: Date; end: Date };
+    dateRange?: { start: Date; end: Date; option?: string };
   }
 ) {
   const supabase = createClient();
@@ -57,10 +57,20 @@ export function useOrdersInfinite(
           .eq("branch_id", branchId)
           .order("created_at", { ascending: false });
 
+        // For scheduled orders: we need to filter by start_date (client-side)
+        // For other orders: filter by created_at (server-side)
+        // So we fetch scheduled orders without date filter, then filter client-side
         if (filters?.dateRange) {
           const startDate = filters.dateRange.start.toISOString().split("T")[0];
           const endDate = filters.dateRange.end.toISOString().split("T")[0];
-          query = query.gte("created_at", startDate).lte("created_at", endDate + "T23:59:59");
+          
+          // Fetch scheduled orders without date filter (will be filtered client-side by start_date)
+          // Fetch other orders with created_at filter
+          // Use OR to get both: scheduled orders OR (non-scheduled orders within date range)
+          query = query.or(
+            `status.eq.scheduled,` +
+            `and(status.neq.scheduled,created_at.gte.${startDate},created_at.lte.${endDate + "T23:59:59"})`
+          );
         }
 
         if (filters?.status && filters.status !== "all") {
@@ -82,9 +92,39 @@ export function useOrdersInfinite(
         const { data, error, count } = await query;
         if (error) throw error;
 
+        // Filter scheduled orders by start_date if dateRange is provided
+        // BUT: Skip filtering scheduled orders for "all time" (to show all scheduled orders)
+        let filteredData = (data as Order[]) || [];
+        if (filters?.dateRange) {
+          const startDate = filters.dateRange.start.toISOString().split("T")[0];
+          const endDate = filters.dateRange.end.toISOString().split("T")[0];
+          
+          // Check if this is "all time" filter by checking the option OR date range days
+          const dateRangeDays = Math.ceil((filters.dateRange.end.getTime() - filters.dateRange.start.getTime()) / (1000 * 60 * 60 * 24));
+          const dateRangeOption = (filters.dateRange as any).option;
+          const isAllTimeFilter = dateRangeDays >= 700 || dateRangeOption === "alltime" || dateRangeOption === "clear";
+          
+          filteredData = filteredData.filter((order) => {
+            // For scheduled orders: only filter by start_date if NOT "all time"
+            if (order.status === "scheduled") {
+              if (isAllTimeFilter) {
+                // Show all scheduled orders for "all time" filter
+                return true;
+              }
+              // For specific date ranges (including tomorrow), filter by start_date
+              const orderStartDate = (order.start_datetime || order.start_date || "").toString().split("T")[0];
+              // For "tomorrow" filter, check if order's start_date matches tomorrow
+              return orderStartDate >= startDate && orderStartDate <= endDate;
+            }
+            // For other orders, use created_at (already filtered by query, but double-check)
+            const orderCreatedDate = order.created_at.toString().split("T")[0];
+            return orderCreatedDate >= startDate && orderCreatedDate <= endDate;
+          });
+        }
+
         result = {
-          data: (data as Order[]) || [],
-          total: count || 0,
+          data: filteredData,
+          total: filteredData.length, // Use filtered count for accuracy
         };
       }
       
@@ -113,7 +153,7 @@ export function useOrders(
   filters?: {
     status?: "all" | "active" | "pending" | "completed" | "cancelled" | "partially_returned";
     searchQuery?: string;
-    dateRange?: { start: Date; end: Date };
+    dateRange?: { start: Date; end: Date; option?: string };
   }
 ) {
   const supabase = createClient();
@@ -399,6 +439,51 @@ export function useUpdateOrder() {
       if (itemsError) throw itemsError;
 
       return order;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["order", variables.orderId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
+  });
+}
+
+/**
+ * Update only invoice number and billing details (subtotal, GST, total)
+ * Can be used for any order status at any time
+ */
+export function useUpdateOrderBilling() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+      invoice_number,
+      subtotal,
+      gst_amount,
+      total_amount,
+    }: {
+      orderId: string;
+      invoice_number: string;
+      subtotal?: number;
+      gst_amount?: number;
+      total_amount: number;
+    }) => {
+      const { data, error } = await (supabase
+        .from("orders") as any)
+        .update({
+          invoice_number,
+          subtotal: subtotal ?? null,
+          gst_amount: gst_amount ?? null,
+          total_amount,
+        })
+        .eq("id", orderId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });

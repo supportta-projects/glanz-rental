@@ -149,17 +149,16 @@ export default function OrderDetailsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
         </div>
         <div className="flex items-center gap-3">
-          {!isCompleted && !isScheduled && (
-            <Link href={`/orders/${orderId}/edit`}>
-              <Button
-                variant="outline"
-                className="h-10 px-4 border-sky-500 text-sky-500 hover:bg-sky-50 rounded-xl"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-            </Link>
-          )}
+          {/* Always show Edit button - invoice/billing can be edited for any order */}
+          <Link href={`/orders/${orderId}/edit`}>
+            <Button
+              variant="outline"
+              className="h-10 px-4 border-sky-500 text-sky-500 hover:bg-sky-50 rounded-xl"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          </Link>
           {/* Show "Start Rental" button for scheduled orders - Professional Design */}
           {isScheduled && (
             <Button

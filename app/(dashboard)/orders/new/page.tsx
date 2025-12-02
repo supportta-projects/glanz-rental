@@ -116,7 +116,7 @@ export default function CreateOrderPage() {
     }
 
     if (draft.items.length === 0) {
-      showToast("Please add at least one item", "error");
+      showToast("Please add at least one product", "error");
       return;
     }
 
@@ -129,11 +129,30 @@ export default function CreateOrderPage() {
     }
 
     // Validate all items have required fields
+    // Required: quantity > 0, price_per_day > 0
+    // Optional: photo_url, product_name
     const invalidItems = draft.items.filter(
-      (item) => !item.photo_url || item.quantity <= 0 || item.price_per_day < 0
+      (item) => 
+        !item.quantity || 
+        item.quantity <= 0 || 
+        !item.price_per_day || 
+        item.price_per_day <= 0
     );
+
     if (invalidItems.length > 0) {
-      showToast("Please check all items have valid photo, quantity, and price", "error");
+      showToast("Please ensure all items have valid quantity (at least 1) and price per day (greater than 0)", "error");
+      return;
+    }
+
+    // Validate that at least one item has valid data
+    const validItems = draft.items.filter(
+      (item) => 
+        item.quantity > 0 && 
+        item.price_per_day > 0
+    );
+
+    if (validItems.length === 0) {
+      showToast("Please add at least one product with valid quantity and price", "error");
       return;
     }
 

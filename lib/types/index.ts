@@ -107,9 +107,26 @@ export interface OrderDraft {
 }
 
 export interface DashboardStats {
-  active: number;
-  pending_return: number;
-  today_collection: number;
-  completed: number;
+  // Current Day Operational Stats
+  scheduled_today: number;        // Orders scheduled for today
+  ongoing: number;                 // Currently active rentals
+  late_returns: number;            // Orders with late returns
+  partial_returns: number;         // Partially returned orders
+  
+  // All-Time Business Metrics
+  total_orders: number;            // Total orders ever created
+  total_completed: number;         // Total completed/returned orders
+  total_revenue: number;           // Total revenue from all completed orders
+  total_customers: number;         // Total customers in system
+  
+  // Today's Activity
+  today_collection: number;        // Revenue collected today
+  today_completed: number;         // Orders completed today
+  today_new_orders: number;       // New orders created today
+  
+  // Legacy fields for backward compatibility
+  active?: number;
+  pending_return?: number;
+  completed?: number;
 }
 

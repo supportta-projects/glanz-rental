@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Trash2, Camera } from "lucide-react";
+import { ArrowLeft, Trash2, Camera, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { useOrderDraftStore, useOrderSubtotal, useOrderGrandTotal, useOrderGst } from "@/lib/stores/useOrderDraftStore";
-import { useOrder, useUpdateOrder } from "@/lib/queries/orders";
+import { useOrder, useUpdateOrder, useUpdateOrderBilling } from "@/lib/queries/orders";
 import { calculateDays } from "@/lib/utils/date";
 import { CameraUpload } from "@/components/orders/camera-upload";
 import { CustomerSearch } from "@/components/orders/customer-search";
@@ -20,6 +20,8 @@ import { ImageLightbox } from "@/components/ui/image-lightbox";
 import type { OrderItem, Customer, Order } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { differenceInMinutes } from "date-fns";
+import { OrderInvoiceSection } from "@/components/orders/order-invoice-section";
+import { OrderSummarySection } from "@/components/orders/order-summary-section";
 
 export default function EditOrderPage() {
   const params = useParams();
@@ -28,6 +30,7 @@ export default function EditOrderPage() {
   const { showToast } = useToast();
   const orderId = params.id as string;
   const updateOrderMutation = useUpdateOrder();
+  const updateBillingMutation = useUpdateOrderBilling();
   
   const { data: order, isLoading: orderLoading } = useOrder(orderId);
   
@@ -52,6 +55,7 @@ export default function EditOrderPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const itemsSectionRef = useRef<HTMLDivElement>(null);
   const [newItemIndex, setNewItemIndex] = useState<number | null>(null);
+  const [editMode, setEditMode] = useState<"full" | "invoice-only">("full");
 
   // Load order data into draft when order loads
   useEffect(() => {
@@ -72,21 +76,21 @@ export default function EditOrderPage() {
   const gstIncluded = user?.gst_included ?? false;
   const gstEnabled = user?.gst_enabled ?? false;
 
-  // Helper function to check if order can be edited
+  // Helper function to check if order can be fully edited (dates, items, customer)
   const canEditOrder = (order: Order): boolean => {
     const status = order.status;
     
-    // Completed or cancelled orders cannot be edited
+    // Completed or cancelled orders cannot be fully edited
     if (status === "completed" || status === "cancelled") {
       return false;
     }
     
-    // Scheduled orders can be edited anytime (until they become active)
+    // Scheduled orders can be fully edited anytime (until they become active)
     if (status === "scheduled") {
       return true;
     }
     
-    // Active/ongoing orders can only be edited within 10 minutes of becoming active
+    // Active/ongoing orders can only be fully edited within 10 minutes of becoming active
     if (status === "active") {
       // Use start_datetime as the timestamp when rental became active
       const activeSince = (order as any).start_datetime || order.start_date;
@@ -107,9 +111,26 @@ export default function EditOrderPage() {
       return minutesSinceActive <= 10;
     }
     
-    // Other statuses (pending_return, partially_returned) cannot be edited
+    // Other statuses (pending_return, partially_returned) cannot be fully edited
     return false;
   };
+
+  // Check if order can be fully edited
+  const canEditFull = useMemo(() => {
+    if (!order) return false;
+    return canEditOrder(order);
+  }, [order]);
+
+  // Set edit mode based on order status
+  useEffect(() => {
+    if (order) {
+      if (canEditFull) {
+        setEditMode("full");
+      } else {
+        setEditMode("invoice-only");
+      }
+    }
+  }, [order, canEditFull]);
 
   const handleAddItem = (photoUrl: string) => {
     if (!photoUrl) return;
@@ -158,6 +179,28 @@ export default function EditOrderPage() {
     }
 
     updateItem(index, updates);
+  };
+
+  const handleUpdateBilling = async () => {
+    if (!draft.invoice_number) {
+      showToast("Please enter an invoice number", "error");
+      return;
+    }
+
+    try {
+      await updateBillingMutation.mutateAsync({
+        orderId: orderId,
+        invoice_number: draft.invoice_number,
+        subtotal: subtotal,
+        gst_amount: gstEnabled && gstAmount > 0 ? gstAmount : 0,
+        total_amount: grandTotal,
+      });
+
+      showToast("Invoice details updated successfully!", "success");
+      router.push(`/orders/${orderId}`);
+    } catch (error: any) {
+      showToast(error.message || "Failed to update invoice details", "error");
+    }
   };
 
   const handleUpdateOrder = async () => {
@@ -266,58 +309,6 @@ export default function EditOrderPage() {
     );
   }
 
-  if (order.status === "completed") {
-    return (
-      <div className="min-h-screen bg-zinc-50 pb-32">
-        <div className="bg-white border-b p-4 flex items-center gap-4 sticky top-0 z-10">
-          <Link href={`/orders/${orderId}`}>
-            <ArrowLeft className="h-6 w-6 text-gray-600" />
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Edit Order</h1>
-        </div>
-        <div className="p-4">
-          <Card className="p-8 text-center">
-            <p className="text-gray-500">Cannot edit completed orders</p>
-            <Link href={`/orders/${orderId}`}>
-              <Button className="mt-4">Back to Order</Button>
-            </Link>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // Check for active orders that have been active for more than 10 minutes
-  if (order.status === "active" && !canEditOrder(order)) {
-    const activeSince = (order as any).start_datetime || order.start_date;
-    const activeSinceDate = activeSince ? new Date(activeSince) : new Date(order.created_at);
-    const now = new Date();
-    const minutesSinceActive = differenceInMinutes(now, activeSinceDate);
-    
-    return (
-      <div className="min-h-screen bg-zinc-50 pb-32">
-        <div className="bg-white border-b p-4 flex items-center gap-4 sticky top-0 z-10">
-          <Link href={`/orders/${orderId}`}>
-            <ArrowLeft className="h-6 w-6 text-gray-600" />
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Edit Order</h1>
-        </div>
-        <div className="p-4">
-          <Card className="p-8 text-center">
-            <p className="text-gray-500 mb-2">Cannot edit this order</p>
-            <p className="text-sm text-gray-400 mb-4">
-              Ongoing orders can only be edited within 10 minutes of becoming active.
-              This order has been active for {minutesSinceActive} minutes.
-            </p>
-            <Link href={`/orders/${orderId}`}>
-              <Button className="mt-4">Back to Order</Button>
-            </Link>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-zinc-50 pb-32">
       {/* Header */}
@@ -325,10 +316,51 @@ export default function EditOrderPage() {
         <Link href={`/orders/${orderId}`}>
           <ArrowLeft className="h-6 w-6 text-gray-600" />
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Edit Order</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {editMode === "invoice-only" ? "Edit Invoice & Billing" : "Edit Order"}
+        </h1>
       </div>
 
-      <div className="p-4 space-y-6">
+      {editMode === "invoice-only" ? (
+        // Show only invoice/billing fields
+        <div className="p-4 space-y-6">
+          <Card className="p-5 bg-blue-50 border-2 border-blue-200">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertCircle className="h-5 w-5 text-blue-600" />
+              <p className="text-sm text-blue-800">
+                This order cannot be fully edited, but you can update invoice number and billing details.
+              </p>
+            </div>
+          </Card>
+
+          {/* Invoice Number */}
+          <OrderInvoiceSection
+            invoiceNumber={draft.invoice_number}
+            onInvoiceNumberChange={setInvoiceNumber}
+          />
+
+          {/* Order Summary - Allow manual editing */}
+          <OrderSummarySection
+            subtotal={subtotal}
+            gstAmount={gstAmount}
+            grandTotal={grandTotal}
+            gstEnabled={gstEnabled}
+            gstRate={user?.gst_rate || 5.00}
+            gstIncluded={gstIncluded}
+          />
+
+          {/* Save Button */}
+          <Button
+            onClick={handleUpdateBilling}
+            disabled={updateBillingMutation.isPending}
+            className="w-full h-14 bg-sky-500 hover:bg-sky-600 text-white text-base font-semibold rounded-xl"
+          >
+            {updateBillingMutation.isPending ? "Updating..." : "Update Invoice Details"}
+          </Button>
+        </div>
+      ) : (
+        // Show full edit form
+        <div className="p-4 space-y-6">
         {/* Customer Section */}
         <CustomerSearch
           onSelectCustomer={setSelectedCustomer}
@@ -582,7 +614,8 @@ export default function EditOrderPage() {
         >
           {updateOrderMutation.isPending ? "Updating..." : "Update Order"}
         </Button>
-      </div>
+        </div>
+      )}
 
       {/* Image Lightbox */}
       {selectedImage && (

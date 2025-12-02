@@ -154,57 +154,9 @@ export function OrdersHeader({
 
           {/* Buttons - Right Corner, Wrap on Mobile */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Filters Dropdown - Shows Selected Filter with Clear Option */}
+            {/* Date Filter Button - Shows Current Filter Value */}
             {dateRange && onDateRangeChange && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="h-7 px-2 gap-1.5 border-[#0b63ff] text-[#0b63ff] hover:bg-[#0b63ff] hover:text-white text-xs font-medium transition-colors relative flex-shrink-0"
-                  >
-                    <Filter className="h-3 w-3" />
-                    <span className="hidden sm:flex items-center gap-1">
-                      {dateRange.option === "clear" || !dateRange.option
-                        ? "Filters" 
-                        : dateRange.option === "custom"
-                        ? `${format(dateRange.start, "dd MMM")} - ${format(dateRange.end, "dd MMM")}`
-                        : dateRange.option === "today"
-                        ? "Today"
-                        : dateRange.option === "yesterday"
-                        ? "Yesterday"
-                        : dateRange.option === "thisweek"
-                        ? "This Week"
-                        : dateRange.option === "thismonth"
-                        ? "This Month"
-                        : dateRange.option === "last7days"
-                        ? "Last 7 Days"
-                        : "Filters"}
-                    </span>
-                    {dateRange.option && dateRange.option !== "clear" && (
-                      <X 
-                        className="h-3 w-3 ml-0.5 hover:text-red-600 transition-colors" 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const today = new Date();
-                          const oneYearAgo = new Date();
-                          oneYearAgo.setFullYear(today.getFullYear() - 1);
-                          onDateRangeChange({
-                            start: oneYearAgo,
-                            end: today,
-                            option: "clear",
-                          });
-                        }}
-                      />
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="right" className="w-80 p-0">
-                  <div className="p-3">
-                    <DateRangePicker value={dateRange} onChange={onDateRangeChange} />
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <DateRangePicker value={dateRange} onChange={onDateRangeChange} />
             )}
 
             {/* New Order Button - Reduced Height */}

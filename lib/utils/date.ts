@@ -52,6 +52,49 @@ export function formatCurrency(amount: number | null | undefined): string {
 }
 
 /**
+ * Format currency with Indian numbering system abbreviations (K, L, Cr)
+ * Shows 2 decimal places and formats large numbers compactly
+ * 
+ * @param amount - The amount to format
+ * @returns Formatted string like ₹60.83K, ₹1.25L, ₹2.50Cr
+ * 
+ * @example
+ * ```ts
+ * formatCurrencyCompact(60825.38) // "₹60.83K"
+ * formatCurrencyCompact(125000) // "₹1.25L"
+ * formatCurrencyCompact(25000000) // "₹2.50Cr"
+ * ```
+ */
+export function formatCurrencyCompact(amount: number | null | undefined): string {
+  const safeAmount = amount ?? 0;
+  
+  if (safeAmount === 0) {
+    return "₹0";
+  }
+  
+  // Crore (1,00,00,000)
+  if (safeAmount >= 10000000) {
+    const crores = safeAmount / 10000000;
+    return `₹${crores.toFixed(2)}Cr`;
+  }
+  
+  // Lakh (1,00,000)
+  if (safeAmount >= 100000) {
+    const lakhs = safeAmount / 100000;
+    return `₹${lakhs.toFixed(2)}L`;
+  }
+  
+  // Thousand (1,000)
+  if (safeAmount >= 1000) {
+    const thousands = safeAmount / 1000;
+    return `₹${thousands.toFixed(2)}K`;
+  }
+  
+  // Less than 1000, show with 2 decimal places
+  return `₹${safeAmount.toFixed(2)}`;
+}
+
+/**
  * Check if order is late (returned after end date)
  */
 export function isOrderLate(endDate: string | Date): boolean {

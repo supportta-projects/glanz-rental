@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { 
   Package,
@@ -40,7 +40,7 @@ import { OrdersHeader } from "@/components/layout/orders-header";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Pagination } from "@/components/shared";
 import { getOrderStatus, formatCurrency, isOrderLate, isBooking } from "@/lib/utils/date";
-import { differenceInHours, differenceInDays, differenceInMinutes, format, startOfToday, endOfToday, subDays } from "date-fns";
+import { differenceInHours, differenceInDays, differenceInMinutes, format, startOfToday, endOfToday, subDays, startOfWeek, startOfMonth, subMonths, startOfDay, endOfDay } from "date-fns";
 import { OrderCard } from "@/components/orders/order-card";
 import { useQueryClient } from "@tanstack/react-query";
 import { MobileSidebar } from "@/components/layout/mobile-sidebar";
@@ -48,6 +48,7 @@ import { Menu } from "lucide-react";
 
 export default function OrdersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useUserStore();
   const { showToast } = useToast();
   const updateStatusMutation = useUpdateOrderStatus();
@@ -59,16 +60,102 @@ export default function OrdersPage() {
   useRealtimeSubscription("orders", user?.branch_id || null);
   useRealtimeSubscription("order_items", user?.branch_id || null);
 
+  // Initialize activeTab from URL parameter if present
+  const statusFromUrl = searchParams.get("status");
+  const dateOptionFromUrl = searchParams.get("dateOption");
+  
+  const getInitialTab = (): "all" | "scheduled" | "ongoing" | "late" | "returned" | "partially_returned" | "cancelled" => {
+    if (statusFromUrl === "scheduled") return "scheduled";
+    if (statusFromUrl === "active") return "ongoing";
+    if (statusFromUrl === "late") return "late";
+    if (statusFromUrl === "completed") return "returned";
+    if (statusFromUrl === "partially_returned") return "partially_returned";
+    if (statusFromUrl === "cancelled") return "cancelled";
+    return "all";
+  };
+
+  // Function to get initial date range based on URL parameter
+  const getInitialDateRange = (): DateRange => {
+    if (dateOptionFromUrl === "today") {
+      return {
+        start: startOfToday(),
+        end: endOfToday(),
+        option: "today",
+      };
+    }
+    if (dateOptionFromUrl === "yesterday") {
+      const yesterday = subDays(startOfToday(), 1);
+      return {
+        start: startOfDay(yesterday),
+        end: endOfDay(yesterday),
+        option: "yesterday",
+      };
+    }
+    if (dateOptionFromUrl === "thisweek") {
+      return {
+        start: startOfWeek(new Date(), { weekStartsOn: 1 }),
+        end: endOfToday(),
+        option: "thisweek",
+      };
+    }
+    if (dateOptionFromUrl === "thismonth") {
+      return {
+        start: startOfMonth(new Date()),
+        end: endOfToday(),
+        option: "thismonth",
+      };
+    }
+    if (dateOptionFromUrl === "custom") {
+      // For custom, we'd need start/end dates in URL, but for now default to last 7 days
+      return {
+        start: startOfDay(subDays(startOfToday(), 6)),
+        end: endOfToday(),
+        option: "custom",
+      };
+    }
+    if (dateOptionFromUrl === "alltime") {
+      return {
+        start: subDays(startOfToday(), 365 * 2),
+        end: endOfToday(),
+        option: "alltime",
+      };
+    }
+    // Default to "All Time" if no date option specified
+    return {
+      start: subDays(startOfToday(), 365 * 2), // 2 years ago
+      end: endOfToday(),
+      option: "alltime",
+    };
+  };
+
   // State
-  const [activeTab, setActiveTab] = useState<"all" | "scheduled" | "ongoing" | "late" | "returned" | "partially_returned" | "cancelled">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "scheduled" | "ongoing" | "late" | "returned" | "partially_returned" | "cancelled">(getInitialTab());
+
+  // Update tab when URL parameter changes
+  useEffect(() => {
+    const newTab = getInitialTab();
+    if (newTab !== activeTab) {
+      setActiveTab(newTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFromUrl]);
+  
   const [searchQuery, setSearchQuery] = useState("");
   // Debounce: 300ms as per requirements for search/filters
   const debouncedSearch = useDebounce(searchQuery, 300);
-  const [dateRange, setDateRange] = useState<DateRange>({
-    start: subDays(startOfToday(), 365), // 1 year ago for "All Time"
-    end: endOfToday(),
-    option: "clear", // Default to "All Time"
-  });
+  const [dateRange, setDateRange] = useState<DateRange>(getInitialDateRange());
+
+  // Update dateRange when URL parameter changes
+  useEffect(() => {
+    const newDateRange = getInitialDateRange();
+    // Only update if the option actually changed to avoid unnecessary re-renders
+    if (newDateRange.option !== dateRange.option || 
+        newDateRange.start.getTime() !== dateRange.start.getTime() ||
+        newDateRange.end.getTime() !== dateRange.end.getTime()) {
+      setDateRange(newDateRange);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateOptionFromUrl]);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const pageSize = 20;
@@ -97,7 +184,10 @@ export default function OrdersPage() {
     user?.branch_id || null,
     {
       status: statusFilter,
-      dateRange: dateRange,
+      dateRange: {
+        ...dateRange,
+        option: dateRange.option, // Pass the option to the query
+      },
       // Search is client-side only for better performance
     }
   );
@@ -125,19 +215,40 @@ export default function OrdersPage() {
     
     // Ongoing orders can be cancelled only within 10 minutes of becoming active
     if (status === "active") {
-      // Use start_datetime as the timestamp when rental became active
-      const activeSince = (order as any).start_datetime || order.start_date;
-      if (!activeSince) {
-        // If no start_datetime, use created_at as fallback
-        const createdAt = new Date(order.created_at);
-        const now = new Date();
-        const minutesSinceCreation = differenceInMinutes(now, createdAt);
-        return minutesSinceCreation <= 10;
+      const createdAt = new Date(order.created_at);
+      const now = new Date();
+      const startDatetime = (order as any).start_datetime ? new Date((order as any).start_datetime) : null;
+      
+      // Determine when the order actually became active
+      // For orders created directly as "active": use created_at (when order was created)
+      // For scheduled orders that were started: use start_datetime (when "Start Rental" was clicked)
+      // Rule: If start_datetime is significantly before created_at (more than 1 hour), 
+      //       it means the order was created with a past start_date, so use created_at instead
+      let activeSinceDate: Date;
+      
+      if (startDatetime) {
+        const timeDiffBetweenStartAndCreated = Math.abs(startDatetime.getTime() - createdAt.getTime());
+        const oneHourInMs = 60 * 60 * 1000;
+        
+        // If start_datetime is more than 1 hour before created_at, it means the order
+        // was created with a start_date in the past, so use created_at instead
+        if (startDatetime < createdAt && timeDiffBetweenStartAndCreated > oneHourInMs) {
+          // Order was created with a past start_date - use created_at
+          activeSinceDate = createdAt;
+        } else if (startDatetime > createdAt) {
+          // start_datetime is in the future (shouldn't happen for active orders) - use created_at
+          activeSinceDate = createdAt;
+        } else {
+          // start_datetime is close to or equal to created_at - use start_datetime
+          // This handles scheduled orders that were started via "Start Rental"
+          activeSinceDate = startDatetime;
+        }
+      } else {
+        // No start_datetime - use created_at
+        activeSinceDate = createdAt;
       }
       
       // Calculate minutes since order became active
-      const activeSinceDate = new Date(activeSince);
-      const now = new Date();
       const minutesSinceActive = differenceInMinutes(now, activeSinceDate);
       
       // Can cancel if less than 10 minutes since becoming active
