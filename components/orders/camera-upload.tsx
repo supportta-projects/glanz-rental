@@ -1,57 +1,71 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Camera, X } from "lucide-react";
+import { useRef, useState, useCallback } from "react";
+import { Camera, X, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { compressImage, createPreviewUrl, revokePreviewUrl } from "@/lib/utils/image-compression";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import { useToast } from "@/components/ui/toast";
 
-interface CameraUploadProps {
-  onUploadComplete: (url: string) => void;
-  currentUrl?: string;
+export type UploadStatus = "idle" | "uploading" | "completed" | "failed";
+
+export interface UploadResult {
+  previewUrl: string;
+  finalUrl?: string;
+  status: UploadStatus;
+  error?: string;
+  promise: Promise<string>;
 }
 
-export function CameraUpload({ onUploadComplete, currentUrl }: CameraUploadProps) {
-  const [uploading, setUploading] = useState(false);
+interface CameraUploadProps {
+  onUploadComplete: (result: UploadResult) => void;
+  currentUrl?: string;
+  disabled?: boolean;
+}
+
+export function CameraUpload({ onUploadComplete, currentUrl, disabled = false }: CameraUploadProps) {
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadPromiseRef = useRef<Promise<string> | null>(null);
   const supabase = createClient();
   const { showToast } = useToast();
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     // Prevent multiple uploads
-    if (uploading) {
+    if (uploadStatus === "uploading") {
       showToast("Upload already in progress", "info");
       return;
     }
 
-    // Create instant preview for immediate feedback - instant UI response
+    // Create instant preview for immediate feedback
     const instantPreview = createPreviewUrl(file);
     setPreviewUrl(instantPreview);
+    setUploadError(null);
+    setUploadStatus("uploading");
 
-    // Add item ONCE with preview URL for instant feedback
-    // This allows staff to continue working while upload happens in background
-    onUploadComplete(instantPreview);
-
-    // Start upload in background (non-blocking)
-    setUploading(true);
-
-    // Run upload in background without blocking UI
-    (async () => {
+    // Create upload promise
+    const uploadPromise = (async (): Promise<string> => {
       try {
         // Compress image (with timeout for speed)
-        const compressedFile = await Promise.race([
-          compressImage(file),
-          new Promise<File>((_, reject) => 
-            setTimeout(() => reject(new Error("Compression timeout")), 1000)
-          )
-        ]);
+        let compressedFile: File;
+        try {
+          compressedFile = await Promise.race([
+            compressImage(file),
+            new Promise<File>((_, reject) => 
+              setTimeout(() => reject(new Error("Compression timeout")), 2000)
+            )
+          ]);
+        } catch (compressionError: any) {
+          // If compression fails or times out, use original file
+          compressedFile = file;
+        }
 
         // Generate unique filename
         const timestamp = Date.now();
@@ -68,45 +82,95 @@ export function CameraUpload({ onUploadComplete, currentUrl }: CameraUploadProps
             contentType: "image/jpeg",
           });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          throw new Error(uploadError.message || "Upload failed");
+        }
 
         // Get public URL
         const {
           data: { publicUrl },
         } = supabase.storage.from("order-items").getPublicUrl(filePath);
 
-        // Update the LAST item with final URL (replaces preview)
-        // Note: We don't call onUploadComplete again to avoid duplication
-        // The parent component should handle updating the item's photo_url
-        // For now, we'll update the preview URL state and let the parent handle it
-        setPreviewUrl(null);
+        setUploadStatus("completed");
         revokePreviewUrl(instantPreview);
+        setPreviewUrl(null);
         
-        // Update the item that was just added - call onUploadComplete with final URL
-        // This will update the existing item instead of creating a new one
-        onUploadComplete(publicUrl);
+        return publicUrl;
       } catch (error: any) {
-        // Silently handle errors - preview URL already added as fallback
-        // Preview URL will be used until upload succeeds
-        if (error.message !== "Compression timeout" && process.env.NODE_ENV === 'development') {
-          console.warn("Image upload warning:", error);
-        }
-        // Keep preview URL on error so user can still see the image
+        const errorMessage = error.message || "Upload failed. Please try again.";
+        setUploadError(errorMessage);
+        setUploadStatus("failed");
+        showToast(errorMessage, "error");
+        throw error;
       } finally {
-        setUploading(false);
         // Reset input
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
       }
     })();
-  };
+
+    uploadPromiseRef.current = uploadPromise;
+
+    // Call callback immediately with preview URL and promise
+    onUploadComplete({
+      previewUrl: instantPreview,
+      status: "uploading",
+      promise: uploadPromise,
+    });
+
+    // Wait for upload to complete and update with final URL
+    uploadPromise
+      .then((finalUrl) => {
+        onUploadComplete({
+          previewUrl: instantPreview,
+          finalUrl,
+          status: "completed",
+          promise: Promise.resolve(finalUrl),
+        });
+      })
+      .catch((error) => {
+        onUploadComplete({
+          previewUrl: instantPreview,
+          status: "failed",
+          error: error.message,
+          promise: Promise.reject(error),
+        });
+      });
+  }, [uploadStatus, showToast, supabase, onUploadComplete]);
+
+  const handleRemove = useCallback(() => {
+    if (previewUrl) {
+      revokePreviewUrl(previewUrl);
+      setPreviewUrl(null);
+    }
+    setUploadStatus("idle");
+    setUploadError(null);
+    uploadPromiseRef.current = null;
+    onUploadComplete({
+      previewUrl: "",
+      status: "idle",
+      promise: Promise.resolve(""),
+    });
+  }, [previewUrl, onUploadComplete]);
+
+  const handleRetry = useCallback(() => {
+    setUploadError(null);
+    setUploadStatus("idle");
+    // User can select file again
+    fileInputRef.current?.click();
+  }, []);
 
   const triggerCamera = () => {
-    fileInputRef.current?.click();
+    if (!disabled && uploadStatus !== "uploading") {
+      fileInputRef.current?.click();
+    }
   };
 
   const displayUrl = currentUrl || previewUrl;
+  const isUploading = uploadStatus === "uploading";
+  const isFailed = uploadStatus === "failed";
+  const isCompleted = uploadStatus === "completed" && currentUrl;
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -115,47 +179,72 @@ export function CameraUpload({ onUploadComplete, currentUrl }: CameraUploadProps
           <img
             src={displayUrl}
             alt="Product"
-            className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:opacity-80 transition-opacity active:scale-95"
+            className={`w-20 h-20 object-cover rounded-lg border-2 cursor-pointer hover:opacity-80 transition-opacity active:scale-95 ${
+              isUploading ? "border-blue-300" : isFailed ? "border-red-300" : "border-gray-200"
+            }`}
             onClick={(e) => {
               e.stopPropagation();
               setSelectedImage(displayUrl);
             }}
           />
-          {uploading && (
-            <div className="absolute inset-0 bg-black/20 rounded-lg flex items-center justify-center">
+          {isUploading && (
+            <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center">
               <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
             </div>
           )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (previewUrl) {
-                revokePreviewUrl(previewUrl);
-                setPreviewUrl(null);
-              }
-              onUploadComplete("");
-            }}
-            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors z-10"
-            aria-label="Remove photo"
-            disabled={uploading}
-          >
-            <X className="h-4 w-4" />
-          </button>
+          {isFailed && (
+            <div className="absolute inset-0 bg-red-500/20 rounded-lg flex items-center justify-center">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+            </div>
+          )}
+          {isCompleted && (
+            <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1">
+              <CheckCircle2 className="h-4 w-4 text-white" />
+            </div>
+          )}
+          {!isUploading && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRemove();
+              }}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors z-10"
+              aria-label="Remove photo"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       ) : (
         <Button
           type="button"
           onClick={triggerCamera}
-          disabled={uploading}
+          disabled={disabled || isUploading}
           className="h-20 w-20 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-all active:scale-95"
         >
-          {uploading ? (
+          {isUploading ? (
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500" />
           ) : (
             <Camera className="h-8 w-8 text-gray-400" />
           )}
         </Button>
       )}
+      
+      {isFailed && uploadError && (
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-xs text-red-600 text-center max-w-[120px]">{uploadError}</p>
+          <Button
+            type="button"
+            onClick={handleRetry}
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+      
       <input
         ref={fileInputRef}
         type="file"
@@ -163,6 +252,7 @@ export function CameraUpload({ onUploadComplete, currentUrl }: CameraUploadProps
         capture="environment"
         onChange={handleFileSelect}
         className="hidden"
+        disabled={disabled || isUploading}
       />
 
       {/* Image Lightbox */}
@@ -177,4 +267,3 @@ export function CameraUpload({ onUploadComplete, currentUrl }: CameraUploadProps
     </div>
   );
 }
-

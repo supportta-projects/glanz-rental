@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { StandardButton } from "@/components/shared/standard-button";
-import { Sparkles, ArrowLeft, ShoppingBag } from "lucide-react";
+import { Sparkles, ArrowLeft, ShoppingBag, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import {
@@ -59,6 +59,7 @@ export default function CreateOrderPage() {
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [hasPendingUploads, setHasPendingUploads] = useState(false);
 
   // Memoize days calculation
   const days = useMemo(
@@ -160,6 +161,29 @@ export default function CreateOrderPage() {
       return;
     }
 
+    // CRITICAL: Check for blob URLs (temporary preview URLs that shouldn't be saved)
+    const itemsWithBlobUrls = draft.items.filter(
+      (item) => item.photo_url?.startsWith("blob:")
+    );
+
+    if (itemsWithBlobUrls.length > 0) {
+      showToast(
+        `Please wait for ${itemsWithBlobUrls.length} image${itemsWithBlobUrls.length > 1 ? 's' : ''} to finish uploading before saving the order.`,
+        "error"
+      );
+      return;
+    }
+
+    // Validate that all items have valid photo URLs (not empty, not blob)
+    const itemsWithoutValidPhotos = draft.items.filter(
+      (item) => !item.photo_url || item.photo_url.trim() === ""
+    );
+
+    if (itemsWithoutValidPhotos.length > 0) {
+      showToast("Please ensure all items have valid images uploaded", "error");
+      return;
+    }
+
     try {
       showToast("Creating order...", "info");
 
@@ -188,11 +212,25 @@ export default function CreateOrderPage() {
     }
   }, [selectedCustomer, draft, user, grandTotal, subtotal, gstAmount, showToast, createOrderMutation, clearDraft, router]);
 
-  // Memoize validation state
-  const canSave = useMemo(
-    () => selectedCustomer && draft.items.length > 0 && draft.end_date,
-    [selectedCustomer, draft.items.length, draft.end_date]
-  );
+  // Memoize validation state - check for blob URLs
+  const canSave = useMemo(() => {
+    if (!selectedCustomer || draft.items.length === 0 || !draft.end_date) {
+      return false;
+    }
+    
+    // Check if any items have blob URLs (uploading)
+    const hasBlobUrls = draft.items.some((item) => 
+      item.photo_url?.startsWith("blob:")
+    );
+    
+    // Check if any items have empty photo URLs
+    const hasEmptyPhotos = draft.items.some((item) => 
+      !item.photo_url || item.photo_url.trim() === ""
+    );
+    
+    // Cannot save if there are pending uploads or empty photos
+    return !hasBlobUrls && !hasEmptyPhotos && !hasPendingUploads;
+  }, [selectedCustomer, draft.items, draft.end_date, hasPendingUploads]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f7f9fb] via-white to-[#f7f9fb] pb-32">
@@ -262,6 +300,7 @@ export default function CreateOrderPage() {
               onRemoveItem={removeItem}
               onImageClick={setSelectedImage}
               days={days}
+              onUploadStatusChange={setHasPendingUploads}
             />
           </Card>
 
@@ -299,14 +338,19 @@ export default function CreateOrderPage() {
             <StandardButton
               onClick={handleSaveOrder}
               variant="default"
-              disabled={!canSave || createOrderMutation.isPending}
+              disabled={!canSave || createOrderMutation.isPending || hasPendingUploads}
               loading={createOrderMutation.isPending}
-              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-[#273492] to-[#1f2a7a] hover:from-[#1f2a7a] hover:to-[#273492] shadow-xl hover:shadow-2xl transition-all duration-300 premium-hover"
+              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-[#273492] to-[#1f2a7a] hover:from-[#1f2a7a] hover:to-[#273492] shadow-xl hover:shadow-2xl transition-all duration-300 premium-hover disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {createOrderMutation.isPending ? (
                 <>
                   <ShoppingBag className="h-5 w-5 mr-2 animate-pulse" />
                   Creating Order...
+                </>
+              ) : hasPendingUploads ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Waiting for uploads...
                 </>
               ) : (
                 <>

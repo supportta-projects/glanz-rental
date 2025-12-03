@@ -13,7 +13,7 @@ import { useUserStore } from "@/lib/stores/useUserStore";
 import { useOrderDraftStore, useOrderSubtotal, useOrderGrandTotal, useOrderGst } from "@/lib/stores/useOrderDraftStore";
 import { useOrder, useUpdateOrder, useUpdateOrderBilling } from "@/lib/queries/orders";
 import { calculateDays } from "@/lib/utils/date";
-import { CameraUpload } from "@/components/orders/camera-upload";
+import { CameraUpload, type UploadResult } from "@/components/orders/camera-upload";
 import { CustomerSearch } from "@/components/orders/customer-search";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { useToast } from "@/components/ui/toast";
@@ -134,11 +134,23 @@ export default function EditOrderPage() {
     }
   }, [order, canEditFull]);
 
-  const handleAddItem = (photoUrl: string) => {
-    if (!photoUrl) return;
+  const handleAddItem = (result: UploadResult) => {
+    if (!result.previewUrl) return;
+
+    // Check if this is a blob URL (preview) or final URL
+    const isBlobUrl = result.previewUrl.startsWith("blob:");
+    
+    if (!isBlobUrl && result.finalUrl) {
+      // This is a final URL - update existing item if it has blob URL
+      const lastItem = draft.items[0];
+      if (lastItem?.photo_url?.startsWith("blob:")) {
+        updateItem(0, { photo_url: result.finalUrl });
+        return;
+      }
+    }
 
     const newItem: OrderItem = {
-      photo_url: photoUrl,
+      photo_url: result.previewUrl, // Use preview URL initially
       product_name: "",
       quantity: 1,
       price_per_day: 0,
@@ -152,11 +164,25 @@ export default function EditOrderPage() {
     // Mark the first item (index 0) as newly added for highlight animation
     setNewItemIndex(0);
     
+    // Wait for upload to complete if it's a blob URL
+    if (isBlobUrl && result.promise) {
+      result.promise
+        .then((finalUrl) => {
+          // Update the item with final URL
+          updateItem(0, { photo_url: finalUrl });
+          // Clean up blob URL
+          if (result.previewUrl.startsWith("blob:")) {
+            URL.revokeObjectURL(result.previewUrl);
+          }
+        })
+        .catch(() => {
+          // Upload failed - keep preview URL for now
+        });
+    }
+    
     // Smooth scroll to the newly added item after a brief delay
-    // This allows React to render the new item first
     setTimeout(() => {
       if (itemsSectionRef.current) {
-        // Scroll to the items section, with offset for better visibility
         itemsSectionRef.current.scrollIntoView({ 
           behavior: 'smooth', 
           block: 'start',
@@ -164,7 +190,6 @@ export default function EditOrderPage() {
         });
       }
       
-      // Remove highlight after animation completes
       setTimeout(() => {
         setNewItemIndex(null);
       }, 2000);
