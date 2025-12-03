@@ -66,7 +66,7 @@ export default function StaffPage() {
         is_active: !currentStatus,
       });
       showToast(
-        `Staff member ${!currentStatus ? "activated" : "deactivated"} successfully`,
+        `Staff ${!currentStatus ? "activated" : "deactivated"} successfully`,
         "success"
       );
     } catch (error: any) {
@@ -101,7 +101,8 @@ export default function StaffPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {staff.map((member) => {
-              const isActive = member.is_active !== false; // Default to true if undefined
+              // Explicitly check is_active - undefined/null means active (default), false means inactive
+              const isActive = member.is_active === undefined || member.is_active === null ? true : member.is_active;
               const isSuperAdmin = user?.role === "super_admin";
               const canToggleActive = isSuperAdmin && member.role !== "super_admin"; // Only super admin can toggle, but not for super admin accounts
               const RoleIcon = getRoleIcon(member.role);

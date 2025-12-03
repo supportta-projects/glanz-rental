@@ -41,6 +41,7 @@ export interface Customer {
   id_proof_number?: string;
   id_proof_front_url?: string;
   id_proof_back_url?: string;
+  is_active?: boolean; // Whether the customer account is active
   created_at?: string;
 }
 

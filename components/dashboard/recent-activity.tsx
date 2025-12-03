@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, getOrderStatus } from "@/lib/utils/date";
 import { formatDistanceToNow } from "date-fns";
 import type { Order } from "@/lib/types";
+import { ArrowRight } from "lucide-react";
 
 interface RecentActivityProps {
   orders: Order[];
@@ -34,45 +35,51 @@ const OrderItem = memo(function OrderItem({ order }: OrderItemProps) {
     [order.created_at]
   );
 
+  const getStatusBadge = () => {
+    // Check order.status directly for scheduled and partially_returned
+    if (order.status === "scheduled") {
+      return <Badge className="bg-blue-50 text-[#273492] border-blue-200 text-xs">Scheduled</Badge>;
+    }
+    if (order.status === "partially_returned") {
+      return <Badge className="bg-orange-50 text-orange-700 border-orange-200 text-xs">Partial</Badge>;
+    }
+    if (status === "active") {
+      return <Badge className="bg-green-50 text-green-700 border-green-200 text-xs">Active</Badge>;
+    }
+    if (status === "pending_return") {
+      return <Badge className="bg-red-50 text-[#e7342f] border-red-200 text-xs">Pending</Badge>;
+    }
+    return <Badge className="bg-gray-50 text-gray-700 border-gray-200 text-xs">Completed</Badge>;
+  };
+
   return (
     <Link href={`/orders/${order.id}`}>
       <Card
-        className={`p-4 rounded-lg border border-gray-200 transition-all ${
+        className={`p-4 rounded-lg border transition-all duration-200 ${
           isPendingReturn
-            ? "bg-red-50 border-l-4 border-l-red-500"
-            : "bg-white hover:shadow-md hover:border-gray-300"
+            ? "bg-red-50/50 border-red-200 hover:border-red-300"
+            : "bg-white border-gray-200 hover:shadow-md hover:border-gray-300"
         }`}
       >
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <span className="font-bold text-[#0f1724] text-sm">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-gray-900 text-sm font-mono">
               {order.invoice_number}
             </span>
-            <Badge
-              className={
-                status === "active"
-                  ? "bg-green-100 text-green-700 border-green-200"
-                  : status === "pending_return"
-                  ? "bg-red-100 text-red-700 border-red-200"
-                  : "bg-gray-100 text-gray-700 border-gray-200"
-              }
-            >
-              {status === "active"
-                ? "Active"
-                : status === "pending_return"
-                ? "Pending"
-                : "Completed"}
-            </Badge>
+            {getStatusBadge()}
           </div>
-          <span className="text-xs text-[#6b7280]">{timeAgo}</span>
+          <span className="text-xs text-gray-500">{timeAgo}</span>
         </div>
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-sm font-medium text-[#0f1724]">
-            {order.customer?.name || "Unknown"}
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-gray-700">
+            {order.customer?.name || "Unknown Customer"}
           </p>
-          <p className="text-sm font-bold text-green-600">
-            {formatCurrency(order.total_amount)}
-          </p>
+          <div className="flex items-center gap-1">
+            <p className="text-sm font-semibold text-gray-900">
+              {formatCurrency(order.total_amount)}
+            </p>
+            <ArrowRight className="h-3.5 w-3.5 text-gray-400" />
+          </div>
         </div>
       </Card>
     </Link>
@@ -89,7 +96,7 @@ export const RecentActivity = memo(function RecentActivity({
     return (
       <div className="space-y-3">
         {[...Array(4)].map((_, i) => (
-          <Card key={i} className="p-4 animate-pulse">
+          <Card key={i} className="p-4 animate-pulse border border-gray-200">
             <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
             <div className="h-3 bg-gray-200 rounded w-1/2" />
           </Card>
@@ -101,17 +108,16 @@ export const RecentActivity = memo(function RecentActivity({
   if (!orders || orders.length === 0) {
     return (
       <Card className="p-8 text-center border border-gray-200 bg-white">
-        <p className="text-[#6b7280]">No recent activity</p>
+        <p className="text-gray-500 text-sm">No recent activity</p>
       </Card>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {displayOrders.map((order) => (
         <OrderItem key={order.id} order={order} />
       ))}
     </div>
   );
 });
-

@@ -18,6 +18,8 @@ import {
   Mail,
   Clock,
   TrendingUp,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { StandardButton } from "@/components/shared/standard-button";
@@ -111,6 +113,23 @@ export default function CustomerDetailsPage() {
           : "Failed to update customer",
         "error"
       );
+    }
+  };
+
+  const handleToggleActive = async (currentStatus: boolean) => {
+    try {
+      await updateCustomerMutation.mutateAsync({
+        customerId,
+        updates: {
+          is_active: !currentStatus,
+        },
+      });
+      showToast(
+        `Customer ${!currentStatus ? "activated" : "deactivated"} successfully`,
+        "success"
+      );
+    } catch (error: any) {
+      showToast(error.message || "Failed to update customer status", "error");
     }
   };
 
@@ -385,19 +404,74 @@ export default function CustomerDetailsPage() {
               ) : (
                 <div className="space-y-6">
                   {/* Customer Header with Avatar */}
-                  <div className="flex items-start gap-4 pb-6 border-b border-gray-200">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#273492] to-[#1f2a7a] flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                      {customer.name?.charAt(0).toUpperCase() || "C"}
+                  <div className="flex items-start justify-between pb-6 border-b border-gray-200">
+                    <div className="flex items-start gap-4 flex-1">
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg ${
+                        customer.is_active !== false 
+                          ? "bg-gradient-to-br from-[#273492] to-[#1f2a7a]" 
+                          : "bg-gradient-to-br from-gray-400 to-gray-500"
+                      }`}>
+                        {customer.name?.charAt(0).toUpperCase() || "C"}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className={`text-2xl font-bold mb-1 ${
+                          customer.is_active !== false ? "text-gray-900" : "text-gray-400"
+                        }`}>
+                          {customer.name}
+                        </h3>
+                        {customer.customer_number && (
+                          <p className="text-sm font-mono text-[#273492] bg-[#273492]/10 px-2 py-1 rounded inline-block">
+                            {customer.customer_number}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-1">{customer.name}</h3>
-                      {customer.customer_number && (
-                        <p className="text-sm font-mono text-[#273492] bg-[#273492]/10 px-2 py-1 rounded inline-block">
-                          {customer.customer_number}
-                        </p>
-                      )}
+                    {/* Active/Inactive Toggle */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full ${
+                          customer.is_active !== false ? "bg-green-500" : "bg-gray-400"
+                        } animate-pulse`} />
+                        <span className={`text-xs font-semibold ${
+                          customer.is_active !== false ? "text-green-700" : "text-gray-500"
+                        }`}>
+                          {customer.is_active !== false ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleToggleActive(customer.is_active !== false)}
+                        disabled={updateCustomerMutation.isPending}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm hover:shadow-md active:scale-[0.97] ${
+                          customer.is_active !== false
+                            ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
+                            : "bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200"
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        title={customer.is_active !== false ? "Click to deactivate" : "Click to activate"}
+                      >
+                        {updateCustomerMutation.isPending ? (
+                          <div className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent" />
+                        ) : customer.is_active !== false ? (
+                          <>
+                            <ToggleRight className="h-3.5 w-3.5" />
+                            <span>Deactivate</span>
+                          </>
+                        ) : (
+                          <>
+                            <ToggleLeft className="h-3.5 w-3.5" />
+                            <span>Activate</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
+                  {customer.is_active === false && (
+                    <div className="mb-4 p-2.5 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-xs text-red-700 font-medium flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" />
+                        This customer account is inactive
+                      </p>
+                    </div>
+                  )}
 
                   {/* Contact Information Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -465,10 +539,13 @@ export default function CustomerDetailsPage() {
                                   src={customer.id_proof_front_url}
                                   alt="ID Front"
                                   className="w-32 h-40 object-cover rounded-lg border-2 border-gray-300 cursor-pointer hover:border-[#273492] transition-all hover:shadow-md"
-                                  onClick={() => setSelectedImage(customer.id_proof_front_url || null)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedImage(customer.id_proof_front_url || null);
+                                  }}
                                 />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-lg transition-colors flex items-center justify-center">
-                                  <span className="text-xs font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors flex items-center justify-center pointer-events-none">
+                                  <span className="text-xs font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-2 py-1 rounded">
                                     View
                                   </span>
                                 </div>
@@ -480,10 +557,13 @@ export default function CustomerDetailsPage() {
                                   src={customer.id_proof_back_url}
                                   alt="ID Back"
                                   className="w-32 h-40 object-cover rounded-lg border-2 border-gray-300 cursor-pointer hover:border-[#273492] transition-all hover:shadow-md"
-                                  onClick={() => setSelectedImage(customer.id_proof_back_url || null)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedImage(customer.id_proof_back_url || null);
+                                  }}
                                 />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-lg transition-colors flex items-center justify-center">
-                                  <span className="text-xs font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors flex items-center justify-center pointer-events-none">
+                                  <span className="text-xs font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-2 py-1 rounded">
                                     View
                                   </span>
                                 </div>
@@ -614,14 +694,12 @@ export default function CustomerDetailsPage() {
       </div>
 
       {/* Image Lightbox for ID Proof Images */}
-      {selectedImage && (
-        <ImageLightbox
-          imageUrl={selectedImage}
-          isOpen={!!selectedImage}
-          onClose={() => setSelectedImage(null)}
-          alt="ID Proof"
-        />
-      )}
+      <ImageLightbox
+        imageUrl={selectedImage || ""}
+        isOpen={!!selectedImage}
+        onClose={() => setSelectedImage(null)}
+        alt="ID Proof"
+      />
     </div>
   );
 }

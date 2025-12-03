@@ -19,6 +19,7 @@ import { OrderReturnSection } from "@/components/orders/order-return-section";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import { PageNavbar } from "@/components/layout/page-navbar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 
 export default function OrderDetailsPage() {
   const params = useParams();
@@ -50,6 +51,7 @@ export default function OrderDetailsPage() {
   const { data: order, isLoading, error: orderError } = useOrder(orderId);
   const startRentalMutation = useStartRental();
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   
   // Handle print parameter from URL
   useEffect(() => {
@@ -276,7 +278,7 @@ export default function OrderDetailsPage() {
               </div>
             </Card>
 
-            {/* Order Items - Clean Table */}
+            {/* Order Items - Clean Table - Show for ALL orders including scheduled */}
             {order.items && order.items.length > 0 && (
               <Card className="p-6 bg-white border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Items</h3>
@@ -289,7 +291,7 @@ export default function OrderDetailsPage() {
                         <TableHead className="text-right">Qty</TableHead>
                         <TableHead className="text-right">Price/Day</TableHead>
                         <TableHead className="text-right">Total</TableHead>
-                        {order.status !== "scheduled" && (
+                        {order.status !== "scheduled" && order.status !== "cancelled" && (
                           <TableHead className="text-center">Status</TableHead>
                         )}
                       </TableRow>
@@ -302,7 +304,8 @@ export default function OrderDetailsPage() {
                               <img 
                                 src={item.photo_url} 
                                 alt={item.product_name || "Product"} 
-                                className="w-12 h-12 object-cover rounded border border-gray-200"
+                                className="w-12 h-12 object-cover rounded border border-gray-200 cursor-pointer hover:border-[#273492] transition-all"
+                                onClick={() => setSelectedImage(item.photo_url)}
                               />
                             ) : (
                               <div className="w-12 h-12 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
@@ -333,7 +336,7 @@ export default function OrderDetailsPage() {
                               {formatCurrency(item.line_total || (item.price_per_day * item.quantity * (item.days || 1)))}
                             </span>
                           </TableCell>
-                          {order.status !== "scheduled" && (
+                          {order.status !== "scheduled" && order.status !== "cancelled" && (
                             <TableCell className="text-center">
                               {item.return_status === "returned" ? (
                                 <Badge className="bg-green-500 text-white text-xs">Returned</Badge>
@@ -406,7 +409,7 @@ export default function OrderDetailsPage() {
           {/* Right Column - Summary & Actions (1/3 width on desktop) */}
           <div className="lg:col-span-1 space-y-6">
             {/* Order Summary - Shopify-like */}
-            <Card className="p-6 bg-white border border-gray-200 shadow-sm sticky top-20">
+            <Card className="p-6 bg-white border border-gray-200 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Summary</h3>
               <div className="space-y-3">
                 {order.subtotal !== undefined && (
@@ -468,6 +471,16 @@ export default function OrderDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Image Lightbox for Product Images */}
+      {selectedImage && (
+        <ImageLightbox
+          imageUrl={selectedImage}
+          isOpen={!!selectedImage}
+          onClose={() => setSelectedImage(null)}
+          alt="Product image"
+        />
+      )}
     </div>
   );
 }

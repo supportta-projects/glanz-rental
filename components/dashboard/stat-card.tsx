@@ -10,7 +10,7 @@ interface StatCardProps {
   title: string;
   value: string | number;
   icon: LucideIcon;
-  gradient?: string; // e.g., "from-blue-500 to-blue-600"
+  gradient?: string; // Legacy - will be ignored
   borderColor?: string; // Legacy support
   bgColor?: string; // Legacy support
   textColor?: string;
@@ -20,84 +20,108 @@ interface StatCardProps {
   onClick?: () => void; // Optional click handler
   badge?: string; // Optional badge text
   trend?: "up" | "down" | null;
+  variant?: "default" | "primary" | "success" | "warning" | "danger"; // New variant system
 }
 
 export const StatCard = memo(function StatCard({
   title,
   value,
   icon: Icon,
-  gradient,
+  gradient, // Ignored - using variants instead
   borderColor,
   bgColor = "bg-white",
   textColor = "text-gray-900",
-  iconColor = "text-gray-600",
+  iconColor,
   blinking = false,
   href,
   onClick,
   badge,
   trend,
+  variant = "default",
 }: StatCardProps) {
   const isClickable = !!href || !!onClick;
+  
+  // Variant-based styling - Shopify-like minimal design
+  const variantStyles = {
+    default: {
+      iconBg: "bg-gray-50",
+      iconColor: "text-gray-600",
+      border: "border-gray-200",
+      accent: "text-gray-600",
+    },
+    primary: {
+      iconBg: "bg-[#273492]/10",
+      iconColor: "text-[#273492]",
+      border: "border-gray-200",
+      accent: "text-[#273492]",
+    },
+    success: {
+      iconBg: "bg-green-50",
+      iconColor: "text-green-600",
+      border: "border-gray-200",
+      accent: "text-green-600",
+    },
+    warning: {
+      iconBg: "bg-orange-50",
+      iconColor: "text-orange-600",
+      border: "border-gray-200",
+      accent: "text-orange-600",
+    },
+    danger: {
+      iconBg: "bg-red-50",
+      iconColor: "text-[#e7342f]",
+      border: "border-gray-200",
+      accent: "text-[#e7342f]",
+    },
+  };
+
+  const styles = variantStyles[variant];
+  const finalIconColor = iconColor || styles.iconColor;
   
   const cardContent = (
     <Card
       className={cn(
-        "p-6 rounded-xl shadow-sm border transition-all duration-300",
-        gradient 
-          ? `bg-gradient-to-br ${gradient} text-white border-transparent` 
-          : cn("bg-white border-gray-200", borderColor && `border-l-4 ${borderColor}`, bgColor),
-        isClickable && "cursor-pointer hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]",
-        blinking && "animate-pulse"
+        "p-5 rounded-lg border transition-all duration-200 bg-white",
+        styles.border,
+        isClickable && "cursor-pointer hover:shadow-md hover:border-gray-300 active:scale-[0.98]",
+        blinking && "ring-2 ring-[#273492]/20"
       )}
       onClick={onClick}
     >
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <p className={cn(
-              "text-sm font-medium truncate",
-              gradient ? "text-white/90" : "text-gray-600"
-            )}>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
               {title}
             </p>
             {badge && (
-              <span className={cn(
-                "px-2 py-0.5 text-xs font-semibold rounded-full",
-                gradient ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
-              )}>
+              <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
                 {badge}
               </span>
             )}
             {trend && (
               <ArrowUpRight className={cn(
-                "h-4 w-4",
-                trend === "up" ? "text-green-400" : "text-red-400",
-                gradient && "text-white/80"
+                "h-3.5 w-3.5",
+                trend === "up" ? "text-green-600" : "text-red-600"
               )} />
             )}
           </div>
-          <p className={cn(
-            "text-2xl sm:text-3xl md:text-4xl font-bold break-words",
-            gradient ? "text-white" : textColor
-          )}>
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">
             {value}
           </p>
         </div>
         <div className={cn(
-          "p-3 rounded-lg flex-shrink-0",
-          gradient ? "bg-white/20" : "bg-gray-50"
+          "p-2.5 rounded-lg flex-shrink-0",
+          styles.iconBg
         )}>
           <Icon className={cn(
-            "h-6 w-6 md:h-8 md:w-8",
-            gradient ? "text-white" : iconColor
+            "h-5 w-5",
+            finalIconColor
           )} />
         </div>
       </div>
       {isClickable && (
-        <div className={cn(
-          "mt-4 pt-4 border-t flex items-center gap-1 text-xs font-medium",
-          gradient ? "border-white/20 text-white/80" : "border-gray-200 text-gray-600"
-        )}>
+        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-1.5 text-xs font-medium text-gray-500 group-hover:text-[#273492] transition-colors">
           <span>View details</span>
           <ArrowUpRight className="h-3 w-3" />
         </div>
@@ -107,7 +131,7 @@ export const StatCard = memo(function StatCard({
 
   if (href) {
     return (
-      <Link href={href} className="block">
+      <Link href={href} className="block group">
         {cardContent}
       </Link>
     );
@@ -115,4 +139,3 @@ export const StatCard = memo(function StatCard({
 
   return cardContent;
 });
-
