@@ -50,8 +50,29 @@ export function useOrderTimeline(orderId: string) {
       // Build timeline events
       const events: OrderTimelineEvent[] = [];
 
-      // Add order creation event
-      if (order) {
+      // Add audit log events first
+      if (auditLogs) {
+        auditLogs.forEach((log: any) => {
+          events.push({
+            id: log.id,
+            order_id: log.order_id,
+            order_item_id: log.order_item_id,
+            action: log.action,
+            previous_status: log.previous_status,
+            new_status: log.new_status,
+            user_id: log.user_id,
+            user_name: log.user?.full_name || log.user?.username || "Unknown",
+            notes: log.notes,
+            created_at: log.created_at,
+          });
+        });
+      }
+
+      // Check if order_created event already exists in audit logs
+      const hasOrderCreatedEvent = auditLogs?.some((log: any) => log.action === "order_created");
+
+      // Add order creation event only if not already in audit logs
+      if (order && !hasOrderCreatedEvent) {
         const orderData = order as {
           id: string;
           created_at: string;
@@ -70,27 +91,9 @@ export function useOrderTimeline(orderId: string) {
         });
       }
 
-      // Add audit log events
-      if (auditLogs) {
-        auditLogs.forEach((log: any) => {
-          events.push({
-            id: log.id,
-            order_id: log.order_id,
-            order_item_id: log.order_item_id,
-            action: log.action,
-            previous_status: log.previous_status,
-            new_status: log.new_status,
-            user_id: log.user_id,
-            user_name: log.user?.full_name || log.user?.username || "Unknown",
-            notes: log.notes,
-            created_at: log.created_at,
-          });
-        });
-      }
-
-      // Sort by created_at descending (newest first)
+      // Sort by created_at ascending (oldest first for timeline flow)
       return events.sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
     },
     enabled: !!orderId,

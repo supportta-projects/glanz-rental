@@ -6,6 +6,41 @@ import { isOrderLate } from "@/lib/utils/date";
 
 const PAGE_SIZE = 50; // Optimized page size for infinite scroll
 
+// ============================================================================
+// TIMELINE EVENT LOGGING HELPER
+// ============================================================================
+/**
+ * Logs a timeline event for an order. This tracks all order activities.
+ * Errors are caught silently to prevent breaking main operations.
+ */
+async function logTimelineEvent(
+  supabase: ReturnType<typeof createClient>,
+  event: {
+    orderId: string;
+    action: string;
+    userId: string;
+    previousStatus?: string;
+    newStatus?: string;
+    orderItemId?: string;
+    notes?: string;
+  }
+) {
+  try {
+    await supabase.from("order_return_audit").insert({
+      order_id: event.orderId,
+      order_item_id: event.orderItemId || null,
+      action: event.action,
+      previous_status: event.previousStatus || null,
+      new_status: event.newStatus || null,
+      user_id: event.userId,
+      notes: event.notes || null,
+    });
+  } catch (error) {
+    console.error("[logTimelineEvent] Failed to log timeline event:", error);
+    // Don't throw - timeline logging shouldn't break the main operation
+  }
+}
+
 // Infinite query using RPC function for <10ms queries
 export function useOrdersInfinite(
   branchId: string | null,
@@ -338,12 +373,23 @@ export function useCreateOrder() {
 
       if (itemsError) throw itemsError;
 
+      // Log timeline event: Order Created
+      await logTimelineEvent(supabase, {
+        orderId: order.id,
+        action: "order_created",
+        userId: orderData.staff_id,
+        newStatus: orderStatus,
+        notes: `Order created with ${orderData.items.length} item${orderData.items.length !== 1 ? 's' : ''}. Status: ${orderStatus}`,
+      });
+
       // Return order with items for optimistic updates
       return { ...order, items: itemsWithOrderId };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
       // Invalidate all orders queries (with and without branchId)
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["order", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["order-timeline", data.id] });
       // Also invalidate dashboard stats
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
@@ -373,8 +419,57 @@ export function useUpdateOrder() {
         line_total: number;
       }>;
     }) => {
+      // Get current authenticated user
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) {
+        throw new Error("Authentication required");
+      }
+
+      // Fetch current order to compare changes
+      const { data: currentOrder, error: fetchError } = await supabase
+        .from("orders")
+        .select("status, invoice_number, start_date, end_date, total_amount")
+        .eq("id", orderData.orderId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Get current item count
+      const { data: currentItems, error: itemsFetchError } = await supabase
+        .from("order_items")
+        .select("id")
+        .eq("order_id", orderData.orderId);
+
+      if (itemsFetchError) throw itemsFetchError;
+
+      const currentItemCount = currentItems?.length || 0;
+      const newItemCount = orderData.items.length;
+      const itemCountChanged = currentItemCount !== newItemCount;
+
       const startDateOnly = orderData.start_date.split("T")[0];
       const endDateOnly = orderData.end_date.split("T")[0];
+
+      // Track changes
+      const changes: string[] = [];
+      if (currentOrder?.invoice_number !== orderData.invoice_number) {
+        changes.push("invoice number");
+      }
+      if (currentOrder?.start_date !== startDateOnly) {
+        changes.push("start date");
+      }
+      if (currentOrder?.end_date !== endDateOnly) {
+        changes.push("end date");
+      }
+      if (Math.abs((currentOrder?.total_amount || 0) - orderData.total_amount) > 0.01) {
+        changes.push("total amount");
+      }
+      if (itemCountChanged) {
+        if (newItemCount > currentItemCount) {
+          changes.push(`added ${newItemCount - currentItemCount} item${newItemCount - currentItemCount !== 1 ? 's' : ''}`);
+        } else {
+          changes.push(`removed ${currentItemCount - newItemCount} item${currentItemCount - newItemCount !== 1 ? 's' : ''}`);
+        }
+      }
 
       // Update order
       const { data: order, error: orderError } = await (supabase
@@ -410,11 +505,25 @@ export function useUpdateOrder() {
 
       if (itemsError) throw itemsError;
 
+      // Log timeline event: Order Edited
+      const changeDescription = changes.length > 0 
+        ? `Changed: ${changes.join(", ")}. Items: ${orderData.items.length} item${orderData.items.length !== 1 ? 's' : ''}`
+        : `Items updated: ${orderData.items.length} item${orderData.items.length !== 1 ? 's' : ''}`;
+      
+      await logTimelineEvent(supabase, {
+        orderId: orderData.orderId,
+        action: "order_edited",
+        userId: authUser.id,
+        previousStatus: currentOrder?.status,
+        notes: changeDescription,
+      });
+
       return order;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["order", variables.orderId] });
+      queryClient.invalidateQueries({ queryKey: ["order-timeline", variables.orderId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
   });
@@ -442,6 +551,12 @@ export function useUpdateOrderBilling() {
       gst_amount?: number;
       total_amount: number;
     }) => {
+      // Get current authenticated user
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) {
+        throw new Error("Authentication required");
+      }
+
       const { data, error } = await (supabase
         .from("orders") as any)
         .update({
@@ -455,11 +570,21 @@ export function useUpdateOrderBilling() {
         .single();
 
       if (error) throw error;
+
+      // Log timeline event: Billing Updated
+      await logTimelineEvent(supabase, {
+        orderId,
+        action: "billing_updated",
+        userId: authUser.id,
+        notes: `Invoice number: ${invoice_number}. Total: Rs ${total_amount.toFixed(2)}`,
+      });
+
       return data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["order", variables.orderId] });
+      queryClient.invalidateQueries({ queryKey: ["order-timeline", variables.orderId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
   });
@@ -487,6 +612,19 @@ export function useUpdateOrderStatus() {
 
       if (fetchError) throw fetchError;
 
+      // Get current authenticated user
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) {
+        throw new Error("Authentication required");
+      }
+
+      // Get current status
+      const { data: currentStatusData } = await supabase
+        .from("orders")
+        .select("status")
+        .eq("id", orderId)
+        .single();
+
       const currentOrder = currentOrderData as { total_amount?: number; late_fee?: number } | null;
       const originalTotal = (currentOrder?.total_amount || 0) - (currentOrder?.late_fee || 0);
       const newTotal = originalTotal + lateFee;
@@ -503,6 +641,49 @@ export function useUpdateOrderStatus() {
         .single();
 
       if (error) throw error;
+
+      // Log timeline event: Specific action based on what happened
+      const previousStatus = (currentStatusData as any)?.status;
+      if (previousStatus && previousStatus !== status) {
+        // Map status changes to specific meaningful actions
+        let action = "status_changed"; // fallback
+        let actionNotes: string | undefined = undefined;
+        
+        if (status === "completed") {
+          action = "order_completed";
+          if (lateFee > 0) {
+            actionNotes = `All items returned. Late fee: Rs ${lateFee.toFixed(2)}`;
+          } else {
+            actionNotes = "All items returned";
+          }
+        } else if (status === "cancelled") {
+          action = "order_cancelled";
+          actionNotes = "Order was cancelled";
+        } else if (status === "partially_returned") {
+          action = "partial_return";
+          if (lateFee > 0) {
+            actionNotes = `Some items returned. Late fee: Rs ${lateFee.toFixed(2)}`;
+          } else {
+            actionNotes = "Some items returned";
+          }
+        } else if (status === "pending_return") {
+          action = "order_pending_return";
+          actionNotes = "Order is pending return";
+        } else {
+          // For other status changes, still log but with better notes
+          actionNotes = lateFee > 0 ? `Late fee: Rs ${lateFee.toFixed(2)}` : undefined;
+        }
+        
+        await logTimelineEvent(supabase, {
+          orderId,
+          action,
+          userId: authUser.id,
+          previousStatus,
+          newStatus: status,
+          notes: actionNotes,
+        });
+      }
+
       return data;
     },
     // Optimistic update for instant UI feedback
@@ -539,6 +720,7 @@ export function useUpdateOrderStatus() {
       queryClient.invalidateQueries({ queryKey: ["orders-infinite"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["order", variables.orderId] });
+      queryClient.invalidateQueries({ queryKey: ["order-timeline", variables.orderId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["recent-orders"] });
       queryClient.invalidateQueries({ queryKey: ["customer-orders"] });
@@ -584,6 +766,12 @@ export function useStartRental() {
       const newStartDate = now.toISOString().split("T")[0];
       const newEndDate = new Date(now.getTime() + rentalDurationMs).toISOString().split("T")[0];
 
+      // Get current authenticated user
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) {
+        throw new Error("Authentication required");
+      }
+
       // Update order: status to active, set new start/end datetimes
       const { data, error } = await (supabase
         .from("orders") as any)
@@ -599,6 +787,17 @@ export function useStartRental() {
         .single();
 
       if (error) throw error;
+
+      // Log timeline event: Rental Started
+      await logTimelineEvent(supabase, {
+        orderId,
+        action: "rental_started",
+        userId: authUser.id,
+        previousStatus: "scheduled",
+        newStatus: "active",
+        notes: `Rental period started. Duration: ${rentalDurationDays} day${rentalDurationDays !== 1 ? 's' : ''}`,
+      });
+
       return data;
     },
     onSuccess: (_, orderId) => {
@@ -606,6 +805,7 @@ export function useStartRental() {
       queryClient.invalidateQueries({ queryKey: ["orders-infinite"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["order", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["order-timeline", orderId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["recent-orders"] });
       queryClient.invalidateQueries({ queryKey: ["customer-orders"] });
@@ -777,6 +977,7 @@ export function useProcessOrderReturn() {
       queryClient.invalidateQueries({ queryKey: ["orders-infinite"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["order", variables.orderId] });
+      queryClient.invalidateQueries({ queryKey: ["order-timeline", variables.orderId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["recent-orders"] });
       queryClient.invalidateQueries({ queryKey: ["customer-orders"] });

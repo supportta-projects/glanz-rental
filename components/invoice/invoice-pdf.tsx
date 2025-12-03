@@ -74,10 +74,10 @@ const TABLE_HEADER_HEIGHT = 30;
 const ROW_HEIGHT = 48; // Fixed height per item row
 const PAGE_NUMBER_HEIGHT = 15;
 
-// Summary section fixed heights
-const TOTALS_SECTION_HEIGHT = 150; // Total Items + Subtotal + CGST + SGST + Total (increased for item count)
-const FOOTER_SECTION_HEIGHT = 145; // Terms + QR + Signature + Disclaimer (disclaimer now inline)
-const SUMMARY_SECTION_HEIGHT = TOTALS_SECTION_HEIGHT + FOOTER_SECTION_HEIGHT; // 295px total (includes disclaimer inline)
+// Summary section fixed heights - Optimized to prevent blank page
+const TOTALS_SECTION_HEIGHT = 140; // Total Items + Subtotal + CGST + SGST + Total
+const FOOTER_SECTION_HEIGHT = 120; // Terms + QR + Signature + Disclaimer (tightened spacing)
+const SUMMARY_SECTION_HEIGHT = TOTALS_SECTION_HEIGHT + FOOTER_SECTION_HEIGHT; // 260px total
 
 // Calculate available space
 const AVAILABLE_HEIGHT = A4_HEIGHT - (MARGIN * 2); // 793.89px
@@ -93,12 +93,12 @@ const CONTINUATION_PAGE_AVAILABLE_FOR_ITEMS = AVAILABLE_HEIGHT - CONTINUATION_PA
 const CONTINUATION_PAGE_MAX_ITEMS = Math.floor(CONTINUATION_PAGE_AVAILABLE_FOR_ITEMS / ROW_HEIGHT); // ~14 items
 
 // Last page must reserve space for summary (includes disclaimer inline)
-const LAST_PAGE_ITEMS_AVAILABLE = AVAILABLE_HEIGHT - CONTINUATION_PAGE_OVERHEAD - SUMMARY_SECTION_HEIGHT; // 408.89px (more space now)
-const LAST_PAGE_MAX_ITEMS = Math.floor(LAST_PAGE_ITEMS_AVAILABLE / ROW_HEIGHT); // ~8 items (may increase slightly)
+const LAST_PAGE_ITEMS_AVAILABLE = AVAILABLE_HEIGHT - CONTINUATION_PAGE_OVERHEAD - SUMMARY_SECTION_HEIGHT; // 433.89px (optimized for 260px summary)
+const LAST_PAGE_MAX_ITEMS = Math.floor(LAST_PAGE_ITEMS_AVAILABLE / ROW_HEIGHT); // ~9 items (more space for items)
 
 // If first page is also last page
-const FIRST_AND_LAST_ITEMS_AVAILABLE = AVAILABLE_HEIGHT - FIRST_PAGE_OVERHEAD - SUMMARY_SECTION_HEIGHT; // 258.89px
-const FIRST_AND_LAST_MAX_ITEMS = Math.floor(FIRST_AND_LAST_ITEMS_AVAILABLE / ROW_HEIGHT); // ~5 items
+const FIRST_AND_LAST_ITEMS_AVAILABLE = AVAILABLE_HEIGHT - FIRST_PAGE_OVERHEAD - SUMMARY_SECTION_HEIGHT; // 288.89px (optimized)
+const FIRST_AND_LAST_MAX_ITEMS = Math.floor(FIRST_AND_LAST_ITEMS_AVAILABLE / ROW_HEIGHT); // ~6 items (more space)
 
 // ============================================================================
 // STYLES - ALL DIMENSIONS ARE FIXED
@@ -227,6 +227,18 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     fontWeight: "600",
   },
+  continuationShopAddress: {
+    fontSize: 7,
+    color: "#6b7280",
+    marginTop: 2,
+    lineHeight: 1.2,
+  },
+  continuationShopPhone: {
+    fontSize: 7,
+    color: "#6b7280",
+    marginTop: 2,
+    lineHeight: 1.2,
+  },
   
   // Customer block - Fixed height
   customerBlock: {
@@ -327,18 +339,11 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
   cellName: {
-    width: 200,
+    width: 238, // Increased from 200 (added 38px from removed Days column)
     fontSize: 8,
     color: "#111827",
     paddingRight: 6,
     lineHeight: 1.3,
-    fontWeight: "500",
-  },
-  cellDays: {
-    width: 38,
-    fontSize: 8,
-    color: "#374151",
-    textAlign: "center",
     fontWeight: "500",
   },
   cellQty: {
@@ -419,6 +424,7 @@ const styles = StyleSheet.create({
   },
   
   // Footer - Fixed height (does not include disclaimer)
+  // All footer content must stay together as atomic unit
   footer: {
     paddingTop: 12,
     borderTop: "1px solid #e5e7eb",
@@ -426,6 +432,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 0,
+    minHeight: 0, // Allow flexible sizing but prevent breaking
   },
   footerLeft: {
     flex: 1,
@@ -434,6 +441,14 @@ const styles = StyleSheet.create({
   footerRight: {
     width: 120,
     textAlign: "right",
+  },
+  paymentBlock: {
+    // Atomic container - prevents page breaks inside this block
+    // All payment info (label, QR, UPI, Amount) must stay together
+    minHeight: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
   },
   termsTitle: {
     fontSize: 7,
@@ -452,48 +467,48 @@ const styles = StyleSheet.create({
   signatureLine: {
     fontSize: 7,
     color: "#9ca3af",
-    marginTop: 12,
+    marginTop: 10, // Reduced spacing
     borderTop: "1px solid #e5e7eb",
-    paddingTop: 8,
+    paddingTop: 6, // Reduced spacing
     width: 180,
   },
   qrContainer: {
     backgroundColor: "#ffffff",
-    padding: 5,
+    padding: 4, // Reduced padding
     border: "1.5px solid #e5e7eb",
-    marginBottom: 6,
+    marginBottom: 4, // Tightened spacing
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 4,
   },
   qrImage: {
-    width: 75,
-    height: 75,
+    width: 65, // Further reduced to ensure it fits
+    height: 65, // Further reduced to ensure it fits
     objectFit: "contain",
   },
   qrLabel: {
     fontSize: 7,
     color: "#374151",
     fontWeight: "700",
-    marginBottom: 6,
+    marginBottom: 4, // Tightened spacing
     textTransform: "uppercase",
     letterSpacing: 1,
   },
   qrInfo: {
     fontSize: 6.5,
     color: "#6b7280",
-    marginTop: 4,
-    lineHeight: 1.3,
+    marginTop: 2, // Tightened spacing
+    lineHeight: 1.1, // Tightened spacing
     fontWeight: "400",
   },
   disclaimer: {
     fontSize: 6.5,
     color: "#d1d5db",
     textAlign: "left",
-    marginTop: 8,
+    marginTop: 6, // Reduced spacing
     fontStyle: "italic",
-    paddingTop: 8,
+    paddingTop: 6, // Reduced spacing
     borderTop: "1px solid #f3f4f6",
   },
   
@@ -595,6 +610,13 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
     ? `upi://pay?pa=${user.upi_id}&am=${order.total_amount.toFixed(2)}&cu=INR&tn=Order ${order.invoice_number}`
     : null;
 
+  // Fix brand name typo if present
+  const getShopName = () => {
+    const branchName = user?.branch?.name || "GLANZ RENTAL";
+    // Fix common typo: "Constumes" -> "Costumes"
+    return branchName.replace(/Constumes/gi, "Costumes");
+  };
+
   const shopAddressLines = user?.branch?.address 
     ? user.branch.address.split("\n").filter(line => line.trim())
     : [];
@@ -620,7 +642,7 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
         </View>
         <View style={styles.headerTextBlock}>
           <Text style={styles.shopName}>
-            {user?.branch?.name || "GLANZ RENTAL"}
+            {getShopName()}
           </Text>
           {shopAddressLines.map((line, i) => (
             <Text key={i} style={styles.shopAddress}>{line}</Text>
@@ -658,13 +680,8 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
         </View>
         <View>
           <Text style={styles.continuationShopName}>
-            {user?.branch?.name || "GLANZ RENTAL"}
+            {getShopName()}
           </Text>
-          {user?.gst_number && (
-            <Text style={styles.continuationInvoiceText}>
-              GSTIN: {user.gst_number}
-            </Text>
-          )}
         </View>
       </View>
       <View style={{ alignItems: "flex-end" }}>
@@ -744,7 +761,6 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
             <Text style={styles.cellName}>
               {item.product_name || "Unnamed Product"}
             </Text>
-            <Text style={styles.cellDays}>{itemDays}</Text>
             <Text style={styles.cellQty}>{item.quantity}</Text>
             <Text style={styles.cellPrice}>
               {formatRs(item.price_per_day)}
@@ -797,7 +813,7 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
         </View>
       </View>
       
-      {/* Footer with Terms + QR + Disclaimer - All atomic */}
+      {/* Footer with Terms + QR + Disclaimer - All atomic, must stay together */}
       <View style={styles.footer}>
         <View style={styles.footerLeft}>
           <Text style={styles.termsTitle}>Terms & Conditions</Text>
@@ -810,7 +826,7 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
           <View style={styles.signatureLine}>
             <Text>Authorized Signature</Text>
           </View>
-          {/* Disclaimer - Inline with footer to prevent orphan page */}
+          {/* Disclaimer inline with footer */}
           <Text style={styles.disclaimer}>
             This is a system-generated invoice
           </Text>
@@ -818,18 +834,19 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
         
         {upiPaymentString && (
           <View style={styles.footerRight}>
-            <Text style={styles.qrLabel}>Scan & Pay</Text>
-            <View style={styles.qrContainer}>
+            {/* Single atomic payment block - ALL content must stay together */}
+            <View style={styles.paymentBlock}>
+              <Text style={styles.qrLabel}>Scan & Pay</Text>
               {qrCodeDataUrl ? (
-                <Image src={qrCodeDataUrl} style={styles.qrImage} />
-              ) : (
-                <Text style={{ fontSize: 6, color: "#9ca3af" }}>QR Code</Text>
-              )}
+                <View style={styles.qrContainer}>
+                  <Image src={qrCodeDataUrl} style={styles.qrImage} />
+                </View>
+              ) : null}
+              {/* Put UPI and Amount on same line to save space and prevent splitting */}
+              <Text style={styles.qrInfo}>
+                UPI: {user?.upi_id || "N/A"} | Amount: {formatRs(order.total_amount)}
+              </Text>
             </View>
-            <Text style={styles.qrInfo}>UPI: {user?.upi_id || "N/A"}</Text>
-            <Text style={styles.qrInfo}>
-              Amount: {formatRs(order.total_amount)}
-            </Text>
           </View>
         )}
       </View>
@@ -867,7 +884,6 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
                   <Text style={[styles.tableHeaderText, styles.cellSlNo]}>Sl. No.</Text>
                   <Text style={[styles.tableHeaderText, styles.cellPhoto]}>Photo</Text>
                   <Text style={[styles.tableHeaderText, styles.cellName]}>Product Name</Text>
-                  <Text style={[styles.tableHeaderText, styles.cellDays]}>Days</Text>
                   <Text style={[styles.tableHeaderText, styles.cellQty]}>Qty</Text>
                   <Text style={[styles.tableHeaderText, styles.cellPrice]}>Per Day Price</Text>
                   <Text style={[styles.tableHeaderText, styles.cellTotal]}>Total</Text>

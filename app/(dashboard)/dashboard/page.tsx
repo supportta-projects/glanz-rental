@@ -1,6 +1,5 @@
 "use client";
 
-// Force dynamic for realtime (as per requirements)
 export const dynamic = 'force-dynamic';
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
@@ -20,7 +19,9 @@ import {
   Package,
   Users,
   TrendingUp,
-  ArrowRight
+  ArrowRight,
+  Sparkles,
+  Zap
 } from "lucide-react";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { useDashboardStats, useRecentOrders } from "@/lib/queries/dashboard";
@@ -38,7 +39,7 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   
   const [dateRange, setDateRange] = useState<DateRange>({
-    start: subDays(startOfToday(), 365 * 2), // 2 years ago
+    start: subDays(startOfToday(), 365 * 2),
     end: endOfToday(),
     option: "alltime",
   });
@@ -53,7 +54,6 @@ export default function DashboardPage() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Memoized refresh handler
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await Promise.all([
@@ -63,7 +63,6 @@ export default function DashboardPage() {
     setTimeout(() => setIsRefreshing(false), 500);
   }, [queryClient]);
 
-  // Simple pull to refresh - only triggers on actual pull, doesn't block scrolling
   useEffect(() => {
     if (typeof window === "undefined") return;
     
@@ -80,7 +79,6 @@ export default function DashboardPage() {
       touchEndY = e.changedTouches[0].clientY;
       const pullDistance = touchEndY - touchStartY;
 
-      // Only refresh if pulled down more than 100px from the very top
       if (pullDistance > 100 && window.scrollY === 0) {
         handleRefresh();
       }
@@ -95,7 +93,6 @@ export default function DashboardPage() {
     };
   }, [handleRefresh]);
 
-  // Show different dashboard based on role
   const isSuperAdmin = user?.role === "super_admin";
   const isBranchAdmin = user?.role === "branch_admin";
 
@@ -111,22 +108,30 @@ export default function DashboardPage() {
 
   return (
     <RouteGuard allowedRoles={["super_admin", "branch_admin"]}>
-      <div className="min-h-screen bg-[#f7f9fb] pb-24">
-        <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-[#f7f9fb] via-white to-[#f7f9fb] pb-24">
+        {/* Premium Background Pattern */}
+        <div className="fixed inset-0 -z-10 opacity-30">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(39,52,146,0.05),transparent_50%)]" />
+        </div>
+
+        <div className="p-4 md:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto relative">
           {/* Pull to Refresh Indicator */}
           {isRefreshing && (
-            <div className="flex justify-center py-2">
+            <div className="flex justify-center py-2 animate-fade-in">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#273492]" />
             </div>
           )}
 
-          {/* Modern Header - Shopify-like */}
-          <div className="flex items-center justify-between flex-wrap gap-4 pb-6 border-b border-gray-200">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">
-                {isSuperAdmin ? "Dashboard" : isBranchAdmin ? "Dashboard" : "Dashboard"}
-              </h1>
-              <p className="text-sm text-gray-500">
+          {/* Premium Modern Header - Shopify/Flipkart Style */}
+          <div className="flex items-center justify-between flex-wrap gap-4 pb-6 border-b border-gray-200/60">
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 via-[#273492] to-gray-900 bg-clip-text text-transparent">
+                  Dashboard
+                </h1>
+                <Sparkles className="h-6 w-6 text-[#273492] animate-pulse" />
+              </div>
+              <p className="text-sm md:text-base text-gray-500 font-medium">
                 {isSuperAdmin 
                   ? "Complete overview of all branches and operations" 
                   : isBranchAdmin 
@@ -134,248 +139,239 @@ export default function DashboardPage() {
                   : "Real-time overview of your rental business"}
               </p>
             </div>
-            <DateRangePicker value={dateRange} onChange={setDateRange} />
+            <div className="flex items-center gap-3">
+              <DateRangePicker value={dateRange} onChange={setDateRange} />
+            </div>
           </div>
 
           {/* Error Display */}
           {statsError && (
-            <Card className="p-4 bg-red-50 border-red-200">
+            <Card className="p-4 bg-red-50 border-red-200 animate-fade-in">
               <p className="text-red-800 text-sm font-medium mb-1">Error loading dashboard statistics</p>
               <p className="text-red-600 text-xs">{statsError.message || "Please refresh the page"}</p>
             </Card>
           )}
           {!user?.branch_id && (
-            <Card className="p-4 bg-yellow-50 border-yellow-200">
+            <Card className="p-4 bg-yellow-50 border-yellow-200 animate-fade-in">
               <p className="text-yellow-800 text-sm">No branch assigned. Please contact your administrator.</p>
             </Card>
           )}
-          {!statsLoading && !stats && !statsError && (
-            <Card className="p-4 bg-gray-50 border-gray-200">
-              <p className="text-gray-600 text-sm">No data available. Please check your database connection.</p>
-            </Card>
-          )}
 
-          {/* Operational Overview - Clean Design */}
-          <div className="space-y-4">
+          {/* Operational Overview - Premium Cards */}
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Operational Overview</h2>
-              <span className="text-xs text-gray-500 font-medium">{getDateRangeLabel()}</span>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Zap className="h-5 w-5 text-[#273492]" />
+                Operational Overview
+              </h2>
+              <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                {getDateRangeLabel()}
+              </span>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Scheduled Orders */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
               {statsLoading ? (
-                <Skeleton className="h-28 rounded-lg" />
+                <>
+                  {[...Array(4)].map((_, i) => (
+                    <Skeleton key={i} className="h-36 rounded-xl shimmer-premium" />
+                  ))}
+                </>
               ) : (
-                <StatCard
-                  title={
-                    dateRange.option === "alltime" || dateRange.option === "clear"
+                <>
+                  <StatCard
+                    title={dateRange.option === "alltime" || dateRange.option === "clear"
                       ? "Scheduled Orders"
                       : dateRange.option === "today"
                       ? "Scheduled Today"
-                      : dateRange.option === "yesterday"
-                      ? "Scheduled Yesterday"
-                      : dateRange.option === "tomorrow"
-                      ? "Scheduled Tomorrow"
-                      : dateRange.option === "thisweek"
-                      ? "Scheduled This Week"
-                      : dateRange.option === "thismonth"
-                      ? "Scheduled This Month"
-                      : "Scheduled Orders"
-                  }
-                  value={stats?.scheduled_today || 0}
-                  icon={Calendar}
-                  variant="primary"
-                  href={`/orders?status=scheduled&dateOption=${dateRange.option}`}
-                  blinking={(stats?.scheduled_today || 0) > 0}
-                />
-              )}
-
-              {/* Ongoing Rentals */}
-              {statsLoading ? (
-                <Skeleton className="h-28 rounded-lg" />
-              ) : (
-                <StatCard
-                  title="Ongoing Rentals"
-                  value={stats?.ongoing || 0}
-                  icon={ShoppingBag}
-                  variant="success"
-                  href={`/orders?status=active&dateOption=${dateRange.option}`}
-                />
-              )}
-
-              {/* Late Returns */}
-              {statsLoading ? (
-                <Skeleton className="h-28 rounded-lg" />
-              ) : (
-                <StatCard
-                  title="Late Returns"
-                  value={stats?.late_returns || 0}
-                  icon={AlertCircle}
-                  variant="danger"
-                  href={`/orders?status=late&dateOption=${dateRange.option}`}
-                  blinking={(stats?.late_returns || 0) > 0}
-                />
-              )}
-
-              {/* Partial Returns */}
-              {statsLoading ? (
-                <Skeleton className="h-28 rounded-lg" />
-              ) : (
-                <StatCard
-                  title="Partial Returns"
-                  value={stats?.partial_returns || 0}
-                  icon={Package}
-                  variant="warning"
-                  href={`/orders?status=partially_returned&dateOption=${dateRange.option}`}
-                  blinking={(stats?.partial_returns || 0) > 0}
-                />
+                      : "Scheduled Orders"}
+                    value={stats?.scheduled_today || 0}
+                    icon={Calendar}
+                    variant="primary"
+                    href={`/orders?status=scheduled&dateOption=${dateRange.option}`}
+                    blinking={(stats?.scheduled_today || 0) > 0}
+                    index={0}
+                  />
+                  <StatCard
+                    title="Ongoing Rentals"
+                    value={stats?.ongoing || 0}
+                    icon={ShoppingBag}
+                    variant="success"
+                    href={`/orders?status=active&dateOption=${dateRange.option}`}
+                    index={1}
+                  />
+                  <StatCard
+                    title="Late Returns"
+                    value={stats?.late_returns || 0}
+                    icon={AlertCircle}
+                    variant="danger"
+                    href={`/orders?status=late&dateOption=${dateRange.option}`}
+                    blinking={(stats?.late_returns || 0) > 0}
+                    index={2}
+                  />
+                  <StatCard
+                    title="Partial Returns"
+                    value={stats?.partial_returns || 0}
+                    icon={Package}
+                    variant="warning"
+                    href={`/orders?status=partially_returned&dateOption=${dateRange.option}`}
+                    blinking={(stats?.partial_returns || 0) > 0}
+                    index={3}
+                  />
+                </>
               )}
             </div>
           </div>
 
-          {/* Business Metrics - Clean Design */}
-          <div className="space-y-4">
+          {/* Business Metrics - Premium Cards */}
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Business Metrics</h2>
-              <span className="text-xs text-gray-500 font-medium">{getDateRangeLabel()}</span>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-[#273492]" />
+                Business Metrics
+              </h2>
+              <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                {getDateRangeLabel()}
+              </span>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Total Orders */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
               {statsLoading ? (
-                <Skeleton className="h-28 rounded-lg" />
+                <>
+                  {[...Array(4)].map((_, i) => (
+                    <Skeleton key={i} className="h-36 rounded-xl shimmer-premium" />
+                  ))}
+                </>
               ) : (
-                <StatCard
-                  title="Total Orders"
-                  value={stats?.total_orders || 0}
-                  icon={ShoppingBag}
-                  variant="default"
-                  href={`/orders?dateOption=${dateRange.option}`}
-                />
-              )}
-
-              {/* Total Completed */}
-              {statsLoading ? (
-                <Skeleton className="h-28 rounded-lg" />
-              ) : (
-                <StatCard
-                  title="Total Completed"
-                  value={stats?.total_completed || 0}
-                  icon={CheckCircle}
-                  variant="success"
-                  href={`/orders?status=completed&dateOption=${dateRange.option}`}
-                />
-              )}
-
-              {/* Total Revenue */}
-              {statsLoading ? (
-                <Skeleton className="h-28 rounded-lg" />
-              ) : (
-                <StatCard
-                  title="Total Revenue"
-                  value={formatCurrencyCompact(stats?.total_revenue || 0)}
-                  icon={IndianRupee}
-                  variant="primary"
-                />
-              )}
-
-              {/* Total Customers */}
-              {statsLoading ? (
-                <Skeleton className="h-28 rounded-lg" />
-              ) : (
-                <StatCard
-                  title="Total Customers"
-                  value={stats?.total_customers || 0}
-                  icon={Users}
-                  variant="default"
-                  href="/customers"
-                />
+                <>
+                  <StatCard
+                    title="Total Orders"
+                    value={stats?.total_orders || 0}
+                    icon={ShoppingBag}
+                    variant="default"
+                    href={`/orders?dateOption=${dateRange.option}`}
+                    index={4}
+                  />
+                  <StatCard
+                    title="Total Completed"
+                    value={stats?.total_completed || 0}
+                    icon={CheckCircle}
+                    variant="success"
+                    href={`/orders?status=completed&dateOption=${dateRange.option}`}
+                    index={5}
+                  />
+                  <StatCard
+                    title="Total Revenue"
+                    value={formatCurrencyCompact(stats?.total_revenue || 0)}
+                    icon={IndianRupee}
+                    variant="primary"
+                    index={6}
+                  />
+                  <StatCard
+                    title="Total Customers"
+                    value={stats?.total_customers || 0}
+                    icon={Users}
+                    variant="default"
+                    href="/customers"
+                    index={7}
+                  />
+                </>
               )}
             </div>
           </div>
 
-          {/* Today's Activity - Clean Design */}
-          <div className="space-y-4">
+          {/* Today's Activity - Premium Cards */}
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Today's Activity</h2>
-              <span className="text-xs text-gray-500 font-medium">Today</span>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Clock className="h-5 w-5 text-[#273492]" />
+                Today's Activity
+              </h2>
+              <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                Today
+              </span>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Today's Collection */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {statsLoading ? (
-                <Skeleton className="h-28 rounded-lg" />
+                <>
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-36 rounded-xl shimmer-premium" />
+                  ))}
+                </>
               ) : (
-                <StatCard
-                  title="Today's Collection"
-                  value={formatCurrencyCompact(stats?.today_collection || 0)}
-                  icon={IndianRupee}
-                  variant="primary"
-                  badge="Today"
-                />
-              )}
-
-              {/* Today's Completed */}
-              {statsLoading ? (
-                <Skeleton className="h-28 rounded-lg" />
-              ) : (
-                <StatCard
-                  title="Today's Completed"
-                  value={stats?.today_completed || 0}
-                  icon={CheckCircle}
-                  variant="success"
-                  badge="Today"
-                />
-              )}
-
-              {/* Today's New Orders */}
-              {statsLoading ? (
-                <Skeleton className="h-28 rounded-lg" />
-              ) : (
-                <StatCard
-                  title="Today's New Orders"
-                  value={stats?.today_new_orders || 0}
-                  icon={Plus}
-                  variant="primary"
-                  badge="Today"
-                />
+                <>
+                  <StatCard
+                    title="Today's Collection"
+                    value={formatCurrencyCompact(stats?.today_collection || 0)}
+                    icon={IndianRupee}
+                    variant="primary"
+                    badge="Today"
+                    index={8}
+                  />
+                  <StatCard
+                    title="Today's Completed"
+                    value={stats?.today_completed || 0}
+                    icon={CheckCircle}
+                    variant="success"
+                    badge="Today"
+                    index={9}
+                  />
+                  <StatCard
+                    title="Today's New Orders"
+                    value={stats?.today_new_orders || 0}
+                    icon={Plus}
+                    variant="primary"
+                    badge="Today"
+                    index={10}
+                  />
+                </>
               )}
             </div>
           </div>
 
-          {/* Quick Actions - Modern Design */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link href="/orders/new" className="flex-1">
-              <Button variant="default" size="default" className="w-full h-11">
-                <Plus className="h-4 w-4 mr-2" />
+          {/* Quick Actions - Premium Design */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Link href="/orders/new" className="flex-1 group">
+              <Button 
+                variant="default" 
+                size="lg" 
+                className="w-full h-14 text-base font-semibold premium-hover bg-gradient-to-r from-[#273492] to-[#1f2a7a] hover:from-[#1f2a7a] hover:to-[#273492] shadow-lg hover:shadow-xl"
+              >
+                <Plus className="h-5 w-5 mr-2 group-hover:rotate-90 transition-transform duration-300" />
                 New Order
               </Button>
             </Link>
-            <Link href="/orders" className="flex-1">
+            <Link href="/orders" className="flex-1 group">
               <Button
                 variant="outline"
-                size="default"
-                className="w-full h-11"
+                size="lg"
+                className="w-full h-14 text-base font-semibold premium-hover border-2 hover:border-[#273492] hover:bg-[#273492]/5"
               >
                 View All Orders
-                <ArrowRight className="h-4 w-4 ml-2" />
+                <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
               </Button>
             </Link>
           </div>
 
-          {/* Recent Activity - Clean Design */}
-          <div className="space-y-4">
+          {/* Recent Activity - Premium Design */}
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-              <Link href="/orders" className="text-xs font-medium text-[#273492] hover:text-[#1f2a7a] transition-colors">
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Clock className="h-5 w-5 text-[#273492]" />
+                Recent Activity
+              </h2>
+              <Link 
+                href="/orders" 
+                className="text-sm font-semibold text-[#273492] hover:text-[#1f2a7a] transition-colors flex items-center gap-1 group"
+              >
                 View all
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
               </Link>
             </div>
             {ordersLoading ? (
               <div className="space-y-3">
                 {[...Array(4)].map((_, i) => (
-                  <Skeleton key={i} className="h-20 rounded-lg" />
+                  <Skeleton key={i} className="h-24 rounded-xl shimmer-premium" />
                 ))}
               </div>
             ) : (
@@ -383,10 +379,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Floating Action Button - Mobile Only */}
           <FloatingActionButton href="/orders/new" />
-          
-          {/* Scroll to Top Button - Mobile Only */}
           <ScrollToTop />
         </div>
       </div>
