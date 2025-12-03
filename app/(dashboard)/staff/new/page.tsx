@@ -9,13 +9,14 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectItem } from "@/components/ui/select";
 import { ArrowLeft, UserCog, Eye, EyeOff } from "lucide-react";
 import { useCreateStaff } from "@/lib/queries/staff";
-import { useBranches } from "@/lib/queries/branches";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { useToast } from "@/components/ui/toast";
 import Link from "next/link";
 import type { UserRole } from "@/lib/types";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { PageNavbar } from "@/components/layout/page-navbar";
+import { useBranches } from "@/lib/queries/branches";
+import { useEffect } from "react";
 
 export default function NewStaffPage() {
   const router = useRouter();
@@ -29,22 +30,27 @@ export default function NewStaffPage() {
     password: "",
     confirmPassword: "",
     full_name: "",
-    phone: "",
     role: "staff" as UserRole,
-    branch_id: user?.branch_id || "",
-    username: "",
+    branch_id: "", // Add branch_id to state
   });
+
+  // Initialize branch_id for branch_admin
+  useEffect(() => {
+    if (user?.branch_id && !formData.branch_id && user.role === "branch_admin") {
+      setFormData(prev => ({ ...prev, branch_id: user.branch_id || "" }));
+    }
+  }, [user?.branch_id, user?.role]);
+
+  // Filter available branches based on user role
+  const availableBranches = branches?.filter((branch) => {
+    if (user?.role === "super_admin") return true; // Super admin can select any branch
+    if (user?.role === "branch_admin") return branch.id === user.branch_id; // Branch admin can only select own branch
+    return false;
+  }) || [];
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // Filter branches based on user role
-  const availableBranches = branches?.filter((branch) => {
-    if (user?.role === "super_admin") return true;
-    if (user?.role === "branch_admin") return branch.id === user.branch_id;
-    return false;
-  }) || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,32 +88,21 @@ export default function NewStaffPage() {
         return;
       }
 
-      if (!formData.phone.trim()) {
-        showToast("Phone number is required", "error");
-        setLoading(false);
-        return;
-      }
-
       if (!formData.branch_id) {
-        showToast("Please select a branch", "error");
+        showToast("Branch selection is required", "error");
         setLoading(false);
         return;
       }
 
-      if (!formData.username.trim()) {
-        showToast("Username is required", "error");
-        setLoading(false);
-        return;
-      }
-
+      // Use selected role and branch from form
       await createStaffMutation.mutateAsync({
         email: formData.email.trim(),
         password: formData.password,
         full_name: formData.full_name.trim(),
-        phone: formData.phone.trim(),
+        phone: "", // Not required
         role: formData.role,
-        branch_id: formData.branch_id,
-        username: formData.username.trim(),
+        branch_id: formData.branch_id, // Use selected branch
+        username: formData.email.trim(), // Use email as username
       });
 
       showToast("Staff member created successfully!", "success");
@@ -154,22 +149,6 @@ export default function NewStaffPage() {
                 placeholder="staff@example.com"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="h-12"
-                required
-              />
-            </div>
-
-            {/* Username */}
-            <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-semibold">
-                Username <span className="text-[#e7342f]">*</span>
-              </Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="Enter username"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 className="h-12"
                 required
               />
@@ -250,47 +229,7 @@ export default function NewStaffPage() {
               />
             </div>
 
-            {/* Phone */}
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="text-sm font-semibold">
-                Phone Number <span className="text-[#e7342f]">*</span>
-              </Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+91 98765 43210"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="h-12"
-                required
-              />
-            </div>
-
-            {/* Branch */}
-            <div className="space-y-2">
-              <Label htmlFor="branch_id" className="text-sm font-semibold">
-                Branch <span className="text-[#e7342f]">*</span>
-              </Label>
-              <Select
-                value={formData.branch_id}
-                onChange={(e) => setFormData({ ...formData, branch_id: e.target.value })}
-                disabled={branchesLoading || availableBranches.length === 0}
-              >
-                <SelectItem value="">Select a branch</SelectItem>
-                {availableBranches.map((branch) => (
-                  <SelectItem key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </SelectItem>
-                ))}
-              </Select>
-              {availableBranches.length === 0 && !branchesLoading && (
-                <p className="text-xs text-gray-500 mt-1">
-                  No branches available. Please create a branch first.
-                </p>
-              )}
-            </div>
-
-            {/* Role */}
+            {/* Role - Only super_admin can select branch_admin */}
             <div className="space-y-2">
               <Label htmlFor="role" className="text-sm font-semibold">
                 Role <span className="text-[#e7342f]">*</span>
@@ -310,6 +249,41 @@ export default function NewStaffPage() {
                   <SelectItem value="staff">Staff</SelectItem>
                 )}
               </Select>
+              {user?.role === "branch_admin" && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Branch admins can only create staff members.
+                </p>
+              )}
+            </div>
+
+            {/* Branch - Required, filtered by user role */}
+            <div className="space-y-2">
+              <Label htmlFor="branch_id" className="text-sm font-semibold">
+                Branch <span className="text-[#e7342f]">*</span>
+              </Label>
+              <Select
+                value={formData.branch_id}
+                onChange={(e) => setFormData({ ...formData, branch_id: e.target.value })}
+                disabled={branchesLoading || availableBranches.length === 0 || (user?.role === "branch_admin")}
+                required
+              >
+                <SelectItem value="">Select a branch</SelectItem>
+                {availableBranches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </Select>
+              {user?.role === "branch_admin" && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Branch admins can only create staff for their own branch.
+                </p>
+              )}
+              {availableBranches.length === 0 && !branchesLoading && (
+                <p className="text-xs text-red-500 mt-1">
+                  No branches available. Please create a branch first.
+                </p>
+              )}
             </div>
 
             {/* Actions */}
@@ -327,7 +301,7 @@ export default function NewStaffPage() {
                 type="submit"
                 variant="default"
                 className="flex-1"
-                disabled={loading || branchesLoading || availableBranches.length === 0}
+                disabled={loading || !formData.branch_id}
                 loading={loading}
               >
                 {loading ? "Creating..." : "Create Staff"}

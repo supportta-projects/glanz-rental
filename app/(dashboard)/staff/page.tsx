@@ -1,10 +1,10 @@
 "use client";
 
 import { useUserStore } from "@/lib/stores/useUserStore";
-import { UserCog, User, Phone, Building2, ToggleLeft, ToggleRight, Shield, Mail, Clock } from "lucide-react";
+import { UserCog, User, Phone, Building2, ToggleLeft, ToggleRight, Shield, Mail, Clock, Trash2 } from "lucide-react";
 import { PageHeader, EmptyState, ActionButton, LoadingState, ErrorState } from "@/components/shared";
 import { FloatingActionButton } from "@/components/layout/floating-action-button";
-import { useStaff, useUpdateStaff } from "@/lib/queries/staff";
+import { useStaff, useUpdateStaff, useDeleteStaff } from "@/lib/queries/staff";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ export default function StaffPage() {
   const branchId = user?.role === "super_admin" ? null : user?.branch_id || null;
   const { data: staff, isLoading, error } = useStaff(branchId);
   const updateStaffMutation = useUpdateStaff();
+  const deleteStaffMutation = useDeleteStaff();
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -74,6 +75,26 @@ export default function StaffPage() {
     }
   };
 
+  const handleDeleteStaff = async (staffId: string, memberName: string, memberRole: string) => {
+    // Prevent deleting super admin
+    if (memberRole === "super_admin") {
+      showToast("Super admin accounts cannot be deleted", "error");
+      return;
+    }
+
+    // Confirm deletion
+    if (!confirm(`Are you sure you want to delete ${memberName}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteStaffMutation.mutateAsync(staffId);
+      showToast("Staff member deleted successfully", "success");
+    } catch (error: any) {
+      showToast(error.message || "Failed to delete staff member", "error");
+    }
+  };
+
   return (
     <RouteGuard allowedRoles={["super_admin", "branch_admin"]} redirectTo="/orders">
       <div className="min-h-screen bg-[#f7f9fb] pb-24">
@@ -105,6 +126,7 @@ export default function StaffPage() {
               const isActive = member.is_active === undefined || member.is_active === null ? true : member.is_active;
               const isSuperAdmin = user?.role === "super_admin";
               const canToggleActive = isSuperAdmin && member.role !== "super_admin"; // Only super admin can toggle, but not for super admin accounts
+              const canDelete = isSuperAdmin && member.role !== "super_admin"; // Only super admin can delete, but not super admin accounts
               const RoleIcon = getRoleIcon(member.role);
               
               return (
@@ -200,7 +222,7 @@ export default function StaffPage() {
 
                     {/* Status & Actions */}
                     <div className="pt-4 border-t border-gray-200">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-3">
                         {/* Status Badge */}
                         <div className="flex items-center gap-2">
                           <div className={`h-2 w-2 rounded-full ${
@@ -213,41 +235,63 @@ export default function StaffPage() {
                           </span>
                         </div>
 
-                        {/* Toggle Button - Only for super admin, and not for super admin accounts */}
-                        {canToggleActive && (
-                          <button
-                            onClick={() => handleToggleActive(member.id, isActive, member.role)}
-                            disabled={updateStaffMutation.isPending}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm hover:shadow-md active:scale-[0.97] ${
-                              isActive
-                                ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
-                                : "bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200"
-                            } disabled:opacity-50 disabled:cursor-not-allowed`}
-                            title={isActive ? "Click to deactivate" : "Click to activate"}
-                          >
-                            {updateStaffMutation.isPending ? (
-                              <div className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent" />
-                            ) : isActive ? (
-                              <>
-                                <ToggleRight className="h-3.5 w-3.5" />
-                                <span>Deactivate</span>
-                              </>
-                            ) : (
-                              <>
-                                <ToggleLeft className="h-3.5 w-3.5" />
-                                <span>Activate</span>
-                              </>
-                            )}
-                          </button>
-                        )}
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2">
+                          {/* Toggle Button - Only for super admin, and not for super admin accounts */}
+                          {canToggleActive && (
+                            <button
+                              onClick={() => handleToggleActive(member.id, isActive, member.role)}
+                              disabled={updateStaffMutation.isPending || deleteStaffMutation.isPending}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm hover:shadow-md active:scale-[0.97] ${
+                                isActive
+                                  ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
+                                  : "bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200"
+                              } disabled:opacity-50 disabled:cursor-not-allowed`}
+                              title={isActive ? "Click to deactivate" : "Click to activate"}
+                            >
+                              {updateStaffMutation.isPending ? (
+                                <div className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent" />
+                              ) : isActive ? (
+                                <>
+                                  <ToggleRight className="h-3.5 w-3.5" />
+                                  <span>Deactivate</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ToggleLeft className="h-3.5 w-3.5" />
+                                  <span>Activate</span>
+                                </>
+                              )}
+                            </button>
+                          )}
 
-                        {/* Super Admin Indicator */}
-                        {member.role === "super_admin" && (
-                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 border border-purple-200 rounded-lg">
-                            <Shield className="h-3 w-3 text-purple-600" />
-                            <span className="text-xs font-medium text-purple-700">Protected</span>
-                          </div>
-                        )}
+                          {/* Delete Button - Only for super admin, and not for super admin accounts */}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDeleteStaff(member.id, member.full_name, member.role)}
+                              disabled={updateStaffMutation.isPending || deleteStaffMutation.isPending}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm hover:shadow-md active:scale-[0.97] bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Delete staff member"
+                            >
+                              {deleteStaffMutation.isPending ? (
+                                <div className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent" />
+                              ) : (
+                                <>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <span>Delete</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+
+                          {/* Super Admin Indicator */}
+                          {member.role === "super_admin" && (
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 border border-purple-200 rounded-lg">
+                              <Shield className="h-3 w-3 text-purple-600" />
+                              <span className="text-xs font-medium text-purple-700">Protected</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Inactive Warning */}

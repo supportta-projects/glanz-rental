@@ -108,3 +108,28 @@ export function useUpdateStaff() {
   });
 }
 
+export function useDeleteStaff() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (staffId: string) => {
+      // Use API route that has service role access
+      const response = await fetch("/api/staff/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ staffId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete staff member");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["staff"] });
+    },
+  });
+}
+

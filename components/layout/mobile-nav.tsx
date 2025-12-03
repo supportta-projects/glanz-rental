@@ -3,17 +3,24 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Home, ShoppingCart, Users, BarChart3, User } from "lucide-react";
+import { Home, FileText, Users, Calendar, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useUserStore } from "@/lib/stores/useUserStore";
 
-const navItems = [
-  { href: "/dashboard", icon: Home, label: "Dashboard" },
-  { href: "/orders", icon: ShoppingCart, label: "Orders" },
+// Base menu items - available to all roles
+const baseMenuItems = [
+  { href: "/orders", icon: FileText, label: "Orders" },
+  { href: "/calendar", icon: Calendar, label: "Calendar" },
   { href: "/customers", icon: Users, label: "Customers" },
-  { href: "/reports", icon: BarChart3, label: "Reports" },
-  { href: "/profile", icon: User, label: "Profile" },
 ];
+
+// Dashboard - only for super_admin and branch_admin
+const dashboardMenuItem = {
+  href: "/dashboard",
+  icon: Home,
+  label: "Dashboard",
+  roles: ["super_admin", "branch_admin"] as const,
+};
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -45,10 +52,26 @@ export function MobileNav() {
     }
   };
 
+  // Build menu items based on user role
+  const menuItems = [];
+  
+  // Add dashboard if user has access
+  if (user?.role === "super_admin" || user?.role === "branch_admin") {
+    menuItems.push(dashboardMenuItem);
+  }
+  
+  // Add base menu items (Orders, Calendar, Customers)
+  menuItems.push(...baseMenuItems);
+  
+  // Add Profile only for super admin
+  if (user?.role === "super_admin") {
+    menuItems.push({ href: "/profile", icon: UserCircle, label: "Profile" });
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 md:hidden safe-bottom">
       <div className="flex items-center justify-around h-16">
-        {navItems.map((item) => {
+        {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           

@@ -49,6 +49,13 @@ export default function LoginPage() {
       // Type assertion for profile data
       const profile = profileData as any;
 
+      // Check if staff is disabled - block login
+      if (profile.is_active === false) {
+        // Sign out the user immediately
+        await supabase.auth.signOut();
+        throw new Error("Your account has been disabled. Please contact your administrator.");
+      }
+
       // Set user in store
       setUser({
         id: profile.id,
@@ -66,7 +73,13 @@ export default function LoginPage() {
       });
 
       showToast("Login successful!", "success");
-      router.push("/dashboard");
+      
+      // Redirect based on role: staff goes to orders, others to dashboard
+      if (profile.role === "staff") {
+        router.push("/orders");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (error: any) {
       showToast(error.message || "Login failed", "error");
     } finally {

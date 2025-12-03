@@ -510,18 +510,18 @@ export function useUpdateOrder() {
 
       if (itemsError) throw itemsError;
 
-      // Log timeline event: Order Edited
-      const changeDescription = changes.length > 0 
-        ? `Changed: ${changes.join(", ")}. Items: ${orderData.items.length} item${orderData.items.length !== 1 ? 's' : ''}`
-        : `Items updated: ${orderData.items.length} item${orderData.items.length !== 1 ? 's' : ''}`;
-      
-      await logTimelineEvent(supabase, {
-        orderId: orderData.orderId,
-        action: "order_edited",
-        userId: authUser.id,
-        previousStatus: currentOrder?.status,
-        notes: changeDescription,
-      });
+      // Log ONE timeline event: Order Edited with all changes combined
+      if (changes.length > 0) {
+        const changeDescription = `Changed: ${changes.join(", ")}. Items: ${orderData.items.length} item${orderData.items.length !== 1 ? 's' : ''}`;
+        
+        await logTimelineEvent(supabase, {
+          orderId: orderData.orderId,
+          action: "order_edited",
+          userId: authUser.id,
+          previousStatus: currentOrder?.status,
+          notes: changeDescription,
+        });
+      }
 
       return order;
     },
@@ -976,8 +976,55 @@ export function useProcessOrderReturn() {
         queryClient.setQueryData(["order", variables.orderId], context.previousOrder);
       }
     },
-    // On success, invalidate to ensure consistency (background refetch)
-    onSuccess: (_, variables) => {
+    // On success, log SINGLE timeline event and invalidate queries
+    onSuccess: async (_, variables) => {
+      // Get current authenticated user for timeline logging
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        // Calculate counts for timeline event
+        const returnedCount = variables.itemReturns.filter(
+          ir => ir.returnStatus === "returned"
+        ).length;
+        const revertedCount = variables.itemReturns.filter(
+          ir => ir.returnStatus === "not_yet_returned"
+        ).length;
+        const missingCount = variables.itemReturns.filter(
+          ir => ir.returnStatus === "missing"
+        ).length;
+        
+        // Determine action and notes for SINGLE timeline event
+        let action = "items_updated";
+        let notes = "";
+        
+        if (returnedCount > 0 && revertedCount > 0) {
+          notes = `${returnedCount} item(s) returned, ${revertedCount} item(s) reverted`;
+        } else if (returnedCount > 0 && missingCount === 0) {
+          action = returnedCount === variables.itemReturns.length 
+            ? "all_items_returned" 
+            : "partial_return";
+          notes = `${returnedCount} item(s) marked as returned`;
+        } else if (revertedCount > 0) {
+          action = "items_reverted";
+          notes = `${revertedCount} item(s) reverted to not returned`;
+        } else if (missingCount > 0) {
+          action = "items_marked_missing";
+          notes = `${missingCount} item(s) marked as missing`;
+        }
+        
+        const lateFee = variables.lateFee || 0;
+        if (lateFee > 0) {
+          notes += `. Late fee: Rs ${lateFee.toFixed(2)}`;
+        }
+        
+        // Log ONE timeline event for all changes
+        await logTimelineEvent(supabase, {
+          orderId: variables.orderId,
+          action,
+          userId: authUser.id,
+          notes: notes || "Items updated",
+        });
+      }
+      
       // Invalidate queries (will refetch in background, but UI already updated)
       queryClient.invalidateQueries({ queryKey: ["orders-infinite"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });

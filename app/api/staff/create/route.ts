@@ -41,15 +41,25 @@ export async function POST(request: NextRequest) {
   try {
     console.log("[API Route] POST /api/staff/create called");
     const body = await request.json();
-    const { email, password, full_name, phone, role, branch_id, username } = body;
+    
+    // Extract required fields
+    const email = body.email;
+    const password = body.password;
+    const full_name = body.full_name;
 
-    // Validation
-    if (!email || !password || !full_name || !phone || !role || !branch_id || !username) {
+    // Validation - only email, password, and full_name are required
+    if (!email || !password || !full_name) {
       return NextResponse.json(
-        { error: "All fields are required" },
+        { error: "Email, password, and full name are required" },
         { status: 400 }
       );
     }
+
+    // Auto-assign defaults if not provided - use explicit property access to avoid conflicts
+    const phone = body.phone || "";
+    const role = body.role || "staff";
+    const branchId = body.branch_id || "";
+    const username = body.username || email; // Use email as username if not provided
 
     console.log("[API Route] Attempting to get Supabase admin client...");
     const supabaseAdmin = getSupabaseAdmin();
@@ -95,9 +105,10 @@ export async function POST(request: NextRequest) {
           id: authData.user.id,
           username,
           role,
-          branch_id,
+          branch_id: branchId,
           full_name,
-          phone,
+          phone: phone || null, // Allow null phone
+          is_active: true, // Default to active
         },
       ])
       .select("*, branch:branches(*)")

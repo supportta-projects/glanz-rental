@@ -624,40 +624,18 @@ export default function OrdersPage() {
           </div>
           {/* Premium Search and Filters Bar */}
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            {/* Enhanced Search - Premium Shopify-style */}
-            <div className="relative flex-1 w-full md:max-w-2xl">
-              <div className="relative premium-hover">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none transition-colors duration-200 group-focus-within:text-[#273492]" />
+            {/* Premium Search Bar - Matching Customer Page */}
+            <div className="relative flex-1">
+              <div className="relative max-w-2xl">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 z-10" />
                 <Input
                   ref={searchInputRef}
                   type="text"
                   placeholder="Search orders, customers, invoice numbers..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 pr-12 h-12 w-full rounded-xl border-2 border-gray-200 bg-white/80 backdrop-blur-sm text-sm placeholder:text-gray-400 
-                             focus:border-[#273492] focus:ring-4 focus:ring-[#273492]/10 focus:outline-none 
-                             transition-all duration-300 shadow-sm hover:shadow-md hover:border-gray-300
-                             font-medium premium-hover"
+                  className="h-14 pl-12 pr-4 text-base rounded-xl border-2 focus:border-[#273492] focus:ring-2 focus:ring-[#273492]/20 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                 />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-gray-100 transition-all duration-200 
-                               focus:outline-none focus:ring-2 focus:ring-[#273492]/20 group"
-                    aria-label="Clear search"
-                    type="button"
-                  >
-                    <X className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-                  </button>
-                )}
-                {!searchQuery && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-300 bg-gray-50 text-xs font-mono text-gray-500 shadow-sm">
-                      <span className="text-[10px]">Ctrl</span>
-                      <span>K</span>
-                    </kbd>
-                  </div>
-                )}
               </div>
             </div>
 

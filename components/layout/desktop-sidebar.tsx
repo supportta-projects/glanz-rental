@@ -295,19 +295,22 @@ export function DesktopSidebar() {
 
       {/* Footer */}
       <div className="border-t border-gray-200 p-3 space-y-1">
-        <Link
-          href="/profile"
-          prefetch={true}
-          className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
-            pathname === "/profile"
-              ? "bg-gray-50 text-[#273492] font-medium"
-              : "text-gray-700 hover:bg-gray-50"
-          )}
-        >
-          <UserCircle className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
-          <span className="text-sm">Profile</span>
-        </Link>
+        {/* Profile - Only for super admin */}
+        {user?.role === "super_admin" && (
+          <Link
+            href="/profile"
+            prefetch={true}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+              pathname === "/profile"
+                ? "bg-gray-50 text-[#273492] font-medium"
+                : "text-gray-700 hover:bg-gray-50"
+            )}
+          >
+            <UserCircle className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
+            <span className="text-sm">Profile</span>
+          </Link>
+        )}
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#e7342f] hover:bg-[#e7342f]/10 transition-colors"
