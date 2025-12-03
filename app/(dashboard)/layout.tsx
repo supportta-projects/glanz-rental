@@ -76,7 +76,7 @@ export default function DashboardLayout({
       <DesktopSidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:ml-[250px] min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col md:ml-[260px] min-w-0 overflow-hidden">
         {/* Page Content - Scrollable with optimized rendering */}
         <main 
           data-scroll-container="true"

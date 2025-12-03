@@ -14,6 +14,7 @@ import {
   LogOut,
   Calendar,
   ChevronDown,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useUserStore } from "@/lib/stores/useUserStore";
@@ -73,20 +74,22 @@ function BranchSwitcher() {
   };
 
   return (
-    <div className="border-t border-gray-200 p-3">
+    <div className="border-t border-gray-200/60 p-4 bg-gradient-to-b from-transparent to-gray-50/50">
       <div className="relative">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-gray-700 hover:bg-white/80 transition-all duration-300 premium-hover backdrop-blur-sm border border-gray-200/50"
         >
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Building2 className="h-4 w-4 flex-shrink-0 text-gray-500" />
-            <span className="text-xs font-medium truncate">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-[#273492]/10 to-[#273492]/5">
+              <Building2 className="h-4 w-4 flex-shrink-0 text-[#273492]" />
+            </div>
+            <span className="text-xs font-semibold truncate">
               {currentBranch?.name || "No Branch"}
             </span>
           </div>
           <ChevronDown className={cn(
-            "h-4 w-4 flex-shrink-0 text-gray-500 transition-transform",
+            "h-4 w-4 flex-shrink-0 text-gray-500 transition-transform duration-300",
             isOpen && "rotate-180"
           )} />
         </button>
@@ -97,15 +100,15 @@ function BranchSwitcher() {
               className="fixed inset-0 z-40"
               onClick={() => setIsOpen(false)}
             />
-            <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto z-50">
-              <div className="p-1">
+            <div className="absolute bottom-full left-0 right-0 mb-2 bg-white/95 backdrop-blur-lg rounded-xl shadow-xl border border-gray-200/60 max-h-48 overflow-y-auto z-50 animate-fade-in">
+              <div className="p-1.5">
                 <button
                   onClick={() => handleBranchSwitch(null)}
                   className={cn(
-                    "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
+                    "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200",
                     !user?.branch_id
-                      ? "bg-[#273492]/10 text-[#273492] font-medium"
-                      : "text-gray-700 hover:bg-gray-50"
+                      ? "bg-gradient-to-r from-[#273492]/10 to-[#273492]/5 text-[#273492] font-semibold shadow-sm"
+                      : "text-gray-700 hover:bg-gray-50/80"
                   )}
                 >
                   All Branches
@@ -115,10 +118,10 @@ function BranchSwitcher() {
                     key={branch.id}
                     onClick={() => handleBranchSwitch(branch.id)}
                     className={cn(
-                      "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
+                      "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200",
                       user?.branch_id === branch.id
-                        ? "bg-[#273492]/10 text-[#273492] font-medium"
-                        : "text-gray-700 hover:bg-gray-50"
+                        ? "bg-gradient-to-r from-[#273492]/10 to-[#273492]/5 text-[#273492] font-semibold shadow-sm"
+                        : "text-gray-700 hover:bg-gray-50/80"
                     )}
                   >
                     {branch.name}
@@ -179,23 +182,26 @@ export function DesktopSidebar() {
   };
 
   return (
-    <aside className="hidden md:flex flex-col fixed left-0 top-0 h-screen w-[250px] bg-white border-r border-gray-200 z-30">
-      {/* Logo */}
-      <div className="h-16 border-b border-gray-200 flex items-center px-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+    <aside className="hidden md:flex flex-col fixed left-0 top-0 h-screen w-[260px] bg-white/95 backdrop-blur-lg border-r border-gray-200/60 z-30 shadow-xl sidebar-enter">
+      {/* Premium Logo Header */}
+      <div className="h-20 border-b border-gray-200/60 flex items-center px-5 bg-gradient-to-br from-white via-white to-gray-50/30">
+        <div className="flex items-center gap-3 group">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#273492]/10 to-[#273492]/5 border-2 border-[#273492]/20 transition-all duration-300 group-hover:scale-110 group-hover:border-[#273492]/40 premium-hover">
             <img 
               src="/glanz_logo.png" 
               alt="Glanz Logo" 
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain p-1.5"
             />
           </div>
-          <div className="font-bold text-[#273492] text-base">GLANZ RENTAL</div>
+          <div>
+            <div className="font-bold text-[#273492] text-base tracking-tight">GLANZ RENTAL</div>
+            <div className="text-xs text-gray-500 font-medium">Management System</div>
+          </div>
         </div>
       </div>
 
-      {/* Menu Items */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+      {/* Premium Menu Items */}
+      <nav className="flex-1 overflow-y-auto p-4 space-y-1.5 custom-scrollbar">
         {/* Dashboard - Only for super_admin and branch_admin */}
         {user?.role === "super_admin" || user?.role === "branch_admin" ? (
           (() => {
@@ -211,21 +217,33 @@ export function DesktopSidebar() {
                 onMouseEnter={() => handleLinkHover(dashboardMenuItem.href)}
                 onFocus={() => handleLinkHover(dashboardMenuItem.href)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                  "sidebar-link sidebar-menu-item flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative group",
                   isActive
-                    ? "bg-[#273492] text-white font-medium"
-                    : "text-gray-700 hover:bg-gray-50"
+                    ? "active text-white font-semibold !bg-gradient-to-r from-[#273492] to-[#1f2a7a]"
+                    : "text-gray-700 hover:text-[#273492]"
                 )}
+                style={{ animationDelay: "0.05s" }}
               >
-                <Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
-                <span className="text-sm">{dashboardMenuItem.label}</span>
+                <Icon
+                  className={cn(
+                    "sidebar-icon h-5 w-5 flex-shrink-0 transition-all duration-300",
+                    isActive ? "text-white" : "text-gray-500 group-hover:text-[#273492]"
+                  )}
+                  strokeWidth={isActive ? 2.5 : 2}
+                />
+                <span className="text-sm font-medium">{dashboardMenuItem.label}</span>
+                {isActive && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                    <Sparkles className="h-3 w-3 text-white/80 animate-pulse" />
+                  </div>
+                )}
               </Link>
             );
           })()
         ) : null}
 
         {/* Base menu items - available to all roles */}
-        {baseMenuItems.map((item) => {
+        {baseMenuItems.map((item, index) => {
           const Icon = item.icon;
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
@@ -238,14 +256,26 @@ export function DesktopSidebar() {
               onMouseEnter={() => handleLinkHover(item.href)}
               onFocus={() => handleLinkHover(item.href)}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                "sidebar-link sidebar-menu-item flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative group",
                 isActive
-                  ? "bg-[#273492] text-white font-medium"
-                  : "text-gray-700 hover:bg-gray-50"
+                  ? "active text-white font-semibold !bg-gradient-to-r from-[#273492] to-[#1f2a7a]"
+                  : "text-gray-700 hover:text-[#273492]"
               )}
+              style={{ animationDelay: `${(index + 1) * 0.05 + 0.1}s` }}
             >
-              <Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
-              <span className="text-sm">{item.label}</span>
+              <Icon
+                className={cn(
+                  "sidebar-icon h-5 w-5 flex-shrink-0 transition-all duration-300",
+                  isActive ? "text-white" : "text-gray-500 group-hover:text-[#273492]"
+                )}
+                strokeWidth={isActive ? 2.5 : 2}
+              />
+              <span className="text-sm font-medium">{item.label}</span>
+              {isActive && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <Sparkles className="h-3 w-3 text-white/80 animate-pulse" />
+                </div>
+              )}
             </Link>
           );
         })}
@@ -253,14 +283,14 @@ export function DesktopSidebar() {
         {/* Management Section */}
         {adminMenuItems.filter(canAccess).length > 0 && (
           <>
-            <div className="px-3 py-2 mt-4">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <div className="px-4 py-3 mt-6 mb-2">
+              <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
                 Management
               </div>
             </div>
             {adminMenuItems
               .filter(canAccess)
-              .map((item) => {
+              .map((item, index) => {
                 const Icon = item.icon;
                 const isActive =
                   pathname === item.href || pathname.startsWith(item.href + "/");
@@ -273,14 +303,26 @@ export function DesktopSidebar() {
                     onMouseEnter={() => handleLinkHover(item.href)}
                     onFocus={() => handleLinkHover(item.href)}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                      "sidebar-link sidebar-menu-item flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative group",
                       isActive
-                        ? "bg-[#273492] text-white font-medium"
-                        : "text-gray-700 hover:bg-gray-50"
+                        ? "active text-white font-semibold !bg-gradient-to-r from-[#273492] to-[#1f2a7a]"
+                        : "text-gray-700 hover:text-[#273492]"
                     )}
+                    style={{ animationDelay: `${(index + baseMenuItems.length + 1) * 0.05 + 0.25}s` }}
                   >
-                    <Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
-                    <span className="text-sm">{item.label}</span>
+                    <Icon
+                      className={cn(
+                        "sidebar-icon h-5 w-5 flex-shrink-0 transition-all duration-300",
+                        isActive ? "text-white" : "text-gray-500 group-hover:text-[#273492]"
+                      )}
+                      strokeWidth={isActive ? 2.5 : 2}
+                    />
+                    <span className="text-sm font-medium">{item.label}</span>
+                    {isActive && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                        <Sparkles className="h-3 w-3 text-white/80 animate-pulse" />
+                      </div>
+                    )}
                   </Link>
                 );
               })}
@@ -293,30 +335,32 @@ export function DesktopSidebar() {
         <BranchSwitcher />
       )}
 
-      {/* Footer */}
-      <div className="border-t border-gray-200 p-3 space-y-1">
+      {/* Premium Footer */}
+      <div className="border-t border-gray-200/60 p-4 space-y-1.5 bg-gradient-to-b from-transparent to-gray-50/30">
         {/* Profile - Only for super admin */}
         {user?.role === "super_admin" && (
           <Link
             href="/profile"
             prefetch={true}
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+              "sidebar-link sidebar-menu-item flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300",
               pathname === "/profile"
-                ? "bg-gray-50 text-[#273492] font-medium"
-                : "text-gray-700 hover:bg-gray-50"
+                ? "bg-gradient-to-r from-[#273492]/10 to-[#273492]/5 text-[#273492] font-semibold border border-[#273492]/20"
+                : "text-gray-700 hover:bg-gray-50/80 hover:text-[#273492]"
             )}
+            style={{ animationDelay: "0.45s" }}
           >
-            <UserCircle className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
-            <span className="text-sm">Profile</span>
+            <UserCircle className="h-5 w-5 flex-shrink-0" strokeWidth={2} />
+            <span className="text-sm font-medium">Profile</span>
           </Link>
         )}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#e7342f] hover:bg-[#e7342f]/10 transition-colors"
+          className="w-full sidebar-link sidebar-menu-item flex items-center gap-3 px-4 py-3 rounded-xl text-[#e7342f] hover:bg-[#e7342f]/10 transition-all duration-300 hover:translate-x-1"
+          style={{ animationDelay: "0.5s" }}
         >
-          <LogOut className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
-          <span className="text-sm">Logout</span>
+          <LogOut className="h-5 w-5 flex-shrink-0" strokeWidth={2} />
+          <span className="text-sm font-medium">Logout</span>
         </button>
       </div>
     </aside>

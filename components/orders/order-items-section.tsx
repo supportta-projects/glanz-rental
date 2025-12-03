@@ -46,6 +46,8 @@ export function OrderItemsSection({
   const itemsSectionRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [newItemIndex, setNewItemIndex] = useState<number | null>(null);
+  const lastPreviewItemIndexRef = useRef<number | null>(null); // Track which item has preview URL
+  const pendingUploadUrlRef = useRef<string | null>(null); // Track pending upload blob URL to prevent duplicates
 
   // Clean up refs array when items change to prevent memory leaks
   useEffect(() => {
@@ -55,25 +57,58 @@ export function OrderItemsSection({
   const handleAddItem = (photoUrl: string) => {
     if (!photoUrl) return;
 
-    // Check if the last item has a blob URL (preview) - if so, update it instead of creating new
-    const lastItem = items[items.length - 1];
     const isBlobUrl = photoUrl.startsWith("blob:");
-    const lastItemHasPreview = lastItem?.photo_url?.startsWith("blob:");
-
-    // If last item has a preview and we're getting a new URL (either blob or final), update it
-    if (lastItemHasPreview && lastItem) {
-      const lastIndex = items.length - 1;
-      // Update the existing item's photo URL
-      onUpdateItem(lastIndex, "photo_url", photoUrl);
-      
-      // If this is the final URL (not blob), remove highlight
-      if (!isBlobUrl) {
-        setNewItemIndex(null);
-      }
+    
+    // If this is a blob URL and we already have a pending upload with this URL, ignore duplicate
+    if (isBlobUrl && pendingUploadUrlRef.current === photoUrl) {
       return;
     }
 
-    // Otherwise, create a new item
+    // ALWAYS check last item first - if it has blob URL and we're getting final URL, UPDATE it
+    if (items.length > 0) {
+      const lastItem = items[items.length - 1];
+      const lastItemHasPreview = lastItem?.photo_url?.startsWith("blob:");
+      const lastIndex = items.length - 1;
+
+      // If last item has preview (blob) URL and we're receiving final URL, UPDATE that item
+      if (lastItemHasPreview && !isBlobUrl && lastItem) {
+        onUpdateItem(lastIndex, "photo_url", photoUrl);
+        lastPreviewItemIndexRef.current = null;
+        pendingUploadUrlRef.current = null;
+        setNewItemIndex(null);
+        return;
+      }
+
+      // If last item has preview and we're also getting preview (duplicate call), ignore
+      if (lastItemHasPreview && isBlobUrl && lastItem) {
+        return; // Already have this preview, don't create duplicate
+      }
+    }
+
+    // Check tracked index as fallback for final URL
+    const trackedIndex = lastPreviewItemIndexRef.current;
+    if (trackedIndex !== null && !isBlobUrl && trackedIndex < items.length) {
+      const trackedItem = items[trackedIndex];
+      if (trackedItem?.photo_url?.startsWith("blob:")) {
+        onUpdateItem(trackedIndex, "photo_url", photoUrl);
+        lastPreviewItemIndexRef.current = null;
+        pendingUploadUrlRef.current = null;
+        setNewItemIndex(null);
+        return;
+      }
+      lastPreviewItemIndexRef.current = null;
+    }
+
+    // Only create new item if it's a blob URL (preview)
+    // Final URLs should never create new items - they should only update existing ones
+    if (!isBlobUrl) {
+      // Final URL but no matching preview item found - this shouldn't happen
+      // But if it does, just return to prevent creating item with final URL only
+      console.warn("Received final URL without matching preview item");
+      return;
+    }
+
+    // Create new item ONLY for blob URLs (previews)
     const newItem: OrderItem = {
       photo_url: photoUrl,
       product_name: "",
@@ -83,17 +118,18 @@ export function OrderItemsSection({
       line_total: 0,
     };
 
-    // Calculate the index where the new item will be (at the end)
     const newIndex = items.length;
-
     onAddItem(newItem);
 
-    // Mark the newly added item (at the end) for highlight animation
+    // Track this item and its blob URL for later update
+    lastPreviewItemIndexRef.current = newIndex;
+    pendingUploadUrlRef.current = photoUrl;
+
+    // Mark the newly added item for highlight animation
     setNewItemIndex(newIndex);
 
     // Smooth scroll to the newly added item after a brief delay
     setTimeout(() => {
-      // Try to scroll to the specific item card
       const newItemRef = itemRefs.current[newIndex];
       if (newItemRef) {
         newItemRef.scrollIntoView({
@@ -102,7 +138,6 @@ export function OrderItemsSection({
           inline: "nearest",
         });
       } else {
-        // Fallback: scroll to the camera button area (below items)
         if (itemsSectionRef.current) {
           itemsSectionRef.current.scrollIntoView({
             behavior: "smooth",
@@ -112,10 +147,7 @@ export function OrderItemsSection({
         }
       }
 
-      // Remove highlight after animation completes
-      setTimeout(() => {
-        setNewItemIndex(null);
-      }, 2000);
+      // Keep highlight for preview items until final URL arrives
     }, 100);
   };
 

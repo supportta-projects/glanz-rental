@@ -50,13 +50,25 @@ export function PremiumDateTimePicker({
   const [selectedDate, setSelectedDate] = useState<Date | null>(
     value ? new Date(value) : null
   );
-  const [selectedTime, setSelectedTime] = useState<{ hour: number; minute: number }>(() => {
+  const [selectedTime, setSelectedTime] = useState<{ hour: number; minute: number; period: "AM" | "PM" }>(() => {
     if (value) {
       const date = new Date(value);
-      return { hour: date.getHours(), minute: date.getMinutes() };
+      const hours24 = date.getHours();
+      const hours12 = hours24 === 0 ? 12 : hours24 > 12 ? hours24 - 12 : hours24;
+      return { 
+        hour: hours12, 
+        minute: date.getMinutes(),
+        period: hours24 >= 12 ? "PM" : "AM"
+      };
     }
     const now = new Date();
-    return { hour: now.getHours(), minute: Math.ceil(now.getMinutes() / 15) * 15 };
+    const hours24 = now.getHours();
+    const hours12 = hours24 === 0 ? 12 : hours24 > 12 ? hours24 - 12 : hours24;
+    return { 
+      hour: hours12, 
+      minute: Math.ceil(now.getMinutes() / 15) * 15,
+      period: hours24 >= 12 ? "PM" : "AM"
+    };
   });
   const [currentMonth, setCurrentMonth] = useState(() => 
     value ? new Date(value) : new Date()
@@ -157,24 +169,50 @@ export function PremiumDateTimePicker({
     if (value) {
       const date = new Date(value);
       setSelectedDate(date);
-      setSelectedTime({ hour: date.getHours(), minute: date.getMinutes() });
+      const hours24 = date.getHours();
+      const hours12 = hours24 === 0 ? 12 : hours24 > 12 ? hours24 - 12 : hours24;
+      setSelectedTime({ 
+        hour: hours12, 
+        minute: date.getMinutes(),
+        period: hours24 >= 12 ? "PM" : "AM"
+      });
       setCurrentMonth(date);
     }
   }, [value]);
 
+  // Convert 12-hour to 24-hour format
+  const convertTo24Hour = (hour12: number, period: "AM" | "PM"): number => {
+    if (period === "AM") {
+      return hour12 === 12 ? 0 : hour12;
+    } else {
+      return hour12 === 12 ? 12 : hour12 + 12;
+    }
+  };
+
   const handleQuickPreset = (days: number) => {
     const presetDate = addDays(startOfToday(), days);
-    const presetTime = days === 0 
-      ? { hour: now.getHours(), minute: Math.ceil((now.getMinutes() + 1) / 15) * 15 }
-      : { hour: 9, minute: 0 };
+    let presetTime: { hour: number; minute: number; period: "AM" | "PM" };
+    
+    if (days === 0) {
+      const hours24 = now.getHours();
+      const hours12 = hours24 === 0 ? 12 : hours24 > 12 ? hours24 - 12 : hours24;
+      presetTime = {
+        hour: hours12,
+        minute: Math.ceil((now.getMinutes() + 1) / 15) * 15,
+        period: hours24 >= 12 ? "PM" : "AM"
+      };
+    } else {
+      presetTime = { hour: 9, minute: 0, period: "AM" };
+    }
     
     setSelectedDate(presetDate);
     setSelectedTime(presetTime);
     setCurrentMonth(presetDate);
 
     // Auto-apply immediately
+    const hours24 = convertTo24Hour(presetTime.hour, presetTime.period);
     const finalDate = setMinutes(
-      setHours(presetDate, presetTime.hour),
+      setHours(presetDate, hours24),
       presetTime.minute
     );
     onChange(finalDate.toISOString());
@@ -189,21 +227,27 @@ export function PremiumDateTimePicker({
 
     // If selecting today, ensure time is in future
     if (isSameDay(date, now)) {
-      const currentHour = now.getHours();
+      const currentHour24 = now.getHours();
       const currentMinute = now.getMinutes();
+      const currentHour12 = currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24;
+      const currentPeriod = currentHour24 >= 12 ? "PM" : "AM";
       
-      if (selectedTime.hour < currentHour || 
-          (selectedTime.hour === currentHour && selectedTime.minute <= currentMinute)) {
+      const selectedHour24 = convertTo24Hour(selectedTime.hour, selectedTime.period);
+      
+      if (selectedHour24 < currentHour24 || 
+          (selectedHour24 === currentHour24 && selectedTime.minute <= currentMinute)) {
         setSelectedTime({
-          hour: currentHour,
+          hour: currentHour12,
           minute: Math.ceil((currentMinute + 1) / 15) * 15,
+          period: currentPeriod,
         });
       }
     }
 
     // Auto-apply immediately on date select (only if date is not today or time is valid)
+    const hours24 = convertTo24Hour(selectedTime.hour, selectedTime.period);
     const finalDate = setMinutes(
-      setHours(date, selectedTime.hour),
+      setHours(date, hours24),
       selectedTime.minute
     );
     
@@ -221,7 +265,7 @@ export function PremiumDateTimePicker({
     if (!selectedDate) return;
     
     if (type === "hour") {
-      const newHour = Math.max(0, Math.min(23, val));
+      const newHour = Math.max(1, Math.min(12, val));
       setSelectedTime({ ...selectedTime, hour: newHour });
     } else {
       const newMinute = Math.max(0, Math.min(59, Math.floor(val / 15) * 15));
@@ -229,10 +273,29 @@ export function PremiumDateTimePicker({
     }
 
     // Auto-apply immediately when time changes
-    const finalDate = setMinutes(
-      setHours(selectedDate, type === "hour" ? val : selectedTime.hour),
-      type === "minute" ? Math.floor(val / 15) * 15 : selectedTime.minute
+    const hours24 = convertTo24Hour(
+      type === "hour" ? Math.max(1, Math.min(12, val)) : selectedTime.hour,
+      selectedTime.period
     );
+    const minutes = type === "minute" ? Math.floor(val / 15) * 15 : selectedTime.minute;
+    const finalDate = setMinutes(setHours(selectedDate, hours24), minutes);
+    
+    // Validate before applying
+    if (isSameDay(selectedDate, now) && isBefore(finalDate, now)) {
+      return;
+    }
+    
+    onChange(finalDate.toISOString());
+  };
+
+  const handlePeriodChange = (period: "AM" | "PM") => {
+    if (!selectedDate) return;
+    
+    setSelectedTime({ ...selectedTime, period });
+    
+    // Auto-apply immediately when period changes
+    const hours24 = convertTo24Hour(selectedTime.hour, period);
+    const finalDate = setMinutes(setHours(selectedDate, hours24), selectedTime.minute);
     
     // Validate before applying
     if (isSameDay(selectedDate, now) && isBefore(finalDate, now)) {
@@ -244,7 +307,13 @@ export function PremiumDateTimePicker({
 
   const handleClear = () => {
     setSelectedDate(null);
-    setSelectedTime({ hour: now.getHours(), minute: Math.ceil(now.getMinutes() / 15) * 15 });
+    const hours24 = now.getHours();
+    const hours12 = hours24 === 0 ? 12 : hours24 > 12 ? hours24 - 12 : hours24;
+    setSelectedTime({ 
+      hour: hours12, 
+      minute: Math.ceil(now.getMinutes() / 15) * 15,
+      period: hours24 >= 12 ? "PM" : "AM"
+    });
     onChange(null);
     setIsOpen(false);
   };
@@ -269,10 +338,8 @@ export function PremiumDateTimePicker({
     ? format(new Date(value), "dd MMM yyyy, hh:mm a")
     : placeholder;
 
-  const formatTime = (hour: number, minute: number) => {
-    const period = hour >= 12 ? "PM" : "AM";
-    const displayHour = hour % 12 || 12;
-    return `${String(displayHour).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${period}`;
+  const formatTime = (hour: number, minute: number, period: "AM" | "PM") => {
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${period}`;
   };
 
   return (
@@ -444,13 +511,13 @@ export function PremiumDateTimePicker({
               <div className="flex items-center gap-3">
                 {/* Hour */}
                 <div className="flex-1">
-                  <label className="text-xs text-gray-500 mb-1 block">Hour (0-23)</label>
+                  <label className="text-xs text-gray-500 mb-1 block">Hour (1-12)</label>
                   <Input
                     type="number"
-                    min="0"
-                    max="23"
+                    min="1"
+                    max="12"
                     value={selectedTime.hour}
-                    onChange={(e) => handleTimeChange("hour", parseInt(e.target.value) || 0)}
+                    onChange={(e) => handleTimeChange("hour", parseInt(e.target.value) || 1)}
                     className="h-12 text-center text-lg font-bold border-2"
                   />
                 </div>
@@ -470,6 +537,35 @@ export function PremiumDateTimePicker({
                     className="h-12 text-center text-lg font-bold border-2"
                   />
                 </div>
+                
+                {/* AM/PM Selector */}
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 mb-1 block">Period</label>
+                  <div className="flex gap-2 h-12">
+                    <Button
+                      type="button"
+                      variant={selectedTime.period === "AM" ? "default" : "outline"}
+                      onClick={() => handlePeriodChange("AM")}
+                      className={cn(
+                        "flex-1 h-12 text-base font-bold",
+                        selectedTime.period === "AM" && "bg-[#273492] hover:bg-[#1f2a7a] text-white"
+                      )}
+                    >
+                      AM
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={selectedTime.period === "PM" ? "default" : "outline"}
+                      onClick={() => handlePeriodChange("PM")}
+                      className={cn(
+                        "flex-1 h-12 text-base font-bold",
+                        selectedTime.period === "PM" && "bg-[#273492] hover:bg-[#1f2a7a] text-white"
+                      )}
+                    >
+                      PM
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               {/* Time Preview */}
@@ -477,7 +573,7 @@ export function PremiumDateTimePicker({
                 <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-xs text-gray-600 mb-1">Selected:</p>
                   <p className="text-base font-bold text-gray-900">
-                    {format(selectedDate, "dd MMM yyyy")} at {formatTime(selectedTime.hour, selectedTime.minute)}
+                    {format(selectedDate, "dd MMM yyyy")} at {formatTime(selectedTime.hour, selectedTime.minute, selectedTime.period)}
                   </p>
                 </div>
               )}

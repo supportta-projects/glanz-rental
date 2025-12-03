@@ -84,7 +84,7 @@ export function useOrdersInfinite(
 
         let query = supabase
           .from("orders")
-          .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id, return_status, actual_return_date, late_return, missing_note)", { count: "exact" })
+          .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id, photo_url, product_name, quantity, price_per_day, days, line_total, return_status, actual_return_date, late_return, missing_note)", { count: "exact" })
           .eq("branch_id", branchId)
           .order("created_at", { ascending: false });
 
@@ -168,10 +168,10 @@ export function useOrdersInfinite(
     getNextPageParam: (lastPage, pages) => lastPage.nextPage,
     initialPageParam: 0,
     enabled: !!branchId,
-    staleTime: 60000, // 60s - longer cache for ultra-fast navigation
+    staleTime: 10000, // 10s - Short stale time to allow quick refetch after creation
     gcTime: 600000, // 10m - keep in cache longer for instant access
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
-    refetchOnMount: false, // Use cached data for instant navigation
+    refetchOnMount: true, // Always refetch on mount to show latest orders after creation
     refetchOnReconnect: true, // Refetch on reconnect to catch missed updates
     placeholderData: (previousData) => previousData, // Optimistic UI updates
   });
@@ -200,7 +200,7 @@ export function useOrders(
 
       let query = supabase
         .from("orders")
-        .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id, return_status, actual_return_date, late_return, missing_note)", { count: "exact" })
+        .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id, photo_url, product_name, quantity, price_per_day, days, line_total, return_status, actual_return_date, late_return, missing_note)", { count: "exact" })
         .order("created_at", { ascending: false });
 
       if (branchId) {
@@ -390,13 +390,21 @@ export function useCreateOrder() {
       // Return order with items for optimistic updates
       return { ...order, items: itemsWithOrderId };
     },
-    onSuccess: (data, variables) => {
-      // Invalidate all orders queries (with and without branchId)
+    onSuccess: async (data, variables) => {
+      // Invalidate all orders queries first (marks them as stale)
+      queryClient.invalidateQueries({ queryKey: ["orders-infinite"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["order", data.id] });
       queryClient.invalidateQueries({ queryKey: ["order-timeline", data.id] });
-      // Also invalidate dashboard stats
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      
+      // Force immediate refetch of orders-infinite query
+      // Use type: "all" to refetch even if query is not currently active
+      // This ensures new orders appear immediately when navigating to orders page
+      await queryClient.refetchQueries({ 
+        queryKey: ["orders-infinite"],
+        type: "all" // Refetch all matching queries (active and inactive)
+      });
     },
   });
 }

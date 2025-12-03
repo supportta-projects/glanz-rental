@@ -664,3 +664,158 @@ input[type="file"] {
 .stat-glow-primary:hover::before {
   opacity: 1;
 }
+
+/* ============================================
+   PREMIUM DESKTOP SIDEBAR ANIMATIONS
+   ============================================ */
+
+/* Sidebar slide-in animation */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.sidebar-enter {
+  animation: slideInLeft 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Active indicator slide animation */
+@keyframes activeIndicatorSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scaleY(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scaleY(1);
+  }
+}
+
+/* Icon pulse on active */
+@keyframes iconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Premium sidebar link styles */
+.sidebar-link {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, background-color;
+}
+
+.sidebar-link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 4px;
+  height: 0;
+  background: linear-gradient(180deg, #273492 0%, #1f2a7a 100%);
+  border-radius: 0 4px 4px 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-link:hover::before {
+  height: 50%;
+  transform: translateY(-50%) scaleY(1);
+  animation: activeIndicatorSlide 0.3s ease-out;
+}
+
+.sidebar-link.active::before {
+  height: 85% !important;
+  transform: translateY(-50%) scaleY(1) !important;
+  opacity: 1 !important;
+  width: 5px !important;
+  box-shadow: 0 0 15px rgba(39, 52, 146, 0.7), 0 0 25px rgba(39, 52, 146, 0.4) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, #273492 50%, #1f2a7a 100%) !important;
+  z-index: 11;
+}
+
+.sidebar-link.active .sidebar-icon {
+  animation: iconPulse 0.4s ease-out;
+}
+
+.sidebar-link:hover:not(.active) {
+  transform: translateX(4px);
+  background: linear-gradient(90deg, rgba(39, 52, 146, 0.08) 0%, rgba(39, 52, 146, 0.04) 100%);
+}
+
+.sidebar-link.active {
+  background: linear-gradient(135deg, #273492 0%, #1f2a7a 100%) !important;
+  box-shadow: 0 4px 24px rgba(39, 52, 146, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.2) inset, 0 2px 12px rgba(39, 52, 146, 0.5) !important;
+  transform: translateX(0) !important;
+  border: 1px solid rgba(39, 52, 146, 0.6) !important;
+  position: relative;
+  z-index: 10;
+  color: #ffffff !important;
+}
+
+.sidebar-link.active * {
+  color: #ffffff !important;
+}
+
+.sidebar-link.active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Ensure active state text is always white and visible */
+.sidebar-link.active span,
+.sidebar-link.active .sidebar-icon {
+  color: #ffffff !important;
+}
+
+/* Stagger animation for menu items */
+.sidebar-menu-item {
+  opacity: 0;
+  animation: slideInLeft 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.sidebar-menu-item:nth-child(1) { animation-delay: 0.05s; }
+.sidebar-menu-item:nth-child(2) { animation-delay: 0.1s; }
+.sidebar-menu-item:nth-child(3) { animation-delay: 0.15s; }
+.sidebar-menu-item:nth-child(4) { animation-delay: 0.2s; }
+.sidebar-menu-item:nth-child(5) { animation-delay: 0.25s; }
+.sidebar-menu-item:nth-child(6) { animation-delay: 0.3s; }
+.sidebar-menu-item:nth-child(7) { animation-delay: 0.35s; }
+.sidebar-menu-item:nth-child(8) { animation-delay: 0.4s; }
+
+/* Premium custom scrollbar for sidebar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #273492 0%, #1f2a7a 100%);
+  border-radius: 10px;
+  transition: background 0.3s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #1f2a7a 0%, #273492 100%);
+}
