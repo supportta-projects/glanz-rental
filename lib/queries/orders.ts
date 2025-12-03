@@ -26,7 +26,7 @@ async function logTimelineEvent(
   }
 ) {
   try {
-    await supabase.from("order_return_audit").insert({
+    await (supabase.from("order_return_audit") as any).insert({
       order_id: event.orderId,
       order_item_id: event.orderItemId || null,
       action: event.action,
@@ -430,7 +430,7 @@ export function useUpdateOrder() {
         .from("orders")
         .select("status, invoice_number, start_date, end_date, total_amount")
         .eq("id", orderData.orderId)
-        .single();
+        .single() as { data: any; error: any };
 
       if (fetchError) throw fetchError;
 
@@ -601,7 +601,7 @@ export function useUpdateOrderStatus() {
       lateFee = 0,
     }: {
       orderId: string;
-      status: "active" | "pending_return" | "completed" | "cancelled";
+      status: "active" | "pending_return" | "completed" | "cancelled" | "partially_returned";
       lateFee?: number;
     }) => {
       const { data: currentOrderData, error: fetchError } = await supabase

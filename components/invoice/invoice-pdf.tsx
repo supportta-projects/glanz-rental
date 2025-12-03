@@ -287,7 +287,36 @@ const styles = StyleSheet.create({
   rentalPeriodText: {
     fontSize: 8,
     color: "#111827",
+    fontWeight: "500",
+  },
+  
+  // Continuation customer block - Compact version for continuation pages
+  continuationCustomerBlock: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottom: "1px solid #f3f4f6",
+    gap: 16,
+  },
+  continuationBillToLabel: {
+    fontSize: 8,
+    color: "#374151",
     fontWeight: "600",
+    marginBottom: 2,
+  },
+  continuationCustomerInfo: {
+    fontSize: 7,
+    color: "#6b7280",
+    lineHeight: 1.3,
+  },
+  continuationRentalLabel: {
+    fontSize: 8,
+    color: "#374151",
+    fontWeight: "500",
+    textAlign: "right",
   },
   
   // Table - Fixed row heights
@@ -356,16 +385,20 @@ const styles = StyleSheet.create({
   cellPrice: {
     width: 92,
     fontSize: 8,
-    color: "#6b7280",
+    color: "#374151",
     textAlign: "right",
     paddingRight: 6,
+    fontWeight: "500",
+    fontFamily: "Courier", // Monospace for number alignment
   },
   cellTotal: {
     width: 101,
     fontSize: 8,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#111827",
     textAlign: "right",
+    paddingRight: 4,
+    fontFamily: "Courier", // Monospace for number alignment
   },
   
   productImage: {
@@ -377,14 +410,18 @@ const styles = StyleSheet.create({
   
   // Summary section - Fixed height, stays together
   summarySection: {
-    marginTop: 16,
+    marginTop: 20, // Increased spacing from table
     width: "100%",
+    paddingTop: 16,
+    borderTop: "2px solid #e5e7eb", // Stronger divider above summary
   },
   totalsSection: {
     marginBottom: 16,
     marginLeft: "auto",
     width: 280,
     padding: 12,
+    paddingBottom: 16,
+    borderBottom: "1px solid #f3f4f6", // Subtle divider before footer
   },
   summaryRow: {
     flexDirection: "row",
@@ -451,18 +488,20 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   termsTitle: {
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: "700",
     color: "#374151",
-    marginBottom: 6,
+    marginBottom: 8,
     textTransform: "uppercase",
     letterSpacing: 1,
+    borderBottom: "1px solid #e5e7eb", // Visual separator
+    paddingBottom: 6,
   },
   termsText: {
     fontSize: 7,
-    color: "#6b7280",
-    lineHeight: 1.5,
-    marginBottom: 3,
+    color: "#4b5563", // Darker for better readability
+    lineHeight: 1.6, // Better line height
+    marginBottom: 4,
   },
   signatureLine: {
     fontSize: 7,
@@ -604,7 +643,9 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
   }
   
   const itemPages = paginateItems(allItems);
-  const totalPages = itemPages.length;
+  // Filter out empty pages and recalculate
+  const validPages = itemPages.filter(page => page.length > 0);
+  const totalPages = validPages.length;
   
   const upiPaymentString = user?.upi_id 
     ? `upi://pay?pa=${user.upi_id}&am=${order.total_amount.toFixed(2)}&cu=INR&tn=Order ${order.invoice_number}`
@@ -678,18 +719,49 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
             style={styles.continuationLogo}
           />
         </View>
-        <View>
+        <View style={styles.headerTextBlock}>
           <Text style={styles.continuationShopName}>
             {getShopName()}
           </Text>
+          {shopAddressLines.length > 0 && (
+            <Text style={styles.continuationShopAddress}>
+              {shopAddressLines[0]}
+            </Text>
+          )}
+          {phoneNumbers && (
+            <Text style={styles.continuationShopPhone}>Phone: {phoneNumbers}</Text>
+          )}
+          {user?.gst_number && (
+            <Text style={styles.continuationInvoiceText}>
+              GSTIN: {user.gst_number}
+            </Text>
+          )}
         </View>
       </View>
-      <View style={{ alignItems: "flex-end" }}>
+      <View style={styles.headerRight}>
+        <Text style={styles.invoiceLabel}>INVOICE</Text>
         <Text style={styles.continuationInvoiceText}>
           {order.invoice_number || "N/A"}
         </Text>
         <Text style={styles.continuationInvoiceText}>
           {formatDate(order.booking_date || order.created_at, "dd MMM yyyy")}
+        </Text>
+      </View>
+    </View>
+  );
+
+  // Compact customer and rental info for continuation pages
+  const renderContinuationCustomerInfo = () => (
+    <View style={styles.continuationCustomerBlock}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.continuationBillToLabel}>Bill To: {order.customer?.name || "N/A"}</Text>
+        {order.customer?.phone && (
+          <Text style={styles.continuationCustomerInfo}>Phone: {order.customer.phone}</Text>
+        )}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.continuationRentalLabel}>
+          Rental: {formatDate(startDate, "dd MMM yyyy")} to {formatDate(endDate, "dd MMM yyyy")} ({rentalDays} {rentalDays === 1 ? 'day' : 'days'})
         </Text>
       </View>
     </View>
@@ -819,16 +891,15 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
           <Text style={styles.termsTitle}>Terms & Conditions</Text>
           <Text style={styles.termsText}>
             • All items must be returned in good condition{"\n"}
-            • Late returns may incur additional charges{"\n"}
+            • Late returns may incur additional charges as per policy{"\n"}
+            • Damage or loss of items will be charged at replacement cost{"\n"}
+            • Rental period must be strictly adhered to{"\n"}
             • Please contact us for any queries or concerns{"\n"}
-            • This invoice is valid for accounting purposes
+            • This invoice is valid for accounting and tax purposes
           </Text>
-          <View style={styles.signatureLine}>
-            <Text>Authorized Signature</Text>
-          </View>
-          {/* Disclaimer inline with footer */}
+          {/* System-generated disclaimer - no signature line */}
           <Text style={styles.disclaimer}>
-            This is a system-generated invoice
+            This is a system-generated invoice. No physical signature required.
           </Text>
         </View>
         
@@ -859,22 +930,26 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
   
   return (
     <Document>
-      {itemPages.map((pageItems, pageIndex) => {
-        const startIndex = itemPages.slice(0, pageIndex).reduce((sum, page) => sum + page.length, 0);
-        const isLast = pageIndex === totalPages - 1;
-        const isFirst = pageIndex === 0;
+      {validPages.map((pageItems, validPageIndex) => {
+        // Calculate startIndex based on all previous pages (including empty ones if any)
+        const originalIndex = itemPages.findIndex(page => page === pageItems);
+        const startIndex = itemPages.slice(0, originalIndex).reduce((sum, page) => sum + page.length, 0);
+        const isLast = validPageIndex === totalPages - 1;
+        const isFirst = validPageIndex === 0;
         
         return (
-          <Page key={pageIndex} size="A4" style={styles.page}>
+          <Page key={validPageIndex} size="A4" style={styles.page}>
             {/* Header: Full on first page, continuation on others */}
             {isFirst ? renderHeader() : renderContinuationHeader()}
             
-            {/* Customer block and rental period: Only on first page */}
-            {isFirst && (
+            {/* Customer block and rental period: Full on first page, compact on continuation pages */}
+            {isFirst ? (
               <>
                 {renderCustomerBlock()}
                 {renderRentalPeriod()}
               </>
+            ) : (
+              renderContinuationCustomerInfo()
             )}
             
             {/* Table: Header on EVERY page that has items */}
@@ -898,7 +973,7 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
             
             {/* Page number: Every page */}
             <Text style={styles.pageNumber}>
-              Page {pageIndex + 1} of {totalPages}
+              Page {validPageIndex + 1} of {totalPages}
             </Text>
           </Page>
         );

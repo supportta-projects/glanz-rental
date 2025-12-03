@@ -138,12 +138,12 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
       const itemReturns = [
         ...itemsToReturn.map((ir) => ({
           itemId: ir.itemId,
-          returnStatus: ir.returnStatus as const,
+          returnStatus: ir.returnStatus,
           actualReturnDate: ir.actualReturnDate,
         })),
         ...itemsToRevert.map((ir) => ({
           itemId: ir.itemId,
-          returnStatus: ir.returnStatus as const,
+          returnStatus: ir.returnStatus,
         })),
       ];
 
