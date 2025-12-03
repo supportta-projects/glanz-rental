@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { StandardButton } from "@/components/shared/standard-button";
-import { ArrowLeft } from "lucide-react";
+import { Sparkles, ArrowLeft, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import {
@@ -18,6 +18,7 @@ import { useToast } from "@/components/ui/toast";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import { generateInvoiceNumber } from "@/lib/utils/invoice";
 import type { OrderItem, Customer } from "@/lib/types";
+import { Card } from "@/components/ui/card";
 
 // Reusable Components
 import { OrderFormSection } from "@/components/orders/order-form-section";
@@ -25,13 +26,12 @@ import { OrderDateTimeSection } from "@/components/orders/order-datetime-section
 import { OrderItemsSection } from "@/components/orders/order-items-section";
 import { OrderSummarySection } from "@/components/orders/order-summary-section";
 import { OrderInvoiceSection } from "@/components/orders/order-invoice-section";
-import { PageNavbar } from "@/components/layout/page-navbar";
 
 /**
- * New Order Page
+ * New Order Page - Premium Modern Design
  * 
  * Creates a new rental order with customer selection, date/time selection,
- * items management, and order summary. Uses 100% reusable components.
+ * items management, and order summary. Optimized for speed and performance.
  * 
  * @component
  */
@@ -60,10 +60,14 @@ export default function CreateOrderPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const days =
-    draft.end_date && draft.start_date
-      ? calculateDays(draft.start_date, draft.end_date)
-      : 0;
+  // Memoize days calculation
+  const days = useMemo(
+    () =>
+      draft.end_date && draft.start_date
+        ? calculateDays(draft.start_date, draft.end_date)
+        : 0,
+    [draft.end_date, draft.start_date]
+  );
 
   const gstIncluded = user?.gst_included ?? false;
 
@@ -86,11 +90,12 @@ export default function CreateOrderPage() {
     }
   }, [draft.start_date, draft.end_date, setStartDate, setEndDate]);
 
-  const handleAddItem = (item: OrderItem) => {
+  // Memoize handlers for performance
+  const handleAddItem = useCallback((item: OrderItem) => {
     addItem(item);
-  };
+  }, [addItem]);
 
-  const handleUpdateItem = (index: number, field: keyof OrderItem, value: any) => {
+  const handleUpdateItem = useCallback((index: number, field: keyof OrderItem, value: any) => {
     const item = draft.items[index];
     const updates: Partial<OrderItem> = { [field]: value };
 
@@ -102,9 +107,9 @@ export default function CreateOrderPage() {
     }
 
     updateItem(index, updates);
-  };
+  }, [draft.items, updateItem]);
 
-  const handleSaveOrder = async () => {
+  const handleSaveOrder = useCallback(async () => {
     // Fast client-side validation (no async calls)
     if (!selectedCustomer) {
       showToast("Please select a customer", "error");
@@ -130,8 +135,6 @@ export default function CreateOrderPage() {
     }
 
     // Validate all items have required fields
-    // Required: quantity > 0, price_per_day > 0
-    // Optional: photo_url, product_name
     const invalidItems = draft.items.filter(
       (item) => 
         !item.quantity || 
@@ -158,10 +161,8 @@ export default function CreateOrderPage() {
     }
 
     try {
-      // Optimistic UI update - show success immediately
       showToast("Creating order...", "info");
 
-      // Only include GST if enabled
       const gstEnabled = user?.gst_enabled ?? false;
 
       await createOrderMutation.mutateAsync({
@@ -180,77 +181,142 @@ export default function CreateOrderPage() {
       showToast("Order created successfully!", "success");
       clearDraft();
 
-      // Navigate immediately for faster perceived performance
       router.push("/orders");
     } catch (error: any) {
       console.error("Order creation error:", error);
       showToast(error.message || "Failed to create order", "error");
     }
-  };
+  }, [selectedCustomer, draft, user, grandTotal, subtotal, gstAmount, showToast, createOrderMutation, clearDraft, router]);
+
+  // Memoize validation state
+  const canSave = useMemo(
+    () => selectedCustomer && draft.items.length > 0 && draft.end_date,
+    [selectedCustomer, draft.items.length, draft.end_date]
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32">
-      {/* Minimal Header */}
-      <PageNavbar
-        title="New Order"
-        subtitle="Create a new rental order"
-        backHref="/orders"
-      />
+    <div className="min-h-screen bg-gradient-to-br from-[#f7f9fb] via-white to-[#f7f9fb] pb-32">
+      {/* Premium Background Pattern */}
+      <div className="fixed inset-0 -z-10 opacity-30">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(39,52,146,0.05),transparent_50%)]" />
+      </div>
 
-      <div className="px-4 md:px-6 py-4 md:py-6 space-y-6 max-w-4xl mx-auto">
-        {/* Customer Section */}
-        <OrderFormSection
-          selectedCustomer={selectedCustomer}
-          onSelectCustomer={setSelectedCustomer}
-          branchName={user?.branch?.name}
-          staffName={user?.full_name}
-        />
+      <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-4xl mx-auto relative">
+        {/* Premium Modern Header - Shopify/Flipkart Style */}
+        <div className="flex items-center justify-between flex-wrap gap-4 pb-6 border-b border-gray-200/60 animate-fade-in">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <Link 
+                href="/orders" 
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors premium-hover"
+              >
+                <ArrowLeft className="h-5 w-5 text-gray-600" />
+              </Link>
+              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 via-[#273492] to-gray-900 bg-clip-text text-transparent">
+                New Order
+              </h1>
+              <Sparkles className="h-6 w-6 text-[#273492] animate-pulse" />
+            </div>
+            <p className="text-sm md:text-base text-gray-500 font-medium ml-12">
+              Create a new rental order for your customer
+            </p>
+          </div>
+        </div>
 
-        {/* Rental Dates & Times */}
-        <OrderDateTimeSection
-          startDate={draft.start_date}
-          endDate={draft.end_date}
-          onStartDateChange={(value) => value && setStartDate(value)}
-          onEndDateChange={(value) => value && setEndDate(value)}
-        />
+        <div className="space-y-6">
+          {/* Customer Section - Premium Card */}
+          <Card 
+            className="p-6 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 premium-hover fadeInUp"
+            style={{ animationDelay: "0.1s", willChange: "transform" }}
+          >
+            <OrderFormSection
+              selectedCustomer={selectedCustomer}
+              onSelectCustomer={setSelectedCustomer}
+              branchName={user?.branch?.name}
+              staffName={user?.full_name}
+            />
+          </Card>
 
-        {/* Items Section */}
-        <OrderItemsSection
-          items={draft.items}
-          onAddItem={handleAddItem}
-          onUpdateItem={handleUpdateItem}
-          onRemoveItem={removeItem}
-          onImageClick={setSelectedImage}
-          days={days}
-        />
+          {/* Rental Dates & Times - Premium Card */}
+          <Card 
+            className="p-6 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 premium-hover fadeInUp"
+            style={{ animationDelay: "0.2s", willChange: "transform" }}
+          >
+            <OrderDateTimeSection
+              startDate={draft.start_date}
+              endDate={draft.end_date}
+              onStartDateChange={(value) => value && setStartDate(value)}
+              onEndDateChange={(value) => value && setEndDate(value)}
+            />
+          </Card>
 
-        {/* Order Summary with GST */}
-        <OrderSummarySection
-          subtotal={subtotal}
-          gstAmount={gstAmount}
-          grandTotal={grandTotal}
-          gstEnabled={user?.gst_enabled}
-          gstRate={user?.gst_rate}
-          gstIncluded={gstIncluded}
-        />
+          {/* Items Section - Premium Card */}
+          <Card 
+            className="p-6 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 premium-hover fadeInUp"
+            style={{ animationDelay: "0.3s", willChange: "transform" }}
+          >
+            <OrderItemsSection
+              items={draft.items}
+              onAddItem={handleAddItem}
+              onUpdateItem={handleUpdateItem}
+              onRemoveItem={removeItem}
+              onImageClick={setSelectedImage}
+              days={days}
+            />
+          </Card>
 
-        {/* Invoice Number - Optional with auto-generation */}
-        <OrderInvoiceSection
-          invoiceNumber={draft.invoice_number}
-          onInvoiceNumberChange={setInvoiceNumber}
-          autoGenerate={true}
-        />
+          {/* Order Summary with GST - Premium Card */}
+          {grandTotal > 0 && (
+            <Card 
+              className="p-6 rounded-xl border-2 border-[#273492]/20 bg-gradient-to-br from-[#273492]/5 to-[#273492]/10 shadow-lg hover:shadow-xl transition-all duration-300 premium-hover fadeInUp pulse-glow"
+              style={{ animationDelay: "0.4s", willChange: "transform" }}
+            >
+              <OrderSummarySection
+                subtotal={subtotal}
+                gstAmount={gstAmount}
+                grandTotal={grandTotal}
+                gstEnabled={user?.gst_enabled}
+                gstRate={user?.gst_rate}
+                gstIncluded={gstIncluded}
+              />
+            </Card>
+          )}
 
-        {/* Save Button */}
-        <StandardButton
-          onClick={handleSaveOrder}
-          variant="default"
-          disabled={createOrderMutation.isPending}
-          loading={createOrderMutation.isPending}
-          className="w-full mt-6"
-        >
-          {createOrderMutation.isPending ? "Saving..." : "Save Order"}
-        </StandardButton>
+          {/* Invoice Number - Premium Card */}
+          <Card 
+            className="p-6 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 premium-hover fadeInUp"
+            style={{ animationDelay: "0.5s", willChange: "transform" }}
+          >
+            <OrderInvoiceSection
+              invoiceNumber={draft.invoice_number}
+              onInvoiceNumberChange={setInvoiceNumber}
+              autoGenerate={true}
+            />
+          </Card>
+
+          {/* Save Button - Premium Style */}
+          <div className="sticky bottom-6 z-10 fadeInUp" style={{ animationDelay: "0.6s" }}>
+            <StandardButton
+              onClick={handleSaveOrder}
+              variant="default"
+              disabled={!canSave || createOrderMutation.isPending}
+              loading={createOrderMutation.isPending}
+              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-[#273492] to-[#1f2a7a] hover:from-[#1f2a7a] hover:to-[#273492] shadow-xl hover:shadow-2xl transition-all duration-300 premium-hover"
+            >
+              {createOrderMutation.isPending ? (
+                <>
+                  <ShoppingBag className="h-5 w-5 mr-2 animate-pulse" />
+                  Creating Order...
+                </>
+              ) : (
+                <>
+                  <ShoppingBag className="h-5 w-5 mr-2" />
+                  Create Order
+                </>
+              )}
+            </StandardButton>
+          </div>
+        </div>
       </div>
 
       {/* Image Lightbox */}

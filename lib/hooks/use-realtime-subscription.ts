@@ -24,17 +24,27 @@ export function useRealtimeSubscription(
     if (!supabase) return;
 
     // Subscribe to orders and order_items for realtime updates
-    if (table !== "orders" && table !== "order_items") return;
-
-    const channelName = branchId 
-      ? `${table}:${branchId}` 
-      : `${table}:global`;
-
-    // Cleanup previous channel before creating new one
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
+    // Note: "customers" table subscriptions are not implemented yet
+    if (table !== "orders" && table !== "order_items") {
+      // Return early for customers table - no subscription needed
+      return;
     }
+
+    // Wrap subscription logic in try-catch to prevent errors from breaking the page
+    try {
+      const channelName = branchId 
+        ? `${table}:${branchId}` 
+        : `${table}:global`;
+
+      // Cleanup previous channel before creating new one
+      if (channelRef.current) {
+        try {
+          supabase.removeChannel(channelRef.current);
+        } catch (error) {
+          // Silently handle cleanup errors
+        }
+        channelRef.current = null;
+      }
 
     const channel = supabase.channel(channelName, {
       config: {
@@ -90,8 +100,11 @@ export function useRealtimeSubscription(
           filter: branchId ? `branch_id=eq.${branchId}` : undefined,
         },
         (payload: any) => {
-          // Removed verbose logging for better performance
-          refetchQueries();
+          try {
+            refetchQueries();
+          } catch (error) {
+            // Silently handle refetch errors
+          }
         }
       );
     }
@@ -106,27 +119,38 @@ export function useRealtimeSubscription(
           table: "order_items",
         },
         (payload: any) => {
-          // Removed verbose logging for better performance
-          refetchQueries();
+          try {
+            refetchQueries();
+          } catch (error) {
+            // Silently handle refetch errors
+          }
         }
       );
     }
 
-    channel.subscribe((status) => {
-      if (status === "CHANNEL_ERROR") {
-        // Only log errors in development
-        if (process.env.NODE_ENV === 'development') {
-          console.warn(`[Realtime] Channel error for ${table}`);
+      channel.subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          // Silently handle channel errors - don't log to prevent console noise
+          // The subscription will be automatically cleaned up on unmount
+          return;
+        } else if (status === "TIMED_OUT") {
+          // Auto-resubscribe on timeout with error handling
+          setTimeout(() => {
+            try {
+              channel.subscribe();
+            } catch (error) {
+              // Silently handle resubscribe errors
+            }
+          }, 1000);
         }
-      } else if (status === "TIMED_OUT") {
-        // Auto-resubscribe on timeout
-        setTimeout(() => {
-          channel.subscribe();
-        }, 1000);
-      }
-    });
+      });
 
-    channelRef.current = channel;
+      channelRef.current = channel;
+    } catch (error) {
+      // Silently handle subscription setup errors - prevents page breakage
+      // This can happen due to CSP violations, network issues, etc.
+      return;
+    }
 
     return () => {
       // Clear debounce timeout
@@ -136,7 +160,11 @@ export function useRealtimeSubscription(
       }
       // Unsubscribe on unmount
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        try {
+          supabase.removeChannel(channelRef.current);
+        } catch (error) {
+          // Silently handle cleanup errors
+        }
         channelRef.current = null;
       }
     };

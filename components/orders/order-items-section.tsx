@@ -55,6 +55,25 @@ export function OrderItemsSection({
   const handleAddItem = (photoUrl: string) => {
     if (!photoUrl) return;
 
+    // Check if the last item has a blob URL (preview) - if so, update it instead of creating new
+    const lastItem = items[items.length - 1];
+    const isBlobUrl = photoUrl.startsWith("blob:");
+    const lastItemHasPreview = lastItem?.photo_url?.startsWith("blob:");
+
+    // If last item has a preview and we're getting a new URL (either blob or final), update it
+    if (lastItemHasPreview && lastItem) {
+      const lastIndex = items.length - 1;
+      // Update the existing item's photo URL
+      onUpdateItem(lastIndex, "photo_url", photoUrl);
+      
+      // If this is the final URL (not blob), remove highlight
+      if (!isBlobUrl) {
+        setNewItemIndex(null);
+      }
+      return;
+    }
+
+    // Otherwise, create a new item
     const newItem: OrderItem = {
       photo_url: photoUrl,
       product_name: "",

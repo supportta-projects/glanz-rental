@@ -39,30 +39,38 @@ export function OrderSummarySection({
   if (grandTotal <= 0) return null;
 
   return (
-    <Card className="p-5 bg-[#273492]/5 rounded-lg border border-gray-200 space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-base font-medium text-gray-700">Subtotal</span>
-        <span className="text-lg font-semibold text-gray-900">
-          ₹{subtotal.toLocaleString()}
-        </span>
-      </div>
-      {gstEnabled && gstAmount > 0 && (
-        <div className="flex items-center justify-between border-t pt-3">
-          <span className="text-base font-medium text-gray-700">
-            GST ({gstRate.toFixed(2)}%) {gstIncluded ? "(Included)" : ""}
-          </span>
+    <div className="space-y-4">
+      <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+        <span>Order Summary</span>
+      </h3>
+      
+      <div className="space-y-3">
+        <div className="flex items-center justify-between py-2">
+          <span className="text-base font-medium text-gray-700">Subtotal</span>
           <span className="text-lg font-semibold text-gray-900">
-            ₹{gstAmount.toLocaleString()}
+            ₹{subtotal.toLocaleString("en-IN")}
           </span>
         </div>
-      )}
-      <div className="flex items-center justify-between border-t pt-3">
-        <span className="text-xl font-semibold text-gray-700">Grand Total</span>
-        <span className="text-3xl font-bold text-[#273492]">
-          ₹{grandTotal.toLocaleString()}
-        </span>
+        
+        {gstEnabled && gstAmount > 0 && (
+          <div className="flex items-center justify-between border-t border-gray-200 pt-3">
+            <span className="text-base font-medium text-gray-700">
+              GST ({gstRate.toFixed(2)}%) {gstIncluded ? "(Included)" : ""}
+            </span>
+            <span className="text-lg font-semibold text-gray-900">
+              ₹{gstAmount.toLocaleString("en-IN")}
+            </span>
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between border-t-2 border-[#273492]/30 pt-4 mt-2">
+          <span className="text-xl font-bold text-gray-900">Grand Total</span>
+          <span className="text-3xl font-bold bg-gradient-to-r from-[#273492] to-[#1f2a7a] bg-clip-text text-transparent">
+            ₹{grandTotal.toLocaleString("en-IN")}
+          </span>
+        </div>
       </div>
-    </Card>
+    </div>
   );
 }
 

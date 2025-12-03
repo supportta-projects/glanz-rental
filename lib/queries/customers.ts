@@ -7,11 +7,13 @@ export interface CustomerWithDues extends Customer {
   due_amount: number;
 }
 
-export function useCustomers(searchQuery?: string, page: number = 1, pageSize: number = 20) {
+export function useCustomers(searchQuery?: string, page: number = 1, pageSize: number = 20, enableRealtime: boolean = false) {
   const supabase = createClient();
   
-  // Set up real-time subscription for customers (updates across all devices)
-  useRealtimeSubscription("customers");
+  // Only enable realtime subscription if explicitly requested (for non-static pages)
+  if (enableRealtime) {
+    useRealtimeSubscription("customers");
+  }
 
   return useQuery({
     queryKey: ["customers", searchQuery, page, pageSize],

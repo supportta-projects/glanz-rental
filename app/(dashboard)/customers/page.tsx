@@ -156,10 +156,12 @@ export default function CustomersPage() {
   const pageSize = 25; // 25 items per page
 
   // Use server-side pagination and search
+  // Disable realtime subscriptions for static page (as per dynamic = 'force-static')
   const { data: customersData, isLoading, error } = useCustomers(
     debouncedSearch.trim() || undefined,
     currentPage,
-    pageSize
+    pageSize,
+    false // enableRealtime = false for static page
   );
 
   // Get customers and total from the server response

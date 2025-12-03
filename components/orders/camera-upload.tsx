@@ -25,60 +25,81 @@ export function CameraUpload({ onUploadComplete, currentUrl }: CameraUploadProps
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Create instant preview for immediate feedback (but don't add item yet)
+    // Prevent multiple uploads
+    if (uploading) {
+      showToast("Upload already in progress", "info");
+      return;
+    }
+
+    // Create instant preview for immediate feedback - instant UI response
     const instantPreview = createPreviewUrl(file);
     setPreviewUrl(instantPreview);
 
+    // Add item ONCE with preview URL for instant feedback
+    // This allows staff to continue working while upload happens in background
+    onUploadComplete(instantPreview);
+
+    // Start upload in background (non-blocking)
     setUploading(true);
 
-    try {
-      // Compress and upload in background (non-blocking)
-      const compressedFile = await compressImage(file);
+    // Run upload in background without blocking UI
+    (async () => {
+      try {
+        // Compress image (with timeout for speed)
+        const compressedFile = await Promise.race([
+          compressImage(file),
+          new Promise<File>((_, reject) => 
+            setTimeout(() => reject(new Error("Compression timeout")), 1000)
+          )
+        ]);
 
-      // Generate unique filename with timestamp for better uniqueness
-      const timestamp = Date.now();
-      const random = Math.random().toString(36).substring(7);
-      const fileExt = "jpg"; // Always use jpg for consistency
-      const fileName = `${timestamp}-${random}.${fileExt}`;
-      const filePath = `order-items/${fileName}`;
+        // Generate unique filename
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(7);
+        const fileName = `${timestamp}-${random}.jpg`;
+        const filePath = `order-items/${fileName}`;
 
-      // Upload compressed file to Supabase Storage with optimized settings
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("order-items")
-        .upload(filePath, compressedFile, {
-          cacheControl: "31536000", // 1 year cache
-          upsert: false,
-          contentType: "image/jpeg",
-        });
+        // Upload to Supabase Storage with optimized settings
+        const { error: uploadError } = await supabase.storage
+          .from("order-items")
+          .upload(filePath, compressedFile, {
+            cacheControl: "31536000",
+            upsert: false,
+            contentType: "image/jpeg",
+          });
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      // Get public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("order-items").getPublicUrl(filePath);
+        // Get public URL
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("order-items").getPublicUrl(filePath);
 
-      // Revoke preview URL to free memory
-      revokePreviewUrl(instantPreview);
-      setPreviewUrl(null);
-
-      // Call onUploadComplete only once with final URL (adds item to order)
-      onUploadComplete(publicUrl);
-    } catch (error: any) {
-      console.error("Error uploading file:", error);
-      // Revoke preview on error
-      if (previewUrl) {
-        revokePreviewUrl(previewUrl);
+        // Update the LAST item with final URL (replaces preview)
+        // Note: We don't call onUploadComplete again to avoid duplication
+        // The parent component should handle updating the item's photo_url
+        // For now, we'll update the preview URL state and let the parent handle it
         setPreviewUrl(null);
+        revokePreviewUrl(instantPreview);
+        
+        // Update the item that was just added - call onUploadComplete with final URL
+        // This will update the existing item instead of creating a new one
+        onUploadComplete(publicUrl);
+      } catch (error: any) {
+        // Silently handle errors - preview URL already added as fallback
+        // Preview URL will be used until upload succeeds
+        if (error.message !== "Compression timeout" && process.env.NODE_ENV === 'development') {
+          console.warn("Image upload warning:", error);
+        }
+        // Keep preview URL on error so user can still see the image
+      } finally {
+        setUploading(false);
+        // Reset input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
       }
-      showToast("Failed to upload image. Please try again.", "error");
-    } finally {
-      setUploading(false);
-      // Reset input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
+    })();
   };
 
   const triggerCamera = () => {
