@@ -168,11 +168,12 @@ export function useOrdersInfinite(
     getNextPageParam: (lastPage, pages) => lastPage.nextPage,
     initialPageParam: 0,
     enabled: !!branchId,
-    staleTime: 30000, // 30s - balance between freshness and performance
-    gcTime: 300000, // 5m as per requirements
+    staleTime: 60000, // 60s - longer cache for ultra-fast navigation
+    gcTime: 600000, // 10m - keep in cache longer for instant access
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
-    refetchOnMount: false, // Use cached data if available
+    refetchOnMount: false, // Use cached data for instant navigation
     refetchOnReconnect: true, // Refetch on reconnect to catch missed updates
+    placeholderData: (previousData) => previousData, // Optimistic UI updates
   });
 }
 
@@ -238,11 +239,12 @@ export function useOrders(
       };
     },
     enabled: !!branchId,
-    staleTime: 30000, // 30s
-    gcTime: 300000, // 5m
+    staleTime: 60000, // 60s - longer cache for ultra-fast navigation
+    gcTime: 600000, // 10m - keep in cache longer
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    refetchOnReconnect: false,
+    refetchOnReconnect: true,
+    placeholderData: (previousData) => previousData, // Optimistic UI
   });
 }
 
@@ -284,8 +286,11 @@ export function useOrder(orderId: string) {
       return data as Order;
     },
     enabled: !!orderId && typeof orderId === "string" && orderId !== "undefined" && orderId !== "null",
-    retry: false, // Fix #3: Don't retry 404s or RLS errors
-    refetchOnWindowFocus: true,
+    retry: false, // Don't retry 404s or RLS errors
+    refetchOnWindowFocus: false, // Use cached data for instant navigation
+    staleTime: 60000, // 60s - longer cache for ultra-fast navigation
+    gcTime: 600000, // 10m - keep in cache longer
+    placeholderData: (previousData) => previousData, // Optimistic UI updates
   });
 }
 

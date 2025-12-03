@@ -93,12 +93,13 @@ export function useCustomers(searchQuery?: string, page: number = 1, pageSize: n
         totalPages: searchQuery ? Math.ceil((count || 0) / pageSize) : Math.ceil((count || 0) / pageSize),
       };
     },
-    staleTime: 60000, // Cache for 1 minute - balance between freshness and performance
-    gcTime: 300000, // Keep in cache for 5 minutes
+    staleTime: 60000, // 60s - longer cache for ultra-fast navigation
+    gcTime: 600000, // 10m - keep in cache longer for instant access
     refetchOnWindowFocus: false, // Disable refetch on focus for better performance
     refetchInterval: false, // Disable interval refetch
-    refetchOnMount: false, // Use cached data if available for instant navigation
+    refetchOnMount: false, // Use cached data for instant navigation
     refetchOnReconnect: true, // Refetch on reconnect to catch missed updates
+    placeholderData: (previousData) => previousData, // Optimistic UI updates
   });
 }
 
