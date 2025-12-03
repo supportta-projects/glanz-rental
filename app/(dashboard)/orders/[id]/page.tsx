@@ -278,85 +278,8 @@ export default function OrderDetailsPage() {
               </div>
             </Card>
 
-            {/* Order Items - Clean Table - Show for ALL orders including scheduled */}
-            {order.items && order.items.length > 0 && (
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Items</h3>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-b border-gray-200">
-                        <TableHead className="w-16">Photo</TableHead>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
-                        <TableHead className="text-right">Price/Day</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        {order.status !== "scheduled" && order.status !== "cancelled" && (
-                          <TableHead className="text-center">Status</TableHead>
-                        )}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {order.items.map((item, index) => (
-                        <TableRow key={item.id || index} className="border-b border-gray-100">
-                          <TableCell>
-                            {item.photo_url ? (
-                              <img 
-                                src={item.photo_url} 
-                                alt={item.product_name || "Product"} 
-                                className="w-12 h-12 object-cover rounded border border-gray-200 cursor-pointer hover:border-[#273492] transition-all"
-                                onClick={() => setSelectedImage(item.photo_url)}
-                              />
-                            ) : (
-                              <div className="w-12 h-12 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-                                <Package className="h-5 w-5 text-gray-400" />
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {item.product_name || "Unnamed Product"}
-                              </p>
-                              {item.days && (
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  {item.days} {item.days === 1 ? "day" : "days"}
-                                </p>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="text-sm font-medium text-gray-900">{item.quantity}</span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="text-sm text-gray-600">{formatCurrency(item.price_per_day)}</span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="text-sm font-semibold text-gray-900">
-                              {formatCurrency(item.line_total || (item.price_per_day * item.quantity * (item.days || 1)))}
-                            </span>
-                          </TableCell>
-                          {order.status !== "scheduled" && order.status !== "cancelled" && (
-                            <TableCell className="text-center">
-                              {item.return_status === "returned" ? (
-                                <Badge className="bg-green-500 text-white text-xs">Returned</Badge>
-                              ) : item.return_status === "missing" ? (
-                                <Badge className="bg-red-500 text-white text-xs">Missing</Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-xs">Pending</Badge>
-                              )}
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </Card>
-            )}
-
-            {/* Return Section - ONLY show for active/ongoing orders, NOT scheduled */}
-            {order.status !== "cancelled" && order.status !== "scheduled" && (
+            {/* Return Section - Show for all non-cancelled orders (includes items with checkboxes) */}
+            {order.status !== "cancelled" && (
               <div>
                 <OrderReturnSection
                   order={order}

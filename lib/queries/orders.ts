@@ -631,7 +631,7 @@ export function useProcessOrderReturn() {
       orderId: string;
       itemReturns: Array<{
         itemId: string;
-        returnStatus: "returned" | "missing";
+        returnStatus: "returned" | "missing" | "not_yet_returned";
         actualReturnDate?: string;
         missingNote?: string;
       }>;
@@ -687,11 +687,15 @@ export function useProcessOrderReturn() {
         const itemReturn = itemReturns.find((ir) => ir.itemId === item.id);
         if (itemReturn) {
           const endDate = (previousOrder as any).end_datetime || previousOrder.end_date;
+          // Clear actual_return_date when reverting to not_yet_returned
+          const shouldClearReturnDate = itemReturn.returnStatus === "not_yet_returned";
           return {
             ...item,
             return_status: itemReturn.returnStatus as OrderItemReturnStatus,
-            actual_return_date: itemReturn.actualReturnDate || new Date().toISOString(),
-            late_return: isOrderLate(endDate),
+            actual_return_date: shouldClearReturnDate 
+              ? undefined 
+              : (itemReturn.actualReturnDate || new Date().toISOString()),
+            late_return: itemReturn.returnStatus === "returned" ? isOrderLate(endDate) : undefined,
             missing_note: itemReturn.missingNote || undefined,
           };
         }

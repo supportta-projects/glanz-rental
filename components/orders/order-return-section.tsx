@@ -81,11 +81,7 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
 
-    // If item is already returned, don't allow unchecking (read-only)
-    if (item.return_status === "returned") {
-      return;
-    }
-
+    // Allow toggling all items - check/uncheck returned items for partial return
     const newSelected = new Set(selectedItems);
     if (newSelected.has(itemId)) {
       newSelected.delete(itemId);
@@ -101,35 +97,55 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
   };
 
   const handleSubmitReturn = async () => {
-    if (selectedItems.size === 0) {
-      showToast("Please select at least one item to return", "error");
-      return;
-    }
+    // Determine which items changed status
+    const itemsToReturn: Array<{ itemId: string; returnStatus: "returned"; actualReturnDate: string }> = [];
+    const itemsToRevert: Array<{ itemId: string; returnStatus: "not_yet_returned" }> = [];
 
-    // Determine which items are being marked as returned (newly selected items that weren't already returned)
-    const newlyReturnedItems: string[] = [];
     items.forEach((item) => {
-      if (item.id && selectedItems.has(item.id)) {
-        // Only include items that weren't already returned
-        if (!item.return_status || item.return_status === "not_yet_returned") {
-          newlyReturnedItems.push(item.id);
-        }
+      if (!item.id) return;
+      
+      const isCurrentlyReturned = item.return_status === "returned";
+      const isSelected = selectedItems.has(item.id);
+
+      // Item is being marked as returned
+      if (isSelected && !isCurrentlyReturned) {
+        itemsToReturn.push({
+          itemId: item.id,
+          returnStatus: "returned",
+          actualReturnDate: new Date().toISOString(),
+        });
+      }
+      
+      // Item is being unselected (reverted from returned to not_yet_returned)
+      if (!isSelected && isCurrentlyReturned) {
+        itemsToRevert.push({
+          itemId: item.id,
+          returnStatus: "not_yet_returned",
+        });
       }
     });
 
-    if (newlyReturnedItems.length === 0) {
-      showToast("No new items to return", "info");
+    // Check if there are any changes
+    if (itemsToReturn.length === 0 && itemsToRevert.length === 0) {
+      showToast("No changes to save", "info");
       return;
     }
 
     try {
       const fee = parseFloat(lateFee) || 0;
 
-      const itemReturns = newlyReturnedItems.map((itemId) => ({
-        itemId,
-        returnStatus: "returned" as const,
-        actualReturnDate: new Date().toISOString(),
-      }));
+      // Combine all changes into one mutation call
+      const itemReturns = [
+        ...itemsToReturn.map((ir) => ({
+          itemId: ir.itemId,
+          returnStatus: ir.returnStatus as const,
+          actualReturnDate: ir.actualReturnDate,
+        })),
+        ...itemsToRevert.map((ir) => ({
+          itemId: ir.itemId,
+          returnStatus: ir.returnStatus as const,
+        })),
+      ];
 
       // Mutation with optimistic updates - UI updates instantly (<1ms)
       await processReturnMutation.mutateAsync({
@@ -141,15 +157,19 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
       // Reset late fee input after successful submission
       setLateFee("0");
 
-      // Check completion status (using optimistic data that's already updated)
+      // Determine the result message
       const allItemsNowReturned = items.every((item) => {
         if (!item.id) return false;
-        // Item is returned if it was already returned OR if it's in the newly returned list
-        return item.return_status === "returned" || newlyReturnedItems.includes(item.id);
+        const willBeReturned = selectedItems.has(item.id);
+        return willBeReturned;
       });
 
-      if (allItemsNowReturned) {
+      if (allItemsNowReturned && itemsToRevert.length === 0) {
         showToast("All items returned successfully. Order completed!", "success");
+      } else if (itemsToRevert.length > 0 && itemsToReturn.length === 0) {
+        showToast(`Items reverted successfully. Order marked as partially returned.`, "success");
+      } else if (itemsToRevert.length > 0) {
+        showToast("Items updated successfully. Some items marked as returned, some reverted.", "success");
       } else {
         showToast("Items returned successfully. Order marked as partially returned.", "success");
       }
@@ -181,13 +201,14 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
     });
   }, [items, selectedItems]);
 
-  const hasNewlySelectedItems = useMemo(() => {
+  const hasChanges = useMemo(() => {
+    // Check if there are any changes from current state
     return items.some((item) => {
       if (!item.id) return false;
-      return (
-        selectedItems.has(item.id) &&
-        (!item.return_status || item.return_status === "not_yet_returned")
-      );
+      const isCurrentlyReturned = item.return_status === "returned";
+      const isSelected = selectedItems.has(item.id);
+      // Has change if status differs from current state
+      return isCurrentlyReturned !== isSelected;
     });
   }, [items, selectedItems]);
 
@@ -242,17 +263,30 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
       {/* Unified Items Table */}
       <Card className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">All Items</h2>
-          {returnableItems.length > 0 && (
+          <h2 className="text-lg font-semibold text-gray-900">Items</h2>
+          <div className="flex gap-2">
+            {returnableItems.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleMarkAllReturned}
+                className="text-xs"
+              >
+                Mark All as Returned
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
-              onClick={handleMarkAllReturned}
+              onClick={() => {
+                // Uncheck all items (revert all)
+                setSelectedItems(new Set());
+              }}
               className="text-xs"
             >
-              Mark All as Returned
+              Uncheck All
             </Button>
-          )}
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -283,7 +317,6 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
                         id={`return-${item.id}`}
                         checked={checked}
                         onCheckedChange={() => handleToggleItem(item.id!)}
-                        disabled={returned} // Don't allow unchecking already returned items
                       />
                     </TableCell>
                     <TableCell>
@@ -376,8 +409,8 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
         </div>
       </Card>
 
-      {/* Submit Button */}
-      {hasNewlySelectedItems && (
+      {/* Submit Button - Show when there are changes */}
+      {hasChanges && (
         <Button
           onClick={handleSubmitReturn}
           disabled={processReturnMutation.isPending}
@@ -387,8 +420,8 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
           {processReturnMutation.isPending
             ? "Processing..."
             : allItemsReturned
-            ? "Complete Return (All Items)"
-            : `Submit Return (${selectedItems.size - returnStats.returned} new items)`}
+            ? "Save Changes (All Items Returned)"
+            : "Save Changes"}
         </Button>
       )}
 
