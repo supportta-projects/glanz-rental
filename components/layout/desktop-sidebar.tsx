@@ -187,15 +187,24 @@ export function DesktopSidebar() {
       <div className="h-20 border-b border-gray-200/60 flex items-center px-5 bg-gradient-to-br from-white via-white to-gray-50/30">
         <div className="flex items-center gap-3 group">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#273492]/10 to-[#273492]/5 border-2 border-[#273492]/20 transition-all duration-300 group-hover:scale-110 group-hover:border-[#273492]/40 premium-hover">
-            <img 
-              src="/glanz_logo.png" 
-              alt="Glanz Logo" 
-              className="w-full h-full object-contain p-1.5"
-            />
+            {user?.company_logo_url ? (
+              <img 
+                src={user.company_logo_url} 
+                alt={user.company_name || "Company Logo"} 
+                className="w-full h-full object-contain p-1.5"
+              />
+            ) : (
+              <img 
+                src="/glanz_logo.png" 
+                alt="Glanz Logo" 
+                className="w-full h-full object-contain p-1.5"
+              />
+            )}
           </div>
           <div>
-            <div className="font-bold text-[#273492] text-base tracking-tight">GLANZ RENTAL</div>
-            <div className="text-xs text-gray-500 font-medium">Management System</div>
+            <div className="font-bold text-[#273492] text-base tracking-tight">
+              {user?.company_name || "Glanz Costumes"}
+            </div>
           </div>
         </div>
       </div>

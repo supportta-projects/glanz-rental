@@ -159,15 +159,24 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
-                <img 
-                  src="/glanz_logo.png" 
-                  alt="Glanz Logo" 
-                  className="w-full h-full object-contain"
-                />
+                {user?.company_logo_url ? (
+                  <img 
+                    src={user.company_logo_url} 
+                    alt={user.company_name || "Company Logo"} 
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <img 
+                    src="/glanz_logo.png" 
+                    alt="Glanz Logo" 
+                    className="w-full h-full object-contain"
+                  />
+                )}
               </div>
               <div>
-                <div className="text-sm font-bold text-gray-900">GLANZ</div>
-                <div className="text-xs text-gray-500">RENTAL</div>
+                <div className="text-sm font-bold text-gray-900">
+                  {user?.company_name || "Glanz Costumes"}
+                </div>
               </div>
             </div>
             <button

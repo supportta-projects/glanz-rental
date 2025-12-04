@@ -52,6 +52,8 @@ export default function DashboardLayout({
             gst_rate: profile.gst_rate ? parseFloat(String(profile.gst_rate)) : undefined,
             gst_included: profile.gst_included ?? false,
             upi_id: profile.upi_id,
+            company_name: profile.company_name,
+            company_logo_url: profile.company_logo_url,
             branch: profile.branch,
           });
         }

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Glanz Rental - Rental Management System",
+  title: "Glanz Costumes - Rental Management System",
   description: "Professional rental management system for equipment and items",
 };
 

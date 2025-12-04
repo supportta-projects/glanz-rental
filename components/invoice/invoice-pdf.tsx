@@ -356,9 +356,9 @@ const styles = StyleSheet.create({
   cellSlNo: {
     width: 28,
     fontSize: 8,
-    color: "#374151",
+    color: "#000000",
     textAlign: "center",
-    fontWeight: "500",
+    fontWeight: "600",
     paddingRight: 4,
   },
   cellPhoto: {
@@ -378,24 +378,24 @@ const styles = StyleSheet.create({
   cellQty: {
     width: 38,
     fontSize: 8,
-    color: "#374151",
+    color: "#000000",
     textAlign: "center",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   cellPrice: {
     width: 92,
     fontSize: 8,
-    color: "#374151",
+    color: "#000000",
     textAlign: "right",
     paddingRight: 6,
-    fontWeight: "500",
+    fontWeight: "600",
     fontFamily: "Courier", // Monospace for number alignment
   },
   cellTotal: {
     width: 101,
     fontSize: 8,
     fontWeight: "700",
-    color: "#111827",
+    color: "#000000",
     textAlign: "right",
     paddingRight: 4,
     fontFamily: "Courier", // Monospace for number alignment
@@ -437,8 +437,8 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     fontSize: 8,
-    color: "#111827",
-    fontWeight: "500",
+    color: "#000000",
+    fontWeight: "600",
   },
   totalRow: {
     flexDirection: "row",
@@ -451,12 +451,12 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#111827",
+    color: "#000000",
   },
   totalValue: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#111827",
+    color: "#000000",
     letterSpacing: -0.3,
   },
   
@@ -651,11 +651,15 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
     ? `upi://pay?pa=${user.upi_id}&am=${order.total_amount.toFixed(2)}&cu=INR&tn=Order ${order.invoice_number}`
     : null;
 
-  // Fix brand name typo if present
+  // Get company name (prefer company_name, then branch name, then default)
   const getShopName = () => {
-    const branchName = user?.branch?.name || "GLANZ RENTAL";
-    // Fix common typo: "Constumes" -> "Costumes"
-    return branchName.replace(/Constumes/gi, "Costumes");
+    if (user?.company_name) {
+      return user.company_name;
+    }
+    if (user?.branch?.name) {
+      return user.branch.name;
+    }
+    return "Glanz Costumes";
   };
 
   const shopAddressLines = user?.branch?.address 
@@ -697,7 +701,7 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
         </View>
       </View>
       <View style={styles.headerRight}>
-        <Text style={styles.invoiceLabel}>INVOICE</Text>
+        <Text style={styles.invoiceLabel}>ORDER</Text>
         <Text style={styles.invoiceNumberText}>
           {order.invoice_number || "N/A"}
         </Text>
@@ -739,7 +743,7 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
         </View>
       </View>
       <View style={styles.headerRight}>
-        <Text style={styles.invoiceLabel}>INVOICE</Text>
+        <Text style={styles.invoiceLabel}>ORDER</Text>
         <Text style={styles.continuationInvoiceText}>
           {order.invoice_number || "N/A"}
         </Text>
@@ -761,7 +765,7 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.continuationRentalLabel}>
-          Rental: {formatDate(startDate, "dd MMM yyyy")} to {formatDate(endDate, "dd MMM yyyy")} ({rentalDays} {rentalDays === 1 ? 'day' : 'days'})
+          Rental: {formatDate(startDate, "dd MMM yyyy")} to {formatDate(endDate, "dd MMM yyyy")}
         </Text>
       </View>
     </View>
@@ -791,7 +795,7 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
     <View style={styles.rentalPeriodBlock}>
       <Text style={styles.rentalPeriodLabel}>Rental Period</Text>
       <Text style={styles.rentalPeriodText}>
-        {formatDate(startDate, "dd MMM yyyy")} to {formatDate(endDate, "dd MMM yyyy")} ({rentalDays} {rentalDays === 1 ? 'day' : 'days'})
+        {formatDate(startDate, "dd MMM yyyy")} to {formatDate(endDate, "dd MMM yyyy")}
       </Text>
     </View>
   );
@@ -803,9 +807,8 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
           ? [styles.tableRow]
           : [styles.tableRow, styles.tableRowEven];
         
-        // FIXED: Always use calculated total (days × qty × price)
-        const itemDays = item.days || rentalDays;
-        const calculatedTotal = item.quantity * item.price_per_day * itemDays;
+        // Calculate total: quantity × price (no days multiplication)
+        const calculatedTotal = item.quantity * item.price_per_day;
         // Always use calculated total, ignore backend line_total
         const displayTotal = calculatedTotal;
         
@@ -914,9 +917,14 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
                 </View>
               ) : null}
               {/* Put UPI and Amount on same line to save space and prevent splitting */}
-              <Text style={styles.qrInfo}>
-                UPI: {user?.upi_id || "N/A"} | Amount: {formatRs(order.total_amount)}
-              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <Text style={styles.qrInfo}>
+                  UPI: {user?.upi_id || "N/A"} | Amount:{" "}
+                </Text>
+                <Text style={[styles.qrInfo, { color: "#000000", fontWeight: "600" }]}>
+                  {formatRs(order.total_amount)}
+                </Text>
+              </View>
             </View>
           </View>
         )}
@@ -960,7 +968,7 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
                   <Text style={[styles.tableHeaderText, styles.cellPhoto]}>Photo</Text>
                   <Text style={[styles.tableHeaderText, styles.cellName]}>Product Name</Text>
                   <Text style={[styles.tableHeaderText, styles.cellQty]}>Qty</Text>
-                  <Text style={[styles.tableHeaderText, styles.cellPrice]}>Per Day Price</Text>
+                  <Text style={[styles.tableHeaderText, styles.cellPrice]}>Price</Text>
                   <Text style={[styles.tableHeaderText, styles.cellTotal]}>Total</Text>
                 </View>
                 

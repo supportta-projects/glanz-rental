@@ -1,5 +1,5 @@
 /**
- * Centralized Color System for Glanz Rental
+ * Centralized Color System for Glanz Costumes
  * 
  * All theme colors are defined here. Update these values to change
  * the entire application theme at once.

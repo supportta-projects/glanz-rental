@@ -93,7 +93,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
                   margin: 0
                 }}
               >
-                {user?.branch?.name || "GLANZ RENTAL"}
+                {user?.company_name || user?.branch?.name || "Glanz Costumes"}
               </h1>
             </div>
             {shopAddressLines.length > 0 && (
@@ -151,7 +151,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
                 letterSpacing: "0.5px"
               }}
             >
-              INVOICE
+              ORDER
             </p>
             <p 
               style={{
@@ -249,7 +249,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
           <div className="w-[10%]">Photo</div>
           <div className="w-[35%]">Product Name</div>
           <div className="w-[8%] text-center">Qty</div>
-          <div className="w-[21%] text-right pr-2">Price/Day</div>
+          <div className="w-[21%] text-right pr-2">Price</div>
           <div className="w-[21%] text-right">Total</div>
         </div>
 
@@ -266,7 +266,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
               }}
             >
               <div className="w-[5%] flex items-center justify-center">
-                <span style={{ color: "#9ca3af", fontSize: "8pt" }}>{index + 1}</span>
+                <span style={{ color: "#000000", fontSize: "8pt", fontWeight: "600" }}>{index + 1}</span>
               </div>
               <div className="w-[10%] flex items-center justify-center pr-2">
                 {item.photo_url ? (
@@ -308,15 +308,15 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
                 </p>
               </div>
               <div className="w-[8%] flex items-center justify-center">
-                <span style={{ color: "#374151", fontWeight: "500" }}>{item.quantity}</span>
+                <span style={{ color: "#000000", fontWeight: "600" }}>{item.quantity}</span>
               </div>
               <div className="w-[21%] flex items-center justify-end pr-2">
-                <span style={{ color: "#6b7280" }}>
+                <span style={{ color: "#000000", fontWeight: "500" }}>
                   {`₹${formatCurrencyNumber(item.price_per_day)}`}
                 </span>
               </div>
               <div className="w-[21%] flex items-center justify-end">
-                <span style={{ color: "#111827", fontWeight: "600", fontSize: "9pt" }}>
+                <span style={{ color: "#000000", fontWeight: "700", fontSize: "9pt" }}>
                   {`₹${formatCurrencyNumber(item.line_total)}`}
                 </span>
               </div>
@@ -359,7 +359,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
           }}
         >
           <span style={{ color: "#6b7280" }}>Subtotal</span>
-          <span style={{ color: "#111827", fontWeight: "500" }}>
+          <span style={{ color: "#000000", fontWeight: "600" }}>
             {`₹${formatCurrencyNumber(subtotal)}`}
           </span>
         </div>
@@ -374,7 +374,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
             }}
           >
             <span style={{ color: "#6b7280" }}>GST ({gstRate}%)</span>
-            <span style={{ color: "#111827", fontWeight: "500" }}>
+            <span style={{ color: "#000000", fontWeight: "600" }}>
               {`₹${formatCurrencyNumber(gstAmount)}`}
             </span>
           </div>
@@ -406,7 +406,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
           <span 
             style={{
               fontSize: "12pt",
-              color: "#111827",
+              color: "#000000",
               fontWeight: "600"
             }}
           >
@@ -415,7 +415,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
           <span 
             style={{
               fontSize: "18pt",
-              color: "#111827",
+              color: "#000000",
               fontWeight: "700",
               letterSpacing: "-0.5px"
             }}
@@ -500,7 +500,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
             <p style={{ fontSize: "7pt", color: "#6b7280", marginTop: "6px", lineHeight: "1.5" }}>
               {user?.upi_id || "N/A"}
             </p>
-            <p style={{ fontSize: "8pt", color: "#111827", fontWeight: "600", marginTop: "3px" }}>
+            <p style={{ fontSize: "8pt", color: "#000000", fontWeight: "600", marginTop: "3px" }}>
               {`₹${formatCurrencyNumber(order.total_amount)}`}
             </p>
           </div>

@@ -1,4 +1,4 @@
-// Core Type Definitions for Glanz Rental
+// Core Type Definitions for Glanz Costumes
 
 export type UserRole = "super_admin" | "branch_admin" | "staff";
 

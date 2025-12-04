@@ -69,6 +69,8 @@ export default function LoginPage() {
         gst_rate: profile.gst_rate ? parseFloat(String(profile.gst_rate)) : undefined,
         gst_included: profile.gst_included ?? false,
         upi_id: profile.upi_id,
+        company_name: profile.company_name,
+        company_logo_url: profile.company_logo_url,
         branch: profile.branch,
       });
 
@@ -98,7 +100,7 @@ export default function LoginPage() {
               alt="Glanz Logo" 
               className="w-12 h-12 object-contain"
             />
-            <h1 className="text-3xl font-bold text-[#273492]">GLANZ RENTAL</h1>
+            <h1 className="text-3xl font-bold text-[#273492]">Glanz Costumes</h1>
           </div>
         </div>
 

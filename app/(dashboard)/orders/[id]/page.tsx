@@ -67,15 +67,7 @@ export default function OrderDetailsPage() {
   const gstRate = useMemo(() => user?.gst_rate || 5.00, [user?.gst_rate]);
   
   // Effect hooks - call unconditionally
-  useEffect(() => {
-    const shouldPrint = searchParams.get('print') === 'true';
-    if (shouldPrint && order && !isLoading) {
-      setShowInvoiceDialog(true);
-      setTimeout(() => {
-        window.print();
-      }, 1000);
-    }
-  }, [searchParams, order, isLoading]);
+  // Print functionality removed - no longer needed
   
   // Memoized status badge - call unconditionally
   const statusBadge = useMemo(() => {
@@ -452,9 +444,9 @@ export default function OrderDetailsPage() {
 
           {/* Right Column - Premium Summary & Actions (1/3 width on desktop) */}
           <div className="lg:col-span-1 space-y-6">
-            {/* Premium Order Summary - Sticky for performance */}
+            {/* Premium Order Summary - Scrolls with page */}
             <Card 
-              className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 shadow-lg rounded-xl sticky top-6 premium-hover"
+              className="p-6 bg-white/80 backdrop-blur-sm border border-gray-200/60 shadow-lg rounded-xl premium-hover"
               style={{
                 animation: "fadeInUp 0.5s ease-out 0.1s forwards",
                 opacity: 0,
