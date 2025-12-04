@@ -43,6 +43,16 @@ export default function ProfilePage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const companyLogoInputRef = useRef<HTMLInputElement>(null);
   
+  // Branch details state (for branch_admin)
+  const [branchName, setBranchName] = useState("");
+  const [branchAddress, setBranchAddress] = useState("");
+  const [branchPhone, setBranchPhone] = useState("");
+  const [branchLogoUrl, setBranchLogoUrl] = useState("");
+  const [branchLogoPreview, setBranchLogoPreview] = useState<string | null>(null);
+  const [uploadingBranchLogo, setUploadingBranchLogo] = useState(false);
+  const branchLogoInputRef = useRef<HTMLInputElement>(null);
+  const [savingBranch, setSavingBranch] = useState(false);
+  
   // Password state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -82,6 +92,17 @@ export default function ProfilePage() {
         setCompanyLogoPreview(companyLogoValue);
       }
       
+      // Branch details (from branch - branch_admin)
+      if (user.branch) {
+        setBranchName(user.branch.name || "");
+        setBranchAddress(user.branch.address || "");
+        setBranchPhone(user.branch.phone || "");
+        const branchLogoValue = (user.branch as any).logo_url || "";
+        setBranchLogoUrl(branchLogoValue);
+        if (branchLogoValue) {
+          setBranchLogoPreview(branchLogoValue);
+        }
+      }
     }
   }, [user]);
 
@@ -170,6 +191,95 @@ export default function ProfilePage() {
     }
   }, [user, companyLogoUrl, showToast, supabase, setUser]);
 
+  // Handle logo upload (branch)
+  const handleBranchLogoUpload = useCallback(async (file: File) => {
+    if (!user?.branch_id) return;
+
+    setUploadingBranchLogo(true);
+    try {
+      // Create instant preview
+      const preview = createPreviewUrl(file);
+      setBranchLogoPreview(preview);
+
+      // Compress image
+      let compressedFile: File;
+      try {
+        compressedFile = await compressImage(file);
+      } catch {
+        compressedFile = file;
+      }
+
+      // Generate unique filename
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(7);
+      const fileName = `branch-logo-${timestamp}-${random}.jpg`;
+      const filePath = fileName; // Upload to root of bucket, not in subfolder
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from("branch-logos")
+        .upload(filePath, compressedFile, {
+          cacheControl: "31536000",
+          upsert: false,
+          contentType: "image/jpeg",
+        });
+
+      if (uploadError) {
+        // Check if it's a bucket not found error
+        if (uploadError.message?.toLowerCase().includes("bucket") || uploadError.message?.toLowerCase().includes("not found")) {
+          throw new Error("Storage bucket not found. Please run the 'supabase-storage-buckets-migration.sql' script in Supabase SQL Editor to create the required storage buckets.");
+        }
+        throw new Error(uploadError.message || "Upload failed");
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from("branch-logos")
+        .getPublicUrl(filePath);
+
+      // Update branch
+      const { error: updateError } = await (supabase
+        .from("branches") as any)
+        .update({ logo_url: publicUrl })
+        .eq("id", user.branch_id);
+
+      if (updateError) throw updateError;
+
+      setBranchLogoUrl(publicUrl);
+      revokePreviewUrl(preview);
+      setBranchLogoPreview(publicUrl);
+      
+      // Update user store
+      if (user.branch) {
+        setUser({
+          ...user,
+          branch: {
+            ...user.branch,
+            logo_url: publicUrl,
+          },
+        });
+      }
+
+      showToast("Branch logo uploaded successfully", "success");
+    } catch (error: any) {
+      console.error("Branch logo upload error:", error);
+      const errorMessage = error.message || "Failed to upload logo";
+      
+      // Show more helpful error message for bucket errors
+      if (errorMessage.includes("bucket") || errorMessage.includes("not found")) {
+        showToast(
+          "Storage bucket not found. Please run 'supabase-storage-buckets-migration.sql' in Supabase SQL Editor.",
+          "error"
+        );
+      } else {
+        showToast(errorMessage, "error");
+      }
+      
+      setBranchLogoPreview(branchLogoUrl || null);
+    } finally {
+      setUploadingBranchLogo(false);
+    }
+  }, [user, branchLogoUrl, showToast, supabase, setUser]);
 
   // Save user details
   const handleSaveUserDetails = useCallback(async () => {
@@ -243,6 +353,53 @@ export default function ProfilePage() {
     }
   }, [user, companyName, companyAddress, showToast, supabase, setUser]);
 
+  // Save branch details (branch_admin only)
+  const handleSaveBranchDetails = useCallback(async () => {
+    if (!user?.branch_id) return;
+
+    if (!branchName.trim()) {
+      showToast("Branch name is required", "error");
+      return;
+    }
+
+    if (!branchAddress.trim()) {
+      showToast("Branch address is required", "error");
+      return;
+    }
+
+    setSavingBranch(true);
+    try {
+      const { error } = await (supabase
+        .from("branches") as any)
+        .update({
+          name: branchName.trim(),
+          address: branchAddress.trim(),
+          phone: branchPhone.trim() || null,
+        })
+        .eq("id", user.branch_id);
+
+      if (error) throw error;
+
+      // Update user store
+      if (user.branch) {
+        setUser({
+          ...user,
+          branch: {
+            ...user.branch,
+            name: branchName.trim(),
+            address: branchAddress.trim(),
+            phone: branchPhone.trim() || undefined,
+          },
+        });
+      }
+
+      showToast("Branch details saved successfully", "success");
+    } catch (error: any) {
+      showToast(error.message || "Failed to save branch details", "error");
+    } finally {
+      setSavingBranch(false);
+    }
+  }, [user, branchName, branchAddress, branchPhone, showToast, supabase, setUser]);
 
   // Memoized handlers for performance
   const handleChangePassword = useCallback(async (e: React.FormEvent) => {
@@ -375,6 +532,7 @@ export default function ProfilePage() {
   }, [user?.role]);
 
   const isSuperAdmin = user?.role === "super_admin";
+  const isBranchAdmin = user?.role === "branch_admin";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f7f9fb] via-white to-[#f7f9fb] pb-24">
@@ -545,6 +703,112 @@ export default function ProfilePage() {
                   className="w-full h-12 bg-gradient-to-r from-[#273492] to-[#1f2a7a] hover:from-[#1f2a7a] hover:to-[#273492] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl premium-hover"
                 >
                   {savingUser ? "Saving..." : "Save Company Details"}
+                </StandardButton>
+              </div>
+            </Card>
+          )}
+
+          {/* Branch Details Card - Branch Admin Only */}
+          {isBranchAdmin && user?.branch && (
+            <Card 
+              className="p-6 rounded-xl border-2 border-[#273492]/20 bg-gradient-to-br from-[#273492]/5 to-[#273492]/10 shadow-lg hover:shadow-xl transition-all duration-300 premium-hover fadeInUp"
+              style={{ animationDelay: "0.15s", willChange: "transform" }}
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#273492] to-[#1f2a7a] flex items-center justify-center shadow-lg">
+                  <Building2 className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Branch Details</h2>
+                  <p className="text-sm text-gray-500">Configure branch information for invoices</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                {/* Logo Upload */}
+                <div className="space-y-2">
+                  <Label className="text-sm text-[#6b7280] font-medium">Branch Logo</Label>
+                  <div className="flex items-center gap-4">
+                    {branchLogoPreview ? (
+                      <div className="relative">
+                        <img
+                          src={branchLogoPreview}
+                          alt="Branch logo"
+                          className="w-24 h-24 object-contain rounded-xl border-2 border-[#273492]/20 bg-white p-2"
+                        />
+                        <button
+                          onClick={() => {
+                            setBranchLogoPreview(null);
+                            setBranchLogoUrl("");
+                          }}
+                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
+                        <Camera className="h-8 w-8 text-gray-400" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <input
+                        ref={branchLogoInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleBranchLogoUpload(file);
+                        }}
+                        className="hidden"
+                      />
+                      <StandardButton
+                        onClick={() => branchLogoInputRef.current?.click()}
+                        variant="outline"
+                        disabled={uploadingBranchLogo}
+                        className="h-12 border-[#273492]/30 hover:border-[#273492] hover:bg-[#273492]/5"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {uploadingBranchLogo ? "Uploading..." : branchLogoPreview ? "Change Logo" : "Upload Logo"}
+                      </StandardButton>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm text-[#6b7280] font-medium">Branch Name *</Label>
+                  <Input
+                    value={branchName}
+                    onChange={(e) => setBranchName(e.target.value)}
+                    placeholder="Enter branch name"
+                    className="h-12 text-base rounded-xl border-gray-200 focus:border-[#273492] focus:ring-2 focus:ring-[#273492]/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm text-[#6b7280] font-medium">Branch Address / Location *</Label>
+                  <textarea
+                    value={branchAddress}
+                    onChange={(e) => setBranchAddress(e.target.value)}
+                    placeholder="Enter branch address"
+                    rows={3}
+                    className="w-full px-4 py-3 text-base rounded-xl border border-gray-200 focus:border-[#273492] focus:ring-2 focus:ring-[#273492]/20 resize-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm text-[#6b7280] font-medium">Branch Phone</Label>
+                  <Input
+                    value={branchPhone}
+                    onChange={(e) => setBranchPhone(e.target.value)}
+                    placeholder="Enter branch phone number"
+                    className="h-12 text-base rounded-xl border-gray-200 focus:border-[#273492] focus:ring-2 focus:ring-[#273492]/20"
+                  />
+                </div>
+                <StandardButton
+                  onClick={handleSaveBranchDetails}
+                  variant="default"
+                  disabled={savingBranch}
+                  loading={savingBranch}
+                  className="w-full h-12 bg-gradient-to-r from-[#273492] to-[#1f2a7a] hover:from-[#1f2a7a] hover:to-[#273492] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl premium-hover"
+                >
+                  {savingBranch ? "Saving..." : "Save Branch Details"}
                 </StandardButton>
               </div>
             </Card>

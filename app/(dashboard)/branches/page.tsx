@@ -1,13 +1,12 @@
 "use client";
 
 import { useUserStore } from "@/lib/stores/useUserStore";
-import { Building2, ShieldX, MapPin, Phone, Edit } from "lucide-react";
+import { Building2, ShieldX, MapPin, Phone } from "lucide-react";
 import { PageHeader, EmptyState, ActionButton, LoadingState, ErrorState } from "@/components/shared";
 import { useBranches } from "@/lib/queries/branches";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { RouteGuard } from "@/components/auth/route-guard";
-import { Button } from "@/components/ui/button";
 
 export default function BranchesPage() {
   const { user } = useUserStore();
@@ -51,16 +50,6 @@ export default function BranchesPage() {
                       <h3 className="text-lg font-semibold text-gray-900">{branch.name}</h3>
                     </div>
                   </div>
-                  <Link href={`/branches/${branch.id}/edit`}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 px-3 text-xs"
-                    >
-                      <Edit className="h-3 w-3 mr-1.5" />
-                      Edit
-                    </Button>
-                  </Link>
                 </div>
                 <div className="space-y-2">
                   {branch.address && (
