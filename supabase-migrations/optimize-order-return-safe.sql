@@ -1,9 +1,12 @@
 -- Optimized function: Process order return in single transaction
+-- SAFE VERSION: Checks if columns exist before using them
 -- This reduces 6-10 network calls to just 1 call (~50-100ms total)
+-- 
+-- IMPORTANT: Run supabase-migration-partial-returns-damage.sql FIRST to add the columns!
 
 CREATE OR REPLACE FUNCTION process_order_return_optimized(
   p_order_id UUID,
-  p_item_returns JSONB, -- Array of {item_id, return_status, actual_return_date, missing_note}
+  p_item_returns JSONB, -- Array of {item_id, return_status, actual_return_date, missing_note, returned_quantity, damage_fee, damage_description}
   p_user_id UUID,
   p_late_fee NUMERIC DEFAULT 0
 )
@@ -23,7 +26,26 @@ DECLARE
   v_end_date TIMESTAMP WITH TIME ZONE;
   v_order_is_late BOOLEAN;
   v_audit_logs JSONB := '[]'::JSONB;
+  v_has_returned_quantity_col BOOLEAN;
+  v_has_damage_fee_col BOOLEAN;
+  v_has_damage_fee_total_col BOOLEAN;
 BEGIN
+  -- Check which columns exist
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'order_items' AND column_name = 'returned_quantity'
+  ) INTO v_has_returned_quantity_col;
+  
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'order_items' AND column_name = 'damage_fee'
+  ) INTO v_has_damage_fee_col;
+  
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'orders' AND column_name = 'damage_fee_total'
+  ) INTO v_has_damage_fee_total_col;
+
   -- Step 1: Fetch order (single query)
   SELECT o.*, 
          COALESCE(o.end_datetime::TIMESTAMP WITH TIME ZONE, o.end_date::TIMESTAMP WITH TIME ZONE) as end_dt
@@ -37,23 +59,21 @@ BEGIN
   
   v_end_date := v_order.end_dt;
   v_order_is_late := NOW() > v_end_date;
-  v_original_total := COALESCE(v_order.total_amount, 0) - COALESCE(v_order.late_fee, 0) - COALESCE(v_order.damage_fee_total, 0);
+  v_original_total := COALESCE(v_order.total_amount, 0) - COALESCE(v_order.late_fee, 0);
+  IF v_has_damage_fee_total_col THEN
+    v_original_total := v_original_total - COALESCE(v_order.damage_fee_total, 0);
+  END IF;
   v_new_total := v_original_total + p_late_fee;
   
-  -- Step 2: Update all items in batch (single UPDATE with WHERE IN)
-  -- FIX: Added returned_quantity, damage_fee, and damage_description fields
-  -- Check if columns exist before updating
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'order_items' 
-    AND column_name = 'returned_quantity'
-  ) THEN
-    -- Columns exist - use full UPDATE with new fields
+  -- Step 2: Update all items in batch
+  IF v_has_returned_quantity_col AND v_has_damage_fee_col THEN
+    -- Full update with all new fields
     UPDATE order_items oi
     SET 
       return_status = (item->>'return_status')::TEXT,
       actual_return_date = CASE 
-        WHEN (item->>'return_status')::TEXT = 'returned' AND COALESCE((item->>'returned_quantity')::INTEGER, 0) > 0
+        WHEN (item->>'return_status')::TEXT = 'returned' 
+          AND COALESCE((item->>'returned_quantity')::INTEGER, 0) > 0
         THEN COALESCE((item->>'actual_return_date')::TIMESTAMP WITH TIME ZONE, NOW())
         ELSE NULL 
       END,
@@ -64,36 +84,25 @@ BEGIN
       END,
       missing_note = NULLIF(item->>'missing_note', ''),
       returned_quantity = COALESCE(
-        CASE 
-          WHEN item->>'returned_quantity' IS NOT NULL AND item->>'returned_quantity' != '' AND item->>'returned_quantity' != 'null'
-          THEN (item->>'returned_quantity')::INTEGER
-          ELSE NULL
-        END,
+        NULLIF((item->>'returned_quantity')::INTEGER, NULL),
         oi.returned_quantity,
         0
       ),
       damage_fee = COALESCE(
-        CASE 
-          WHEN item->>'damage_fee' IS NOT NULL AND item->>'damage_fee' != '' AND item->>'damage_fee' != 'null'
-          THEN (item->>'damage_fee')::NUMERIC(10,2)
-          ELSE NULL
-        END,
+        NULLIF((item->>'damage_fee')::NUMERIC(10,2), NULL),
         oi.damage_fee,
         0
       ),
       damage_description = COALESCE(
-        CASE 
-          WHEN item->>'damage_description' IS NOT NULL AND item->>'damage_description' != '' AND item->>'damage_description' != 'null'
-          THEN item->>'damage_description'
-          ELSE NULL
-        END,
+        NULLIF(item->>'damage_description', ''),
+        NULLIF(item->>'damage_description', 'null'),
         oi.damage_description
       )
     FROM jsonb_array_elements(p_item_returns) AS item
     WHERE oi.id = (item->>'item_id')::UUID
       AND oi.order_id = p_order_id;
   ELSE
-    -- Columns don't exist - use basic UPDATE without new fields
+    -- Basic update without new fields
     UPDATE order_items oi
     SET 
       return_status = (item->>'return_status')::TEXT,
@@ -113,23 +122,19 @@ BEGIN
       AND oi.order_id = p_order_id;
   END IF;
   
-  -- Step 3: Calculate damage_fee_total from all items
-  SELECT COALESCE(SUM(damage_fee), 0)
-  INTO v_damage_fee_total
-  FROM order_items
-  WHERE order_id = p_order_id;
+  -- Step 3: Calculate damage_fee_total
+  IF v_has_damage_fee_col THEN
+    SELECT COALESCE(SUM(damage_fee), 0)
+    INTO v_damage_fee_total
+    FROM order_items
+    WHERE order_id = p_order_id;
+    v_new_total := v_new_total + v_damage_fee_total;
+  ELSE
+    v_damage_fee_total := 0;
+  END IF;
   
-  -- Add damage fees to total
-  v_new_total := v_new_total + v_damage_fee_total;
-  
-  -- Step 4: Calculate new order status (single query) - CHECK FOR PARTIAL RETURNS AND DAMAGE
-  -- Check if new columns exist for status calculation
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'order_items' 
-    AND column_name = 'returned_quantity'
-  ) THEN
-    -- Use new columns for status calculation
+  -- Step 4: Calculate new order status
+  IF v_has_returned_quantity_col AND v_has_damage_fee_col THEN
     SELECT 
       COUNT(*) FILTER (WHERE return_status = 'returned' AND COALESCE(returned_quantity, 0) = quantity) = COUNT(*) as all_returned,
       COUNT(*) FILTER (WHERE return_status = 'missing') > 0 as has_missing,
@@ -140,7 +145,6 @@ BEGIN
     FROM order_items
     WHERE order_id = p_order_id;
   ELSE
-    -- Fallback to old logic without new columns
     SELECT 
       COUNT(*) FILTER (WHERE return_status = 'returned') = COUNT(*) as all_returned,
       COUNT(*) FILTER (WHERE return_status = 'missing') > 0 as has_missing,
@@ -152,11 +156,10 @@ BEGIN
     WHERE order_id = p_order_id;
   END IF;
   
-  -- Determine new status - INCLUDE completed_with_issues
+  -- Determine new status
   IF v_all_returned AND NOT v_has_partial_returns AND NOT v_has_damage THEN
     v_new_status := 'completed';
   ELSIF v_has_partial_returns OR v_has_damage THEN
-    -- If all items are marked as returned but have partial quantities or damage, mark as completed_with_issues
     v_new_status := 'completed_with_issues';
   ELSIF v_has_missing OR v_has_not_returned THEN
     v_new_status := 'partially_returned';
@@ -164,12 +167,8 @@ BEGIN
     v_new_status := v_order.status;
   END IF;
   
-  -- Step 5: Update order (single UPDATE) - INCLUDE damage_fee_total if column exists
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'orders' 
-    AND column_name = 'damage_fee_total'
-  ) THEN
+  -- Step 5: Update order
+  IF v_has_damage_fee_total_col THEN
     UPDATE orders
     SET 
       status = v_new_status,
@@ -188,8 +187,7 @@ BEGIN
     WHERE id = p_order_id;
   END IF;
   
-  -- Step 6: Create audit logs in batch (only if order_return_audit table exists)
-  -- Build audit logs array
+  -- Step 6: Create audit logs (if table exists)
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'order_return_audit') THEN
     FOR v_item_return IN SELECT * FROM jsonb_array_elements(p_item_returns)
     LOOP
@@ -204,7 +202,6 @@ BEGIN
       );
     END LOOP;
     
-    -- Insert all audit logs at once
     INSERT INTO order_return_audit (
       order_id, order_item_id, action, previous_status, new_status, user_id, notes
     )
@@ -218,7 +215,6 @@ BEGIN
       log->>'notes'
     FROM jsonb_array_elements(v_audit_logs) AS log;
     
-    -- Insert order-level audit log
     INSERT INTO order_return_audit (
       order_id, action, previous_status, new_status, user_id, notes
     )
@@ -232,7 +228,6 @@ BEGIN
     );
   END IF;
   
-  -- Return updated order data
   RETURN jsonb_build_object(
     'success', true,
     'order_id', p_order_id,
@@ -242,9 +237,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Grant execute permission
 GRANT EXECUTE ON FUNCTION process_order_return_optimized TO authenticated;
 
--- Update comment
-COMMENT ON FUNCTION process_order_return_optimized IS 'Optimized function to process order returns in single transaction. Handles partial returns, damage fees, and descriptions. Reduces network calls from 6-10 to 1.';
+COMMENT ON FUNCTION process_order_return_optimized IS 'Optimized function to process order returns. Handles partial returns and damage tracking if columns exist.';
 

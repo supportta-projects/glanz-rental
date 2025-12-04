@@ -84,7 +84,7 @@ export function useOrdersInfinite(
 
         let query = supabase
           .from("orders")
-          .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id, photo_url, product_name, quantity, price_per_day, days, line_total, return_status, actual_return_date, late_return, missing_note)", { count: "exact" })
+          .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, damage_fee_total, completion_notes, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id, photo_url, product_name, quantity, price_per_day, days, line_total, return_status, actual_return_date, late_return, missing_note, returned_quantity, damage_fee, damage_description)", { count: "exact" })
           .eq("branch_id", branchId)
           .order("created_at", { ascending: false });
 
@@ -200,7 +200,7 @@ export function useOrders(
 
       let query = supabase
         .from("orders")
-        .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id, photo_url, product_name, quantity, price_per_day, days, line_total, return_status, actual_return_date, late_return, missing_note)", { count: "exact" })
+        .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, damage_fee_total, completion_notes, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id, photo_url, product_name, quantity, price_per_day, days, line_total, return_status, actual_return_date, late_return, missing_note, returned_quantity, damage_fee, damage_description)", { count: "exact" })
         .order("created_at", { ascending: false });
 
       if (branchId) {
@@ -267,7 +267,46 @@ export function useOrder(orderId: string) {
 
       const { data, error } = await supabase
         .from("orders")
-        .select("*, customer:customers(id, name, phone, address), staff:profiles(id, full_name), branch:branches(id, name), items:order_items(*)")
+        .select(`
+          id,
+          invoice_number,
+          branch_id,
+          staff_id,
+          customer_id,
+          booking_date,
+          start_date,
+          end_date,
+          start_datetime,
+          end_datetime,
+          status,
+          total_amount,
+          subtotal,
+          gst_amount,
+          late_fee,
+          late_returned,
+          damage_fee_total,
+          completion_notes,
+          created_at,
+          customer:customers(id, name, phone, address),
+          staff:profiles(id, full_name),
+          branch:branches(id, name),
+          items:order_items(
+            id,
+            photo_url,
+            product_name,
+            quantity,
+            price_per_day,
+            days,
+            line_total,
+            return_status,
+            actual_return_date,
+            late_return,
+            missing_note,
+            returned_quantity,
+            damage_fee,
+            damage_description
+          )
+        `)
         .eq("id", orderId)
         .single();
       
@@ -847,6 +886,9 @@ export function useProcessOrderReturn() {
         returnStatus: "returned" | "missing" | "not_yet_returned";
         actualReturnDate?: string;
         missingNote?: string;
+        returned_quantity?: number;
+        damage_fee?: number;
+        damage_description?: string;
       }>;
       lateFee?: number;
     }) => {
@@ -860,9 +902,28 @@ export function useProcessOrderReturn() {
       const itemReturnsJsonb = itemReturns.map((ir) => ({
         item_id: ir.itemId,
         return_status: ir.returnStatus,
-        actual_return_date: ir.actualReturnDate || new Date().toISOString(),
+        actual_return_date: ir.actualReturnDate || (ir.returned_quantity && ir.returned_quantity > 0 ? new Date().toISOString() : null),
         missing_note: ir.missingNote || null,
+        returned_quantity: ir.returned_quantity ?? null,
+        damage_fee: ir.damage_fee ?? null,
+        damage_description: ir.damage_description || null,
       }));
+
+      // Validate payload before sending
+      if (!itemReturnsJsonb || itemReturnsJsonb.length === 0) {
+        throw new Error("No item returns to process");
+      }
+
+      // Log payload for debugging (only in development)
+      if (process.env.NODE_ENV === 'development') {
+        console.log("[useProcessOrderReturn] Calling function with:", {
+          p_order_id: orderId,
+          p_item_returns_count: itemReturnsJsonb.length,
+          p_item_returns_sample: itemReturnsJsonb[0],
+          p_user_id: authUser.id,
+          p_late_fee: lateFee,
+        });
+      }
 
       // Single database function call - all operations in one transaction (~50-100ms)
       const { data, error } = await (supabase.rpc as any)("process_order_return_optimized", {
@@ -873,8 +934,22 @@ export function useProcessOrderReturn() {
       });
 
       if (error) {
-        console.error("[useProcessOrderReturn] Database function error:", error);
-        throw error;
+        // Enhanced error logging
+        console.error("[useProcessOrderReturn] Database function error:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          fullError: JSON.stringify(error, null, 2),
+        });
+        
+        // Provide user-friendly error message
+        const errorMessage = error.message || error.details || error.hint || "Database function failed. Please check if the function exists in Supabase.";
+        throw new Error(errorMessage);
+      }
+
+      if (!data) {
+        throw new Error("Database function returned no data");
       }
 
       return {
@@ -907,9 +982,12 @@ export function useProcessOrderReturn() {
             return_status: itemReturn.returnStatus as OrderItemReturnStatus,
             actual_return_date: shouldClearReturnDate 
               ? undefined 
-              : (itemReturn.actualReturnDate || new Date().toISOString()),
+              : (itemReturn.actualReturnDate || (itemReturn.returned_quantity && itemReturn.returned_quantity > 0 ? new Date().toISOString() : undefined)),
             late_return: itemReturn.returnStatus === "returned" ? isOrderLate(endDate) : undefined,
             missing_note: itemReturn.missingNote || undefined,
+            returned_quantity: itemReturn.returned_quantity ?? item.returned_quantity ?? 0,
+            damage_fee: itemReturn.damage_fee ?? item.damage_fee ?? 0,
+            damage_description: itemReturn.damage_description ?? item.damage_description ?? undefined,
           };
         }
         return item;
@@ -989,7 +1067,16 @@ export function useProcessOrderReturn() {
       // Get current authenticated user for timeline logging
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
-        // Calculate counts for timeline event
+        // Fetch current order to get item details for concise notes
+        const { data: orderData } = await supabase
+          .from("orders")
+          .select("items:order_items(id, product_name, quantity)")
+          .eq("id", variables.orderId)
+          .single();
+        
+        const items = (orderData as any)?.items || [];
+        
+        // Calculate counts and totals for concise timeline event
         const returnedCount = variables.itemReturns.filter(
           ir => ir.returnStatus === "returned"
         ).length;
@@ -1000,36 +1087,66 @@ export function useProcessOrderReturn() {
           ir => ir.returnStatus === "missing"
         ).length;
         
-        // Determine action and notes for SINGLE timeline event
+        // Build concise summary with quantity and damage info
         let action = "items_updated";
-        let notes = "";
+        const noteParts: string[] = [];
         
-        if (returnedCount > 0 && revertedCount > 0) {
-          notes = `${returnedCount} item(s) returned, ${revertedCount} item(s) reverted`;
-        } else if (returnedCount > 0 && missingCount === 0) {
+        if (returnedCount > 0) {
+          // Calculate returned quantities
+          let totalReturnedQty = 0;
+          let totalExpectedQty = 0;
+          const partialItems: string[] = [];
+          let totalDamageFee = 0;
+          
+          variables.itemReturns.forEach((ir) => {
+            if (ir.returnStatus === "returned" && ir.returned_quantity) {
+              const item = items.find((i: any) => i.id === ir.itemId);
+              if (item) {
+                totalReturnedQty += ir.returned_quantity;
+                totalExpectedQty += item.quantity;
+                if (ir.returned_quantity < item.quantity) {
+                  partialItems.push(`${ir.returned_quantity}/${item.quantity}`);
+                }
+                if (ir.damage_fee && ir.damage_fee > 0) {
+                  totalDamageFee += ir.damage_fee;
+                }
+              }
+            }
+          });
+          
           action = returnedCount === variables.itemReturns.length 
             ? "all_items_returned" 
             : "partial_return";
-          notes = `${returnedCount} item(s) marked as returned`;
+          
+          // Build concise note - shorter format
+          if (partialItems.length > 0) {
+            noteParts.push(`${totalReturnedQty}/${totalExpectedQty} qty`);
+          } else if (returnedCount > 0) {
+            noteParts.push(`${returnedCount} item(s)`);
+          }
+          
+          if (totalDamageFee > 0) {
+            noteParts.push(`₹${totalDamageFee.toFixed(0)} damage`);
+          }
         } else if (revertedCount > 0) {
           action = "items_reverted";
-          notes = `${revertedCount} item(s) reverted to not returned`;
+          noteParts.push(`${revertedCount} item(s) reverted`);
         } else if (missingCount > 0) {
           action = "items_marked_missing";
-          notes = `${missingCount} item(s) marked as missing`;
+          noteParts.push(`${missingCount} item(s) missing`);
         }
         
         const lateFee = variables.lateFee || 0;
         if (lateFee > 0) {
-          notes += `. Late fee: Rs ${lateFee.toFixed(2)}`;
+          noteParts.push(`₹${lateFee.toFixed(0)} late`);
         }
         
-        // Log ONE timeline event for all changes
+        // Log ONE concise timeline event for all changes
         await logTimelineEvent(supabase, {
           orderId: variables.orderId,
           action,
           userId: authUser.id,
-          notes: notes || "Items updated",
+          notes: noteParts.join(", ") || "Updated",
         });
       }
       

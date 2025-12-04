@@ -197,45 +197,42 @@ export function OrderTimeline({ orderId }: OrderTimelineProps) {
         {/* Timeline line */}
         <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-gray-300 via-gray-200 to-gray-300" />
 
-        <div className="space-y-5">
+        <div className="space-y-3">
           {events.map((event, index) => {
             const isLast = index === events.length - 1;
             const iconBgColor = getActionColor(event.action).split(" ")[0];
             
             return (
-              <div key={event.id} className="relative flex items-start gap-4 pl-1">
-                {/* Timeline dot */}
-                <div className={`relative z-10 flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+              <div key={event.id} className="relative flex items-start gap-3 pl-1">
+                {/* Timeline dot - Smaller */}
+                <div className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full border-2 ${
                   isLast ? "bg-white border-[#273492]" : "bg-white border-gray-300"
                 } shadow-sm`}>
-                  <div className={`${iconBgColor} rounded-full p-2 flex items-center justify-center`}>
+                  <div className={`${iconBgColor} rounded-full p-1.5 flex items-center justify-center`}>
                     {getActionIcon(event.action)}
                   </div>
                 </div>
 
-                {/* Event content */}
-                <div className="flex-1 min-w-0 pt-0.5 pb-4">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <Badge className={`${getActionColor(event.action)} text-xs font-semibold px-2.5 py-0.5`}>
+                {/* Event content - Compact */}
+                <div className="flex-1 min-w-0 pt-0.5 pb-2">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <Badge className={`${getActionColor(event.action)} text-xs font-semibold px-2 py-0.5`}>
                           {getActionLabel(event.action, event)}
                         </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                        <User className="h-3.5 w-3.5 text-gray-400" />
-                        <span className="font-medium text-gray-700">{event.user_name || "Unknown"}</span>
-                      </div>
-                      {event.notes && (
-                        <div className="mt-1.5 p-2 bg-gray-50 rounded-md border border-gray-200">
-                          <p className="text-sm text-gray-700 leading-relaxed">
+                        {event.notes && (
+                          <span className="text-xs text-gray-600 truncate">
                             {event.notes}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500 whitespace-nowrap font-medium">
-                      {formatDateTime(event.created_at, true)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <User className="h-3 w-3 text-gray-400" />
+                        <span>{event.user_name || "Unknown"}</span>
+                        <span className="text-gray-400">•</span>
+                        <span>{formatDateTime(event.created_at, true)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>

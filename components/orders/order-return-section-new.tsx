@@ -118,30 +118,20 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
   const handleToggleItem = (itemId: string) => {
     if (disabled) return;
     
-    const item = items.find((i) => i.id === itemId);
-    if (!item) return;
-    
     setItemReturnStates((prev) => {
       const current = prev[itemId];
       if (!current) return prev;
-      
-      const newIsSelected = !current.isSelected;
       
       return {
         ...prev,
         [itemId]: {
           ...current,
-          isSelected: newIsSelected,
-          // When checked = fully returned (all quantity)
-          // When unchecked = reset to 0
-          returned_quantity: newIsSelected ? item.quantity : 0,
-          // Reset damage when unchecking
-          damage_fee: newIsSelected ? current.damage_fee : 0,
-          damage_description: newIsSelected ? current.damage_description : "",
+          isSelected: !current.isSelected,
+          // If unselecting, reset returned_quantity to 0
+          returned_quantity: !current.isSelected ? current.returned_quantity : 0,
         },
       };
     });
-    
   };
 
   const handleReturnedQuantityChange = (itemId: string, value: string) => {
@@ -159,8 +149,7 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
       [itemId]: {
         ...prev[itemId],
         returned_quantity: clampedValue,
-        // Keep checkbox state as-is, don't auto-uncheck when quantity changes
-        // isSelected remains unchanged - only toggles when checkbox is clicked
+        isSelected: clampedValue > 0,
       },
     }));
   };
@@ -443,9 +432,7 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
             };
             const returned = isItemReturned(item);
             const fullyReturned = isItemFullyReturned(item);
-            // Calculate partiallyReturned from state (local) instead of item (database)
-            // This allows damage fields to show immediately while editing
-            const partiallyReturned = state.returned_quantity > 0 && state.returned_quantity < item.quantity;
+            const partiallyReturned = isItemPartiallyReturned(item);
             const itemLate = isItemLate(item);
             const isExpanded = expandedItems.has(item.id!);
             const hasDamage = (state.damage_fee > 0) || !!state.damage_description;
@@ -525,10 +512,10 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
                       </div>
                     </div>
 
-                    {/* Show quantity input when checkbox is checked, damage fields only when quantity is missing */}
-                    {state.isSelected && (
+                    {/* Return Details (Always visible for selected items) */}
+                    {(state.isSelected || returned) && (
                       <div className="space-y-3 mt-3 pt-3 border-t border-gray-200">
-                        {/* Returned Quantity - Always editable when checkbox is checked */}
+                        {/* Returned Quantity */}
                         <div>
                           <Label htmlFor={`qty-${item.id}`} className="text-sm font-medium">
                             Returned Quantity *
@@ -545,12 +532,6 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
                               disabled={disabled}
                             />
                             <span className="text-sm text-gray-500">of {item.quantity}</span>
-                            {state.returned_quantity === item.quantity && (
-                              <Badge className="bg-green-500 text-white text-xs">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Fully Returned
-                              </Badge>
-                            )}
                             {partiallyReturned && (
                               <Badge variant="outline" className="text-yellow-700 border-yellow-300">
                                 {item.quantity - state.returned_quantity} missing
@@ -559,41 +540,38 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
                           </div>
                         </div>
 
-                        {/* Damage Fee & Description - Only show when quantity is missing (partial return) */}
-                        {partiallyReturned && (
-                          <>
-                            <div>
-                              <Label htmlFor={`damage-fee-${item.id}`} className="text-sm font-medium">
-                                Damage Fee (₹)
-                              </Label>
-                              <Input
-                                id={`damage-fee-${item.id}`}
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={state.damage_fee || ""}
-                                onChange={(e) => handleDamageFeeChange(item.id!, e.target.value)}
-                                placeholder="0.00"
-                                className="mt-1"
-                                disabled={disabled}
-                              />
-                            </div>
+                        {/* Damage Fee */}
+                        <div>
+                          <Label htmlFor={`damage-fee-${item.id}`} className="text-sm font-medium">
+                            Damage Fee (₹)
+                          </Label>
+                          <Input
+                            id={`damage-fee-${item.id}`}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={state.damage_fee || ""}
+                            onChange={(e) => handleDamageFeeChange(item.id!, e.target.value)}
+                            placeholder="0.00"
+                            className="mt-1"
+                            disabled={disabled}
+                          />
+                        </div>
 
-                            <div>
-                              <Label htmlFor={`damage-desc-${item.id}`} className="text-sm font-medium">
-                                Damage Description / Issues
-                              </Label>
-                              <Textarea
-                                id={`damage-desc-${item.id}`}
-                                value={state.damage_description}
-                                onChange={(e) => handleDamageDescriptionChange(item.id!, e.target.value)}
-                                placeholder="Describe any damage, missing parts, or issues..."
-                                className="mt-1 min-h-[80px]"
-                                disabled={disabled}
-                              />
-                            </div>
-                          </>
-                        )}
+                        {/* Damage Description */}
+                        <div>
+                          <Label htmlFor={`damage-desc-${item.id}`} className="text-sm font-medium">
+                            Damage Description / Issues
+                          </Label>
+                          <Textarea
+                            id={`damage-desc-${item.id}`}
+                            value={state.damage_description}
+                            onChange={(e) => handleDamageDescriptionChange(item.id!, e.target.value)}
+                            placeholder="Describe any damage, missing parts, or issues..."
+                            className="mt-1 min-h-[80px]"
+                            disabled={disabled}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>

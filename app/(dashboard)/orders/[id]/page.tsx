@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useOrder, useStartRental } from "@/lib/queries/orders";
 import { formatDate, formatDateTime, calculateDays, formatCurrency, isOrderLate } from "@/lib/utils/date";
 import { useToast } from "@/components/ui/toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { InvoiceShare } from "@/components/invoice/invoice-share";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { OrderReturnSection } from "@/components/orders/order-return-section";
@@ -29,6 +30,7 @@ export default function OrderDetailsPage() {
   const searchParams = useSearchParams();
   const { showToast } = useToast();
   const { user } = useUserStore();
+  const queryClient = useQueryClient();
   
   const orderId = params.id as string;
   
@@ -388,6 +390,9 @@ export default function OrderDetailsPage() {
                   order={order}
                   disabled={isScheduled} // Disable checkbox for scheduled orders, enable for active/ongoing
                   onReturnComplete={() => {
+                    // Invalidate and refetch order data to show updated return information
+                    queryClient.invalidateQueries({ queryKey: ["order", orderId] });
+                    queryClient.refetchQueries({ queryKey: ["order", orderId] });
                     router.refresh();
                   }}
                 />
@@ -470,10 +475,50 @@ export default function OrderDetailsPage() {
                     <span className="text-sm font-bold text-gray-900">{formatCurrency(order.gst_amount)}</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between py-2 border-b border-gray-200/60">
-                  <span className="text-sm text-gray-600 font-medium">Late Fee</span>
-                  <span className="text-sm font-bold text-gray-900">{formatCurrency(order.late_fee || 0)}</span>
-                </div>
+                {(order.late_fee && order.late_fee > 0) && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200/60">
+                    <span className="text-sm text-gray-600 font-medium">Late Fee</span>
+                    <span className="text-sm font-bold text-orange-600">{formatCurrency(order.late_fee)}</span>
+                  </div>
+                )}
+                {(order.damage_fee_total && order.damage_fee_total > 0) && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200/60">
+                    <span className="text-sm text-gray-600 font-medium">Damage Fee</span>
+                    <span className="text-sm font-bold text-red-600">{formatCurrency(order.damage_fee_total)}</span>
+                  </div>
+                )}
+                
+                {/* Return Summary - Show when there are items */}
+                {order.items && order.items.length > 0 && (() => {
+                  const totalQuantity = order.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+                  const returnedQuantity = order.items.reduce((sum: number, item: any) => sum + (Number(item.returned_quantity) || 0), 0);
+                  const missingQuantity = totalQuantity - returnedQuantity;
+                  
+                  // Always show return status if order is not scheduled
+                  if (!isScheduled) {
+                    return (
+                      <div className="pt-3 mt-3 border-t border-gray-200/60 space-y-2 bg-gray-50/50 -mx-2 px-2 py-2 rounded">
+                        <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Return Status</p>
+                        <div className="flex items-center justify-between py-1">
+                          <span className="text-xs text-gray-500 font-medium">Total Quantity</span>
+                          <span className="text-xs font-bold text-gray-700">{totalQuantity}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-1">
+                          <span className="text-xs text-green-600 font-medium">Returned</span>
+                          <span className="text-xs font-bold text-green-600">{returnedQuantity}</span>
+                        </div>
+                        {missingQuantity > 0 && (
+                          <div className="flex items-center justify-between py-1">
+                            <span className="text-xs text-red-600 font-medium">Missing</span>
+                            <span className="text-xs font-bold text-red-600">{missingQuantity}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+                
                 <div className="flex items-center justify-between pt-4 mt-4 border-t-2 border-gray-300 bg-gradient-to-r from-gray-50 to-gray-100/50 -mx-2 px-2 py-3 rounded-lg">
                   <span className="text-base font-bold text-gray-900">Total</span>
                   <span className="text-2xl font-bold bg-gradient-to-r from-[#273492] to-[#1f2a7a] bg-clip-text text-transparent">

@@ -2,7 +2,7 @@
 
 export type UserRole = "super_admin" | "branch_admin" | "staff";
 
-export type OrderStatus = "scheduled" | "active" | "pending_return" | "completed" | "cancelled" | "partially_returned";
+export type OrderStatus = "scheduled" | "active" | "pending_return" | "completed" | "cancelled" | "partially_returned" | "completed_with_issues";
 
 export type OrderItemReturnStatus = "not_yet_returned" | "returned" | "missing";
 
@@ -62,6 +62,9 @@ export interface OrderItem {
   actual_return_date?: string;
   late_return?: boolean;
   missing_note?: string;
+  returned_quantity?: number; // Number of items returned (0 to quantity) - tracks partial returns
+  damage_fee?: number; // Damage fee for this item
+  damage_description?: string; // Description of damage or issues
 }
 
 export interface Order {
@@ -81,6 +84,8 @@ export interface Order {
   gst_amount?: number; // GST amount (5% of subtotal)
   late_fee?: number; // Late fee amount
   late_returned?: boolean; // True if order has any items returned late
+  damage_fee_total?: number; // Total damage fees across all items
+  completion_notes?: string; // Notes about completion issues (missing, damaged, partial returns)
   created_at: string;
   customer?: Customer;
   staff?: User;
