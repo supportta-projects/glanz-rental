@@ -1,25 +1,32 @@
 "use client";
 
 import { useUserStore } from "@/lib/stores/useUserStore";
-import { UserCog, User, Phone, Building2, ToggleLeft, ToggleRight, Shield, Mail, Clock, Trash2 } from "lucide-react";
+import { UserCog, User, Phone, Building2, Shield, Trash2, Edit } from "lucide-react";
 import { PageHeader, EmptyState, ActionButton, LoadingState, ErrorState } from "@/components/shared";
 import { FloatingActionButton } from "@/components/layout/floating-action-button";
-import { useStaff, useUpdateStaff, useDeleteStaff } from "@/lib/queries/staff";
+import { useStaff, useDeleteStaff } from "@/lib/queries/staff";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { useToast } from "@/components/ui/toast";
 import { formatDate } from "@/lib/utils/date";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function StaffPage() {
   const { user } = useUserStore();
+  const router = useRouter();
   const { showToast } = useToast();
   // Filter by branch if user is branch admin
   const branchId = user?.role === "super_admin" ? null : user?.branch_id || null;
   const { data: staff, isLoading, error } = useStaff(branchId);
-  const updateStaffMutation = useUpdateStaff();
   const deleteStaffMutation = useDeleteStaff();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [staffToDelete, setStaffToDelete] = useState<{ id: string; name: string; role: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -54,44 +61,27 @@ export default function StaffPage() {
     }
   };
 
-  const handleToggleActive = async (staffId: string, currentStatus: boolean, memberRole: string) => {
-    // Prevent deactivating super admin
-    if (memberRole === "super_admin") {
-      showToast("Super admin accounts cannot be deactivated", "error");
-      return;
-    }
-
-    try {
-      await updateStaffMutation.mutateAsync({
-        id: staffId,
-        is_active: !currentStatus,
-      });
-      showToast(
-        `Staff ${!currentStatus ? "activated" : "deactivated"} successfully`,
-        "success"
-      );
-    } catch (error: any) {
-      showToast(error.message || "Failed to update staff status", "error");
-    }
-  };
-
-  const handleDeleteStaff = async (staffId: string, memberName: string, memberRole: string) => {
-    // Prevent deleting super admin
-    if (memberRole === "super_admin") {
+  const handleDeleteClick = (member: { id: string; full_name: string; role: string }) => {
+    if (member.role === "super_admin") {
       showToast("Super admin accounts cannot be deleted", "error");
       return;
     }
+    setStaffToDelete({ id: member.id, name: member.full_name, role: member.role });
+    setShowDeleteDialog(true);
+  };
 
-    // Confirm deletion
-    if (!confirm(`Are you sure you want to delete ${memberName}? This action cannot be undone.`)) {
-      return;
-    }
+  const handleDelete = async () => {
+    if (!staffToDelete) return;
 
+    setIsDeleting(true);
     try {
-      await deleteStaffMutation.mutateAsync(staffId);
+      await deleteStaffMutation.mutateAsync(staffToDelete.id);
       showToast("Staff member deleted successfully", "success");
+      setShowDeleteDialog(false);
+      setStaffToDelete(null);
     } catch (error: any) {
       showToast(error.message || "Failed to delete staff member", "error");
+      setIsDeleting(false);
     }
   };
 
@@ -122,21 +112,15 @@ export default function StaffPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {staff.map((member) => {
-              // Explicitly check is_active - undefined/null means active (default), false means inactive
-              const isActive = member.is_active === undefined || member.is_active === null ? true : member.is_active;
               const isSuperAdmin = user?.role === "super_admin";
-              const canToggleActive = isSuperAdmin && member.role !== "super_admin"; // Only super admin can toggle, but not for super admin accounts
+              const canEdit = isSuperAdmin || (user?.role === "branch_admin" && member.branch_id === user?.branch_id);
               const canDelete = isSuperAdmin && member.role !== "super_admin"; // Only super admin can delete, but not super admin accounts
               const RoleIcon = getRoleIcon(member.role);
               
               return (
                 <Card 
                   key={member.id} 
-                  className={`group relative overflow-hidden transition-all duration-300 ${
-                    isActive 
-                      ? "bg-white border border-gray-200 hover:border-[#273492]/30 hover:shadow-lg" 
-                      : "bg-gray-50 border border-gray-300 opacity-75"
-                  }`}
+                  className="group relative overflow-hidden transition-all duration-300 bg-white border border-gray-200 hover:border-[#273492]/30 hover:shadow-lg"
                 >
                   {/* Gradient accent bar */}
                   <div className={`absolute top-0 left-0 right-0 h-1 ${
@@ -153,33 +137,25 @@ export default function StaffPage() {
                       <div className="flex items-center gap-4 flex-1 min-w-0">
                         {/* Avatar with role icon */}
                         <div className={`relative flex-shrink-0 ${
-                          isActive 
-                            ? member.role === "super_admin"
-                              ? "bg-gradient-to-br from-purple-100 to-purple-200"
-                              : member.role === "branch_admin"
-                              ? "bg-gradient-to-br from-blue-100 to-blue-200"
-                              : "bg-gradient-to-br from-[#273492]/10 to-[#273492]/20"
-                            : "bg-gray-200"
+                          member.role === "super_admin"
+                            ? "bg-gradient-to-br from-purple-100 to-purple-200"
+                            : member.role === "branch_admin"
+                            ? "bg-gradient-to-br from-blue-100 to-blue-200"
+                            : "bg-gradient-to-br from-[#273492]/10 to-[#273492]/20"
                         } rounded-xl p-3 shadow-sm`}>
                           <RoleIcon className={`h-6 w-6 ${
-                            isActive 
-                              ? member.role === "super_admin"
-                                ? "text-purple-600"
-                                : member.role === "branch_admin"
-                                ? "text-blue-600"
-                                : "text-[#273492]"
-                              : "text-gray-400"
+                            member.role === "super_admin"
+                              ? "text-purple-600"
+                              : member.role === "branch_admin"
+                              ? "text-blue-600"
+                              : "text-[#273492]"
                           }`} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className={`text-lg font-bold mb-1 truncate ${
-                            isActive ? "text-gray-900" : "text-gray-400"
-                          }`}>
+                          <h3 className="text-lg font-bold mb-1 truncate text-gray-900">
                             {member.full_name}
                           </h3>
-                          <p className={`text-sm truncate ${
-                            isActive ? "text-gray-500" : "text-gray-400"
-                          }`}>
+                          <p className="text-sm truncate text-gray-500">
                             @{member.username}
                           </p>
                         </div>
@@ -220,89 +196,56 @@ export default function StaffPage() {
                       )}
                     </div>
 
-                    {/* Status & Actions */}
+                    {/* Actions */}
                     <div className="pt-4 border-t border-gray-200">
-                      <div className="flex items-center justify-between mb-3">
-                        {/* Status Badge */}
-                        <div className="flex items-center gap-2">
-                          <div className={`h-2 w-2 rounded-full ${
-                            isActive ? "bg-green-500" : "bg-gray-400"
-                          } animate-pulse`} />
-                          <span className={`text-xs font-semibold ${
-                            isActive ? "text-green-700" : "text-gray-500"
-                          }`}>
-                            {isActive ? "Active" : "Inactive"}
-                          </span>
-                        </div>
+                      <div className="flex items-center justify-between">
+                        {/* Super Admin Indicator */}
+                        {member.role === "super_admin" && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 border border-purple-200 rounded-lg">
+                            <Shield className="h-3 w-3 text-purple-600" />
+                            <span className="text-xs font-medium text-purple-700">Protected</span>
+                          </div>
+                        )}
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-2">
-                          {/* Toggle Button - Only for super admin, and not for super admin accounts */}
-                          {canToggleActive && (
-                            <button
-                              onClick={() => handleToggleActive(member.id, isActive, member.role)}
-                              disabled={updateStaffMutation.isPending || deleteStaffMutation.isPending}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm hover:shadow-md active:scale-[0.97] ${
-                                isActive
-                                  ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
-                                  : "bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200"
-                              } disabled:opacity-50 disabled:cursor-not-allowed`}
-                              title={isActive ? "Click to deactivate" : "Click to activate"}
-                            >
-                              {updateStaffMutation.isPending ? (
-                                <div className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent" />
-                              ) : isActive ? (
-                                <>
-                                  <ToggleRight className="h-3.5 w-3.5" />
-                                  <span>Deactivate</span>
-                                </>
-                              ) : (
-                                <>
-                                  <ToggleLeft className="h-3.5 w-3.5" />
-                                  <span>Activate</span>
-                                </>
-                              )}
-                            </button>
+                        <div className="flex items-center gap-2 ml-auto">
+                          {/* Edit Button */}
+                          {canEdit && (
+                            <Link href={`/staff/${member.id}/edit`}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-3 text-xs font-semibold"
+                                title="Edit staff member"
+                              >
+                                <Edit className="h-3.5 w-3.5 mr-1.5" />
+                                Edit
+                              </Button>
+                            </Link>
                           )}
 
                           {/* Delete Button - Only for super admin, and not for super admin accounts */}
                           {canDelete && (
-                            <button
-                              onClick={() => handleDeleteStaff(member.id, member.full_name, member.role)}
-                              disabled={updateStaffMutation.isPending || deleteStaffMutation.isPending}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm hover:shadow-md active:scale-[0.97] bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteClick(member)}
+                              disabled={deleteStaffMutation.isPending}
+                              className="h-8 px-3 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50"
                               title="Delete staff member"
                             >
                               {deleteStaffMutation.isPending ? (
                                 <div className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent" />
                               ) : (
                                 <>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                  <span>Delete</span>
+                                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                                  Delete
                                 </>
                               )}
-                            </button>
-                          )}
-
-                          {/* Super Admin Indicator */}
-                          {member.role === "super_admin" && (
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 border border-purple-200 rounded-lg">
-                              <Shield className="h-3 w-3 text-purple-600" />
-                              <span className="text-xs font-medium text-purple-700">Protected</span>
-                            </div>
+                            </Button>
                           )}
                         </div>
                       </div>
-
-                      {/* Inactive Warning */}
-                      {!isActive && (
-                        <div className="mt-3 p-2.5 bg-red-50 border border-red-200 rounded-lg">
-                          <p className="text-xs text-red-700 font-medium flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5" />
-                            This account cannot log in
-                          </p>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </Card>
@@ -313,6 +256,40 @@ export default function StaffPage() {
       </div>
 
       <FloatingActionButton href="/staff/new" label="Add Staff" />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent onClose={() => setShowDeleteDialog(false)}>
+          <DialogHeader>
+            <DialogTitle>Delete Staff Member</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{staffToDelete?.name}"? This action cannot be undone.
+              <br /><br />
+              <strong className="text-red-600">Warning:</strong> This will permanently delete the staff member's account.
+              If they have existing orders, deletion will be prevented to maintain data integrity.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setStaffToDelete(null);
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete Staff Member"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </RouteGuard>
   );

@@ -129,7 +129,29 @@ export function useDeleteStaff() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-member"] });
     },
+  });
+}
+
+export function useStaffMember(staffId: string) {
+  const supabase = createClient();
+
+  return useQuery({
+    queryKey: ["staff-member", staffId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*, branch:branches(*)")
+        .eq("id", staffId)
+        .single();
+
+      if (error) throw error;
+      return data as User;
+    },
+    enabled: !!staffId,
+    staleTime: 30000, // Cache for 30 seconds
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
 }
 
