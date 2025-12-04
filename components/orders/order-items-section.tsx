@@ -48,6 +48,8 @@ export function OrderItemsSection({
   const [uploadStatuses, setUploadStatuses] = useState<Map<number, ItemUploadStatus>>(new Map());
   // Track which preview URLs have already created items to prevent duplicates
   const processedPreviewUrls = useRef<Set<string>>(new Set());
+  // Track currently processing uploads to prevent race conditions
+  const processingUploads = useRef<Set<string>>(new Set());
   
   // Track upload status changes
   useEffect(() => {
@@ -74,22 +76,28 @@ export function OrderItemsSection({
   }, []);
 
   const handleUploadComplete = useCallback((result: UploadResult) => {
-    if (!result.previewUrl) {
-      // Upload was removed
+    // Early return if no preview URL (upload was removed/cancelled)
+    if (!result.previewUrl || result.previewUrl === "") {
       return;
     }
 
     const isBlobUrl = result.previewUrl.startsWith("blob:");
+    const previewUrl = result.previewUrl;
     
-    // Check if we've already processed this preview URL
-    if (processedPreviewUrls.current.has(result.previewUrl)) {
-      // This is a duplicate call - check if it's a final URL update
+    // SCENARIO 1: Already processed (completed upload) - skip to prevent duplicates
+    if (processedPreviewUrls.current.has(previewUrl)) {
+      return;
+    }
+    
+    // SCENARIO 2: Currently processing and this is the final URL callback
+    if (processingUploads.current.has(previewUrl)) {
       if (result.finalUrl) {
-        // Find the item that has this blob URL and update it
+        // Find existing item by blob URL and update it with final URL
         const existingItemIndex = items.findIndex(
-          (item) => item.photo_url === result.previewUrl
+          (item) => item.photo_url === previewUrl
         );
         if (existingItemIndex !== -1) {
+          // Update existing item with final URL
           onUpdateItem(existingItemIndex, "photo_url", result.finalUrl);
           
           // Update upload status
@@ -107,22 +115,25 @@ export function OrderItemsSection({
           });
 
           // Clean up blob URL
-          if (result.previewUrl.startsWith("blob:")) {
-            URL.revokeObjectURL(result.previewUrl);
-            processedPreviewUrls.current.delete(result.previewUrl);
+          if (previewUrl.startsWith("blob:")) {
+            URL.revokeObjectURL(previewUrl);
           }
+          // Mark as processed and remove from processing
+          processedPreviewUrls.current.add(previewUrl);
+          processingUploads.current.delete(previewUrl);
         }
       }
-      return; // Already processed, skip
+      return; // Exit after handling final URL update
     }
     
-    if (isBlobUrl) {
-      // Mark this preview URL as processed
-      processedPreviewUrls.current.add(result.previewUrl);
+    // SCENARIO 3: New upload with blob URL - create new item
+    if (isBlobUrl && !result.finalUrl) {
+      // ATOMIC: Mark as processing IMMEDIATELY to prevent duplicate creation
+      processingUploads.current.add(previewUrl);
       
-      // This is a new upload - create a new item
+      // Create new item with blob URL
       const newItem: OrderItem = {
-        photo_url: result.previewUrl, // Use preview URL temporarily
+        photo_url: previewUrl,
         product_name: "",
         quantity: 1,
         price_per_day: 0,
@@ -136,7 +147,7 @@ export function OrderItemsSection({
       // Track upload status
       const uploadStatus: ItemUploadStatus = {
         index: newIndex,
-        previewUrl: result.previewUrl,
+        previewUrl: previewUrl,
         status: result.status,
       };
 
@@ -148,10 +159,10 @@ export function OrderItemsSection({
 
       setNewItemIndex(newIndex);
 
-      // Wait for upload to complete
+      // Wait for upload promise to complete
       result.promise
         .then((finalUrl) => {
-          // Update the item with final URL
+          // Update item with final URL (this will trigger another callback)
           onUpdateItem(newIndex, "photo_url", finalUrl);
           
           // Update upload status
@@ -169,10 +180,12 @@ export function OrderItemsSection({
           });
 
           // Clean up blob URL
-          if (result.previewUrl.startsWith("blob:")) {
-            URL.revokeObjectURL(result.previewUrl);
-            processedPreviewUrls.current.delete(result.previewUrl);
+          if (previewUrl.startsWith("blob:")) {
+            URL.revokeObjectURL(previewUrl);
           }
+          // Mark as processed (the callback with finalUrl will handle this too)
+          processedPreviewUrls.current.add(previewUrl);
+          processingUploads.current.delete(previewUrl);
         })
         .catch(() => {
           // Upload failed
@@ -187,6 +200,9 @@ export function OrderItemsSection({
             }
             return next;
           });
+          // Remove from sets on failure to allow retry
+          processedPreviewUrls.current.delete(previewUrl);
+          processingUploads.current.delete(previewUrl);
         });
     }
   }, [items, days, onAddItem, onUpdateItem]);
@@ -208,9 +224,12 @@ export function OrderItemsSection({
   const handleRemoveItem = useCallback((index: number) => {
     // Clean up blob URL if it exists
     const uploadStatus = uploadStatuses.get(index);
-    if (uploadStatus?.previewUrl.startsWith("blob:")) {
-      URL.revokeObjectURL(uploadStatus.previewUrl);
+    if (uploadStatus?.previewUrl) {
+      if (uploadStatus.previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(uploadStatus.previewUrl);
+      }
       processedPreviewUrls.current.delete(uploadStatus.previewUrl);
+      processingUploads.current.delete(uploadStatus.previewUrl);
     }
     
     // Remove from upload statuses

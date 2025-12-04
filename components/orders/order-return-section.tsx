@@ -18,9 +18,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 interface OrderReturnSectionProps {
   order: Order;
   onReturnComplete?: () => void;
+  disabled?: boolean; // Disable all interactions (e.g., for scheduled orders)
 }
 
-export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSectionProps) {
+export function OrderReturnSection({ order, onReturnComplete, disabled = false }: OrderReturnSectionProps) {
   const { showToast } = useToast();
   const processReturnMutation = useProcessOrderReturn();
   
@@ -78,6 +79,8 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
   }, [items]);
 
   const handleToggleItem = (itemId: string) => {
+    if (disabled) return; // Prevent toggling when disabled
+    
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
 
@@ -92,11 +95,20 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
   };
 
   const handleMarkAllReturned = () => {
+    if (disabled) return; // Prevent action when disabled
+    
     const allIds = new Set(returnableItems.map((item) => item.id!));
     setSelectedItems(allIds);
   };
 
+  const handleUncheckAll = () => {
+    if (disabled) return; // Prevent action when disabled
+    
+    setSelectedItems(new Set());
+  };
+
   const handleSubmitReturn = async () => {
+    if (disabled) return; // Prevent submission when disabled
     // Determine which items changed status
     const itemsToReturn: Array<{ itemId: string; returnStatus: "returned"; actualReturnDate: string }> = [];
     const itemsToRevert: Array<{ itemId: string; returnStatus: "not_yet_returned" }> = [];
@@ -264,29 +276,30 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
       <Card className="p-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Items</h2>
-          <div className="flex gap-2">
-            {returnableItems.length > 0 && (
+          {!disabled && (
+            <div className="flex gap-2">
+              {returnableItems.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMarkAllReturned}
+                  className="text-xs"
+                  disabled={disabled}
+                >
+                  Mark All as Returned
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleMarkAllReturned}
+                onClick={handleUncheckAll}
                 className="text-xs"
+                disabled={disabled}
               >
-                Mark All as Returned
+                Uncheck All
               </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                // Uncheck all items (revert all)
-                setSelectedItems(new Set());
-              }}
-              className="text-xs"
-            >
-              Uncheck All
-            </Button>
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto">
@@ -317,6 +330,7 @@ export function OrderReturnSection({ order, onReturnComplete }: OrderReturnSecti
                         id={`return-${item.id}`}
                         checked={checked}
                         onCheckedChange={() => handleToggleItem(item.id!)}
+                        disabled={disabled}
                       />
                     </TableCell>
                     <TableCell>

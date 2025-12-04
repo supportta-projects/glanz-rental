@@ -34,12 +34,28 @@ export function CameraUpload({ onUploadComplete, currentUrl, disabled = false }:
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      // Reset input if no file selected
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
 
     // Prevent multiple uploads
     if (uploadStatus === "uploading") {
       showToast("Upload already in progress", "info");
+      // Reset input to prevent re-triggering
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       return;
+    }
+
+    // CRITICAL: Reset input IMMEDIATELY to prevent re-triggering on React re-renders
+    // Do this before any async operations to prevent duplicate file selections
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
 
     // Create instant preview for immediate feedback
@@ -100,12 +116,8 @@ export function CameraUpload({ onUploadComplete, currentUrl, disabled = false }:
         setUploadStatus("failed");
         showToast(errorMessage, "error");
         throw error;
-      } finally {
-        // Reset input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
       }
+      // Note: Input is already reset at the start of handleFileSelect
     })();
 
     uploadPromiseRef.current = uploadPromise;
