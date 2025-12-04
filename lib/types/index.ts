@@ -19,6 +19,9 @@ export interface User {
   gst_rate?: number; // GST rate as percentage (e.g., 5.00 for 5%)
   gst_included?: boolean; // true = GST included in price, false = GST added on top
   upi_id?: string; // UPI ID for payment QR codes
+  company_name?: string; // Company name for invoices (super_admin only)
+  company_address?: string; // Company address/location for invoices (super_admin only)
+  company_logo_url?: string; // Company logo URL for invoices (super_admin only)
   branch?: Branch;
 }
 

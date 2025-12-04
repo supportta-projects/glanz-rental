@@ -5,7 +5,6 @@ import { Camera, X, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { compressImage, createPreviewUrl, revokePreviewUrl } from "@/lib/utils/image-compression";
-import { ImageLightbox } from "@/components/ui/image-lightbox";
 import { useToast } from "@/components/ui/toast";
 
 export type UploadStatus = "idle" | "uploading" | "completed" | "failed";
@@ -27,7 +26,6 @@ interface CameraUploadProps {
 export function CameraUpload({ onUploadComplete, currentUrl, disabled = false }: CameraUploadProps) {
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadPromiseRef = useRef<Promise<string> | null>(null);
@@ -179,13 +177,9 @@ export function CameraUpload({ onUploadComplete, currentUrl, disabled = false }:
           <img
             src={displayUrl}
             alt="Product"
-            className={`w-20 h-20 object-cover rounded-lg border-2 cursor-pointer hover:opacity-80 transition-opacity active:scale-95 ${
+            className={`w-20 h-20 object-cover rounded-lg border-2 ${
               isUploading ? "border-blue-300" : isFailed ? "border-red-300" : "border-gray-200"
             }`}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedImage(displayUrl);
-            }}
           />
           {isUploading && (
             <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center">
@@ -254,16 +248,6 @@ export function CameraUpload({ onUploadComplete, currentUrl, disabled = false }:
         className="hidden"
         disabled={disabled || isUploading}
       />
-
-      {/* Image Lightbox */}
-      {selectedImage && (
-        <ImageLightbox
-          imageUrl={selectedImage}
-          isOpen={!!selectedImage}
-          onClose={() => setSelectedImage(null)}
-          alt="Product image"
-        />
-      )}
     </div>
   );
 }

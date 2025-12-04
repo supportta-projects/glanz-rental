@@ -388,8 +388,8 @@ export default function OrderDetailsPage() {
               </div>
             </Card>
 
-            {/* Return Section - Show for all non-cancelled orders (includes items with checkboxes) */}
-            {order.status !== "cancelled" && (
+            {/* Return Section - Hide for scheduled orders (rental hasn't started) and cancelled orders */}
+            {order.status !== "cancelled" && !isScheduled && (
               <div>
                 <OrderReturnSection
                   order={order}

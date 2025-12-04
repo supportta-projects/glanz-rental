@@ -25,13 +25,13 @@ interface ItemUploadStatus {
   previewUrl: string;
   finalUrl?: string;
   status: "uploading" | "completed" | "failed" | "idle";
-  promise?: Promise<string>;
 }
 
 /**
  * Optimized Order Items Section Component
  * Handles adding, updating, and removing order items
  * Tracks upload status to prevent saving orders with blob URLs
+ * Prevents duplicate items by tracking uploads by preview URL
  */
 export function OrderItemsSection({
   items,
@@ -46,6 +46,8 @@ export function OrderItemsSection({
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [newItemIndex, setNewItemIndex] = useState<number | null>(null);
   const [uploadStatuses, setUploadStatuses] = useState<Map<number, ItemUploadStatus>>(new Map());
+  // Track which preview URLs have already created items to prevent duplicates
+  const processedPreviewUrls = useRef<Set<string>>(new Set());
   
   // Track upload status changes
   useEffect(() => {
@@ -79,7 +81,45 @@ export function OrderItemsSection({
 
     const isBlobUrl = result.previewUrl.startsWith("blob:");
     
+    // Check if we've already processed this preview URL
+    if (processedPreviewUrls.current.has(result.previewUrl)) {
+      // This is a duplicate call - check if it's a final URL update
+      if (result.finalUrl) {
+        // Find the item that has this blob URL and update it
+        const existingItemIndex = items.findIndex(
+          (item) => item.photo_url === result.previewUrl
+        );
+        if (existingItemIndex !== -1) {
+          onUpdateItem(existingItemIndex, "photo_url", result.finalUrl);
+          
+          // Update upload status
+          setUploadStatuses((prev) => {
+            const next = new Map(prev);
+            const existing = next.get(existingItemIndex);
+            if (existing) {
+              next.set(existingItemIndex, {
+                ...existing,
+                finalUrl: result.finalUrl,
+                status: "completed",
+              });
+            }
+            return next;
+          });
+
+          // Clean up blob URL
+          if (result.previewUrl.startsWith("blob:")) {
+            URL.revokeObjectURL(result.previewUrl);
+            processedPreviewUrls.current.delete(result.previewUrl);
+          }
+        }
+      }
+      return; // Already processed, skip
+    }
+    
     if (isBlobUrl) {
+      // Mark this preview URL as processed
+      processedPreviewUrls.current.add(result.previewUrl);
+      
       // This is a new upload - create a new item
       const newItem: OrderItem = {
         photo_url: result.previewUrl, // Use preview URL temporarily
@@ -98,7 +138,6 @@ export function OrderItemsSection({
         index: newIndex,
         previewUrl: result.previewUrl,
         status: result.status,
-        promise: result.promise,
       };
 
       setUploadStatuses((prev) => {
@@ -132,10 +171,11 @@ export function OrderItemsSection({
           // Clean up blob URL
           if (result.previewUrl.startsWith("blob:")) {
             URL.revokeObjectURL(result.previewUrl);
+            processedPreviewUrls.current.delete(result.previewUrl);
           }
         })
         .catch(() => {
-          // Upload failed - status already set to failed
+          // Upload failed
           setUploadStatuses((prev) => {
             const next = new Map(prev);
             const existing = next.get(newIndex);
@@ -148,20 +188,8 @@ export function OrderItemsSection({
             return next;
           });
         });
-
-      // Scroll to new item
-      setTimeout(() => {
-        const newItemRef = itemRefs.current[newIndex];
-        if (newItemRef) {
-          newItemRef.scrollIntoView({
-            behavior: "smooth",
-            block: "nearest",
-            inline: "nearest",
-          });
-        }
-      }, 100);
     }
-  }, [items.length, days, onAddItem, onUpdateItem]);
+  }, [items, days, onAddItem, onUpdateItem]);
 
   const handleUpdateItem = useCallback((index: number, field: keyof OrderItem, value: any) => {
     const item = items[index];
@@ -182,6 +210,7 @@ export function OrderItemsSection({
     const uploadStatus = uploadStatuses.get(index);
     if (uploadStatus?.previewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(uploadStatus.previewUrl);
+      processedPreviewUrls.current.delete(uploadStatus.previewUrl);
     }
     
     // Remove from upload statuses
@@ -228,11 +257,11 @@ export function OrderItemsSection({
 
           return (
             <Card
-              key={`${item.photo_url}-${index}`}
+              key={`item-${index}-${item.photo_url}`}
               ref={(el) => {
                 itemRefs.current[index] = el;
               }}
-              className={`p-4 rounded-lg border-2 transition-all duration-500 ${
+              className={`p-4 rounded-lg border-2 ${
                 newItemIndex === index
                   ? "ring-2 ring-[#273492] bg-[#273492]/5 shadow-lg"
                   : hasBlob
@@ -249,7 +278,7 @@ export function OrderItemsSection({
                     <img
                       src={item.photo_url}
                       alt="Product"
-                      className={`w-20 h-20 object-cover rounded-lg border-2 cursor-pointer hover:opacity-80 transition-opacity active:scale-95 ${
+                      className={`w-20 h-20 object-cover rounded-lg border-2 cursor-pointer hover:opacity-80 ${
                         isUploading ? "border-blue-300" : isFailed ? "border-red-300" : "border-gray-200"
                       }`}
                       onClick={() => onImageClick?.(item.photo_url)}
@@ -368,7 +397,7 @@ export function OrderItemsSection({
                     </span>
                     <button
                       onClick={() => handleRemoveItem(index)}
-                      className="p-2 text-red-500 hover:text-red-700 transition-colors disabled:opacity-50"
+                      className="p-2 text-red-500 hover:text-red-700 disabled:opacity-50"
                       aria-label="Remove item"
                       disabled={isUploading}
                     >

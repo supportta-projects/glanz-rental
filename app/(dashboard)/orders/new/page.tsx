@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { StandardButton } from "@/components/shared/standard-button";
-import { Sparkles, ArrowLeft, ShoppingBag, Loader2 } from "lucide-react";
+import { ArrowLeft, ShoppingBag, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import {
@@ -28,12 +28,10 @@ import { OrderSummarySection } from "@/components/orders/order-summary-section";
 import { OrderInvoiceSection } from "@/components/orders/order-invoice-section";
 
 /**
- * New Order Page - Premium Modern Design
+ * New Order Page - Clean Design (No Animations)
  * 
  * Creates a new rental order with customer selection, date/time selection,
  * items management, and order summary. Optimized for speed and performance.
- * 
- * @component
  */
 export default function CreateOrderPage() {
   const router = useRouter();
@@ -233,27 +231,21 @@ export default function CreateOrderPage() {
   }, [selectedCustomer, draft.items, draft.end_date, hasPendingUploads]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f7f9fb] via-white to-[#f7f9fb] pb-32">
-      {/* Premium Background Pattern */}
-      <div className="fixed inset-0 -z-10 opacity-30">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(39,52,146,0.05),transparent_50%)]" />
-      </div>
-
+    <div className="min-h-screen bg-gray-50 pb-32">
       <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-4xl mx-auto relative">
-        {/* Premium Modern Header - Shopify/Flipkart Style */}
-        <div className="flex items-center justify-between flex-wrap gap-4 pb-6 border-b border-gray-200/60 animate-fade-in">
+        {/* Header */}
+        <div className="flex items-center justify-between flex-wrap gap-4 pb-6 border-b border-gray-200">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <Link 
                 href="/orders" 
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors premium-hover"
+                className="p-2 hover:bg-gray-100 rounded-lg"
               >
                 <ArrowLeft className="h-5 w-5 text-gray-600" />
               </Link>
-              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 via-[#273492] to-gray-900 bg-clip-text text-transparent">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
                 New Order
               </h1>
-              <Sparkles className="h-6 w-6 text-[#273492] animate-pulse" />
             </div>
             <p className="text-sm md:text-base text-gray-500 font-medium ml-12">
               Create a new rental order for your customer
@@ -262,11 +254,8 @@ export default function CreateOrderPage() {
         </div>
 
         <div className="space-y-6">
-          {/* Customer Section - Premium Card */}
-          <Card 
-            className="p-6 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 premium-hover fadeInUp"
-            style={{ animationDelay: "0.1s", willChange: "transform" }}
-          >
+          {/* Customer Section */}
+          <Card className="p-6 rounded-xl border border-gray-200 bg-white shadow-sm">
             <OrderFormSection
               selectedCustomer={selectedCustomer}
               onSelectCustomer={setSelectedCustomer}
@@ -275,11 +264,8 @@ export default function CreateOrderPage() {
             />
           </Card>
 
-          {/* Rental Dates & Times - Premium Card */}
-          <Card 
-            className="p-6 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 premium-hover fadeInUp"
-            style={{ animationDelay: "0.2s", willChange: "transform" }}
-          >
+          {/* Rental Dates & Times */}
+          <Card className="p-6 rounded-xl border border-gray-200 bg-white shadow-sm">
             <OrderDateTimeSection
               startDate={draft.start_date}
               endDate={draft.end_date}
@@ -288,11 +274,8 @@ export default function CreateOrderPage() {
             />
           </Card>
 
-          {/* Items Section - Premium Card */}
-          <Card 
-            className="p-6 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 premium-hover fadeInUp"
-            style={{ animationDelay: "0.3s", willChange: "transform" }}
-          >
+          {/* Items Section */}
+          <Card className="p-6 rounded-xl border border-gray-200 bg-white shadow-sm">
             <OrderItemsSection
               items={draft.items}
               onAddItem={handleAddItem}
@@ -304,12 +287,9 @@ export default function CreateOrderPage() {
             />
           </Card>
 
-          {/* Order Summary with GST - Premium Card */}
+          {/* Order Summary with GST */}
           {grandTotal > 0 && (
-            <Card 
-              className="p-6 rounded-xl border-2 border-[#273492]/20 bg-gradient-to-br from-[#273492]/5 to-[#273492]/10 shadow-lg hover:shadow-xl transition-all duration-300 premium-hover fadeInUp pulse-glow"
-              style={{ animationDelay: "0.4s", willChange: "transform" }}
-            >
+            <Card className="p-6 rounded-xl border-2 border-[#273492]/20 bg-[#273492]/5 shadow-sm">
               <OrderSummarySection
                 subtotal={subtotal}
                 gstAmount={gstAmount}
@@ -321,11 +301,8 @@ export default function CreateOrderPage() {
             </Card>
           )}
 
-          {/* Invoice Number - Premium Card */}
-          <Card 
-            className="p-6 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 premium-hover fadeInUp"
-            style={{ animationDelay: "0.5s", willChange: "transform" }}
-          >
+          {/* Invoice Number */}
+          <Card className="p-6 rounded-xl border border-gray-200 bg-white shadow-sm">
             <OrderInvoiceSection
               invoiceNumber={draft.invoice_number}
               onInvoiceNumberChange={setInvoiceNumber}
@@ -333,18 +310,18 @@ export default function CreateOrderPage() {
             />
           </Card>
 
-          {/* Save Button - Premium Style */}
-          <div className="sticky bottom-6 z-10 fadeInUp" style={{ animationDelay: "0.6s" }}>
+          {/* Save Button */}
+          <div className="sticky bottom-6 z-10">
             <StandardButton
               onClick={handleSaveOrder}
               variant="default"
               disabled={!canSave || createOrderMutation.isPending || hasPendingUploads}
               loading={createOrderMutation.isPending}
-              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-[#273492] to-[#1f2a7a] hover:from-[#1f2a7a] hover:to-[#273492] shadow-xl hover:shadow-2xl transition-all duration-300 premium-hover disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-[#273492] to-[#1f2a7a] hover:from-[#1f2a7a] hover:to-[#273492] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {createOrderMutation.isPending ? (
                 <>
-                  <ShoppingBag className="h-5 w-5 mr-2 animate-pulse" />
+                  <ShoppingBag className="h-5 w-5 mr-2" />
                   Creating Order...
                 </>
               ) : hasPendingUploads ? (
