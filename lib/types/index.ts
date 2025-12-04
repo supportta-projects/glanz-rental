@@ -2,7 +2,7 @@
 
 export type UserRole = "super_admin" | "branch_admin" | "staff";
 
-export type OrderStatus = "scheduled" | "active" | "pending_return" | "completed" | "cancelled" | "partially_returned" | "completed_with_issues";
+export type OrderStatus = "scheduled" | "active" | "pending_return" | "completed" | "cancelled" | "partially_returned" | "flagged";
 
 export type OrderItemReturnStatus = "not_yet_returned" | "returned" | "missing";
 

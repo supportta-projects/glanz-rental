@@ -152,12 +152,12 @@ BEGIN
     WHERE order_id = p_order_id;
   END IF;
   
-  -- Determine new status - INCLUDE completed_with_issues
+  -- Determine new status - INCLUDE flagged
   IF v_all_returned AND NOT v_has_partial_returns AND NOT v_has_damage THEN
     v_new_status := 'completed';
   ELSIF v_has_partial_returns OR v_has_damage THEN
-    -- If all items are marked as returned but have partial quantities or damage, mark as completed_with_issues
-    v_new_status := 'completed_with_issues';
+    -- If all items are marked as returned but have partial quantities or damage, mark as flagged
+    v_new_status := 'flagged';
   ELSIF v_has_missing OR v_has_not_returned THEN
     v_new_status := 'partially_returned';
   ELSE

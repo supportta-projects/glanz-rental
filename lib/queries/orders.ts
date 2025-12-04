@@ -999,10 +999,20 @@ export function useProcessOrderReturn() {
       const hasNotReturned = updatedItems?.some(
         (item) => !item.return_status || item.return_status === "not_yet_returned"
       );
+      
+      // Check for partial returns and damage
+      const hasPartialReturns = updatedItems?.some(
+        (item) => item.returned_quantity && item.returned_quantity > 0 && item.returned_quantity < item.quantity
+      );
+      const hasDamage = updatedItems?.some(
+        (item) => (item.damage_fee && item.damage_fee > 0) || item.damage_description
+      );
 
       let newStatus: OrderStatus = previousOrder.status;
-      if (allReturned) {
+      if (allReturned && !hasPartialReturns && !hasDamage) {
         newStatus = "completed";
+      } else if (hasPartialReturns || hasDamage) {
+        newStatus = "flagged";
       } else if (hasMissing || hasNotReturned) {
         newStatus = "partially_returned";
       }

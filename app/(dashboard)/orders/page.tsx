@@ -71,7 +71,7 @@ export default function OrdersPage() {
   const statusFromUrl = searchParams.get("status");
   const dateOptionFromUrl = searchParams.get("dateOption");
   
-  const getInitialTab = (): "all" | "scheduled" | "ongoing" | "late" | "returned" | "partially_returned" | "cancelled" => {
+  const getInitialTab = (): "all" | "scheduled" | "ongoing" | "late" | "returned" | "partially_returned" | "flagged" | "cancelled" => {
     if (statusFromUrl === "scheduled") return "scheduled";
     if (statusFromUrl === "active") return "ongoing";
     if (statusFromUrl === "late") return "late";
@@ -136,7 +136,7 @@ export default function OrdersPage() {
   };
 
   // State
-  const [activeTab, setActiveTab] = useState<"all" | "scheduled" | "ongoing" | "late" | "returned" | "partially_returned" | "cancelled">(getInitialTab());
+  const [activeTab, setActiveTab] = useState<"all" | "scheduled" | "ongoing" | "late" | "returned" | "partially_returned" | "flagged" | "cancelled">(getInitialTab());
 
   // Update tab when URL parameter changes
   useEffect(() => {
@@ -281,11 +281,12 @@ export default function OrdersPage() {
   }, []);
 
   // Ultra-optimized category calculation - memoized date parsing for performance
-  const getOrderCategory = useCallback((order: any): "scheduled" | "ongoing" | "late" | "returned" | "cancelled" | "partially_returned" => {
+  const getOrderCategory = useCallback((order: any): "scheduled" | "ongoing" | "late" | "returned" | "cancelled" | "partially_returned" | "flagged" => {
     // Fast path: Check status first (most common filter)
     const status = order.status;
     if (status === "cancelled") return "cancelled";
     if (status === "partially_returned") return "partially_returned";
+    if (status === "flagged") return "flagged";
     if (status === "completed") return "returned";
     
     // IMPORTANT: If status is "scheduled", always return "scheduled" regardless of date
@@ -319,7 +320,7 @@ export default function OrdersPage() {
     const now = new Date();
     
     // Check if order is late (end date passed and not completed/cancelled/partially_returned)
-    const isLate = end < now && status !== "completed" && status !== "cancelled" && status !== "partially_returned";
+    const isLate = end < now && status !== "completed" && status !== "cancelled" && status !== "partially_returned" && status !== "flagged";
     
     // Priority-based return (early exits for performance)
     if (isLate) return "late";
@@ -393,7 +394,7 @@ export default function OrdersPage() {
   // Calculate stats - each order counted in exactly ONE category
   const stats = useMemo(() => {
     if (!allOrdersFromServer.length) {
-      return { total: 0, scheduled: 0, ongoing: 0, late: 0, returned: 0, partially_returned: 0, cancelled: 0 };
+      return { total: 0, scheduled: 0, ongoing: 0, late: 0, returned: 0, partially_returned: 0, flagged: 0, cancelled: 0 };
     }
     
     let ongoing = 0;
@@ -402,6 +403,7 @@ export default function OrdersPage() {
     let scheduled = 0;
     let cancelled = 0;
     let partially_returned = 0;
+    let flagged = 0;
 
     // Single pass through orders - optimized counting
     for (let i = 0; i < allOrdersFromServer.length; i++) {
@@ -410,6 +412,7 @@ export default function OrdersPage() {
         case "cancelled": cancelled++; break;
         case "returned": returned++; break;
         case "partially_returned": partially_returned++; break;
+        case "flagged": flagged++; break;
         case "late": late++; break;
         case "scheduled": scheduled++; break;
         case "ongoing": ongoing++; break;
@@ -423,6 +426,7 @@ export default function OrdersPage() {
       late,
       returned,
       partially_returned,
+      flagged,
       cancelled,
     };
   }, [allOrdersFromServer, infiniteData, getOrderCategory]);
@@ -711,6 +715,15 @@ export default function OrdersPage() {
                     </span>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="flagged" className={`gap-2 whitespace-nowrap premium-hover ${stats.flagged > 0 ? "text-yellow-600" : ""}`}>
+                  <AlertTriangle className="h-4 w-4" />
+                  Flagged
+                  {stats.flagged > 0 && (
+                    <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
+                      {stats.flagged}
+                    </span>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="cancelled" className="gap-2 whitespace-nowrap premium-hover">
                   <X className="h-4 w-4" />
                   Cancelled
@@ -872,6 +885,11 @@ export default function OrdersPage() {
                             <Badge className="bg-orange-500 text-white flex items-center gap-1.5 w-fit px-3 py-1.5 shadow-sm">
                               <Package className="h-3.5 w-3.5" />
                               Partial
+                            </Badge>
+                          ) : orderCategory === "flagged" ? (
+                            <Badge className="bg-yellow-500 text-white flex items-center gap-1.5 w-fit px-3 py-1.5 shadow-sm">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              Flagged
                             </Badge>
                           ) : orderCategory === "scheduled" ? (
                             <Badge className="bg-blue-500 text-white flex items-center gap-1.5 w-fit px-3 py-1.5 shadow-sm">

@@ -102,7 +102,7 @@ BEGIN
   IF v_all_returned AND NOT v_has_partial_returns AND NOT v_has_damage THEN
     v_new_status := 'completed';
   ELSIF (v_all_returned OR COUNT(*) FILTER (WHERE return_status = 'returned') = COUNT(*)) AND (v_has_partial_returns OR v_has_damage) THEN
-    v_new_status := 'completed_with_issues';
+    v_new_status := 'flagged';
   ELSIF v_has_missing OR v_has_not_returned THEN
     v_new_status := 'partially_returned';
   ELSE

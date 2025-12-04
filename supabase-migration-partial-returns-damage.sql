@@ -21,15 +21,20 @@ ADD COLUMN IF NOT EXISTS damage_fee_total NUMERIC(10, 2) DEFAULT 0;
 ALTER TABLE orders 
 ADD COLUMN IF NOT EXISTS completion_notes TEXT;
 
--- Step 4: Update order status enum to include 'completed_with_issues'
--- First, remove the check constraint
+-- Step 4: Update order status enum to include 'flagged' (replacing 'completed_with_issues')
+-- First, update any existing rows that have 'completed_with_issues' to 'flagged'
+UPDATE orders 
+SET status = 'flagged' 
+WHERE status = 'completed_with_issues';
+
+-- Now remove the old check constraint
 ALTER TABLE orders 
 DROP CONSTRAINT IF EXISTS orders_status_check;
 
--- Add new constraint with updated statuses
+-- Add new constraint with updated statuses (using 'flagged' instead of 'completed_with_issues')
 ALTER TABLE orders 
 ADD CONSTRAINT orders_status_check 
-CHECK (status IN ('scheduled', 'active', 'pending_return', 'completed', 'cancelled', 'partially_returned', 'completed_with_issues'));
+CHECK (status IN ('scheduled', 'active', 'pending_return', 'completed', 'cancelled', 'partially_returned', 'flagged'));
 
 -- Step 5: Add constraint to ensure returned_quantity <= quantity
 ALTER TABLE order_items 
