@@ -388,11 +388,12 @@ export default function OrderDetailsPage() {
               </div>
             </Card>
 
-            {/* Return Section - Hide for scheduled orders (rental hasn't started) and cancelled orders */}
-            {order.status !== "cancelled" && !isScheduled && (
+            {/* Return Section - Show for all non-cancelled orders, but disable for scheduled orders */}
+            {order.status !== "cancelled" && (
               <div>
                 <OrderReturnSection
                   order={order}
+                  disabled={isScheduled} // Disable all interactions for scheduled orders
                   onReturnComplete={() => {
                     router.refresh();
                   }}

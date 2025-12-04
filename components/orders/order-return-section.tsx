@@ -413,6 +413,7 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
             min="0"
             step="0.01"
             className="h-12"
+            disabled={disabled}
           />
           {isLate && (
             <p className="text-xs text-gray-500">
@@ -423,8 +424,8 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
         </div>
       </Card>
 
-      {/* Submit Button - Show when there are changes */}
-      {hasChanges && (
+      {/* Submit Button - Show when there are changes and not disabled */}
+      {!disabled && hasChanges && (
         <Button
           onClick={handleSubmitReturn}
           disabled={processReturnMutation.isPending}
@@ -437,6 +438,18 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
             ? "Save Changes (All Items Returned)"
             : "Save Changes"}
         </Button>
+      )}
+
+      {/* Disabled Message for Scheduled Orders */}
+      {disabled && (
+        <Card className="p-4 bg-blue-50 border-blue-200">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-blue-600 flex-shrink-0" />
+            <p className="text-blue-800 font-medium">
+              Rental has not started yet. Items cannot be marked as returned until the rental begins. Click "Start Rental Now" to enable return tracking.
+            </p>
+          </div>
+        </Card>
       )}
 
       {/* Completion Message */}
