@@ -388,12 +388,13 @@ export default function OrderDetailsPage() {
               </div>
             </Card>
 
-            {/* Return Section - Show for all non-cancelled orders, but disable for scheduled orders */}
+            {/* Return Section - Show for all non-cancelled orders */}
+            {/* Checkbox disabled for scheduled orders, enabled for active/ongoing orders */}
             {order.status !== "cancelled" && (
               <div>
                 <OrderReturnSection
                   order={order}
-                  disabled={isScheduled} // Disable all interactions for scheduled orders
+                  disabled={isScheduled} // Disable checkbox for scheduled orders, enable for active/ongoing
                   onReturnComplete={() => {
                     router.refresh();
                   }}

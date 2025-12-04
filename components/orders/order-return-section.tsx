@@ -330,7 +330,7 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
                         id={`return-${item.id}`}
                         checked={checked}
                         onCheckedChange={() => handleToggleItem(item.id!)}
-                        disabled={disabled}
+                        disabled={disabled} // Disabled for scheduled orders, enabled for active/ongoing orders
                       />
                     </TableCell>
                     <TableCell>
