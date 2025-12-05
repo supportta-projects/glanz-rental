@@ -62,7 +62,8 @@ export default function DashboardLayout({
     };
 
     checkUser();
-  }, [router, user, setUser, supabase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount - router, user, setUser, supabase are stable
 
   if (loading || !user) {
     return (

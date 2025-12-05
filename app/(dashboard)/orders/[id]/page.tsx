@@ -67,7 +67,30 @@ export default function OrderDetailsPage() {
   
   const gstEnabled = useMemo(() => user?.gst_enabled ?? false, [user?.gst_enabled]);
   const gstRate = useMemo(() => user?.gst_rate || 5.00, [user?.gst_rate]);
-  
+
+  // Memoize damage fees breakdown for performance
+  const damageFeesBreakdown = useMemo(() => {
+    if (!order?.items) return { itemsWithDamage: [], totalDamageFee: 0 };
+    
+    const itemsWithDamage = order.items.filter((item: any) => (item.damage_fee || 0) > 0);
+    const totalDamageFee = order.damage_fee_total || 0;
+    
+    return { itemsWithDamage, totalDamageFee };
+  }, [order?.items, order?.damage_fee_total]);
+
+  // Memoize return status calculations for performance
+  const returnStatus = useMemo(() => {
+    if (!order?.items || order.items.length === 0) {
+      return { totalQuantity: 0, returnedQuantity: 0, missingQuantity: 0 };
+    }
+    
+    const totalQuantity = order.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+    const returnedQuantity = order.items.reduce((sum: number, item: any) => sum + (Number(item.returned_quantity) || 0), 0);
+    const missingQuantity = totalQuantity - returnedQuantity;
+    
+    return { totalQuantity, returnedQuantity, missingQuantity };
+  }, [order?.items]);
+
   // Effect hooks - call unconditionally
   // Print functionality removed - no longer needed
   
@@ -481,43 +504,49 @@ export default function OrderDetailsPage() {
                     <span className="text-sm font-bold text-orange-600">{formatCurrency(order.late_fee)}</span>
                   </div>
                 )}
-                {(order.damage_fee_total && order.damage_fee_total > 0) && (
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200/60">
-                    <span className="text-sm text-gray-600 font-medium">Damage Fee</span>
-                    <span className="text-sm font-bold text-red-600">{formatCurrency(order.damage_fee_total)}</span>
-                  </div>
+                {/* Damage Fees Breakdown - Memoized */}
+                {damageFeesBreakdown.itemsWithDamage.length > 0 && (
+                  <>
+                    <div className="flex items-center justify-between py-2 border-b border-gray-200/60">
+                      <span className="text-sm text-gray-600 font-medium">Damage Fees</span>
+                      <span></span>
+                    </div>
+                    {damageFeesBreakdown.itemsWithDamage.map((item: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between py-1.5 border-b border-gray-200/40 pl-4">
+                        <span className="text-xs text-gray-600">
+                          • {item.product_name || "Item"} ({item.quantity} qty)
+                          {item.damage_description && ` - ${item.damage_description}`}
+                        </span>
+                        <span className="text-xs font-semibold text-gray-900">{formatCurrency(item.damage_fee || 0)}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between py-2 border-b border-gray-200/60">
+                      <span className="text-sm text-gray-600 font-medium">Total Damage Fee</span>
+                      <span className="text-sm font-bold text-red-600">{formatCurrency(damageFeesBreakdown.totalDamageFee)}</span>
+                    </div>
+                  </>
                 )}
                 
-                {/* Return Summary - Show when there are items */}
-                {order.items && order.items.length > 0 && (() => {
-                  const totalQuantity = order.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
-                  const returnedQuantity = order.items.reduce((sum: number, item: any) => sum + (Number(item.returned_quantity) || 0), 0);
-                  const missingQuantity = totalQuantity - returnedQuantity;
-                  
-                  // Always show return status if order is not scheduled
-                  if (!isScheduled) {
-                    return (
-                      <div className="pt-3 mt-3 border-t border-gray-200/60 space-y-2 bg-gray-50/50 -mx-2 px-2 py-2 rounded">
-                        <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Return Status</p>
-                        <div className="flex items-center justify-between py-1">
-                          <span className="text-xs text-gray-500 font-medium">Total Quantity</span>
-                          <span className="text-xs font-bold text-gray-700">{totalQuantity}</span>
-                        </div>
-                        <div className="flex items-center justify-between py-1">
-                          <span className="text-xs text-green-600 font-medium">Returned</span>
-                          <span className="text-xs font-bold text-green-600">{returnedQuantity}</span>
-                        </div>
-                        {missingQuantity > 0 && (
-                          <div className="flex items-center justify-between py-1">
-                            <span className="text-xs text-red-600 font-medium">Missing</span>
-                            <span className="text-xs font-bold text-red-600">{missingQuantity}</span>
-                          </div>
-                        )}
+                {/* Return Summary - Memoized */}
+                {order.items && order.items.length > 0 && !isScheduled && (
+                  <div className="pt-3 mt-3 border-t border-gray-200/60 space-y-2 bg-gray-50/50 -mx-2 px-2 py-2 rounded">
+                    <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Return Status</p>
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-xs text-gray-500 font-medium">Total Quantity</span>
+                      <span className="text-xs font-bold text-gray-700">{returnStatus.totalQuantity}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-xs text-green-600 font-medium">Returned</span>
+                      <span className="text-xs font-bold text-green-600">{returnStatus.returnedQuantity}</span>
+                    </div>
+                    {returnStatus.missingQuantity > 0 && (
+                      <div className="flex items-center justify-between py-1">
+                        <span className="text-xs text-red-600 font-medium">Missing</span>
+                        <span className="text-xs font-bold text-red-600">{returnStatus.missingQuantity}</span>
                       </div>
-                    );
-                  }
-                  return null;
-                })()}
+                    )}
+                  </div>
+                )}
                 
                 <div className="flex items-center justify-between pt-4 mt-4 border-t-2 border-gray-300 bg-gradient-to-r from-gray-50 to-gray-100/50 -mx-2 px-2 py-3 rounded-lg">
                   <span className="text-base font-bold text-gray-900">Total</span>

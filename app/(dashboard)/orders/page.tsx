@@ -144,8 +144,7 @@ export default function OrdersPage() {
     if (newTab !== activeTab) {
       setActiveTab(newTab);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFromUrl]);
+  }, [statusFromUrl, activeTab]); // Include activeTab to prevent unnecessary updates
   
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -175,8 +174,7 @@ export default function OrdersPage() {
         newDateRange.end.getTime() !== dateRange.end.getTime()) {
       setDateRange(newDateRange);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateOptionFromUrl]);
+  }, [dateOptionFromUrl, dateRange.option, dateRange.start, dateRange.end]); // Include dependencies
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const pageSize = 20;

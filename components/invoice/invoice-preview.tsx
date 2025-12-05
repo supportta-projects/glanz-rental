@@ -103,7 +103,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
                     key={i} 
                     style={{
                       fontSize: "8.5pt",
-                      color: "#6b7280",
+                      color: "#000000",
                       lineHeight: "1.6",
                       marginBottom: "3px"
                     }}
@@ -119,7 +119,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
                 <p 
                   style={{
                     fontSize: "8.5pt",
-                    color: "#6b7280",
+                    color: "#000000",
                     marginTop: "4px",
                     lineHeight: "1.5"
                   }}
@@ -156,7 +156,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
             <p 
               style={{
                 fontSize: "9.5pt",
-                color: "#374151",
+                color: "#000000",
                 marginBottom: "6px",
                 fontWeight: "500"
               }}
@@ -166,7 +166,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
             <p 
               style={{
                 fontSize: "8.5pt",
-                color: "#9ca3af"
+                color: "#000000"
               }}
             >
               {formatDate(order.booking_date || order.created_at, "dd MMM yyyy")}
@@ -186,7 +186,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
         <p 
           style={{
             fontSize: "7pt",
-            color: "#9ca3af",
+            color: "#000000",
             textTransform: "uppercase",
             fontWeight: "600",
             letterSpacing: "1.2px",
@@ -209,7 +209,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
           <p 
             style={{
               fontSize: "8.5pt",
-              color: "#6b7280",
+              color: "#000000",
               marginBottom: "3px"
             }}
           >
@@ -220,7 +220,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
           <p 
             style={{
               fontSize: "8.5pt",
-              color: "#6b7280",
+              color: "#000000",
               lineHeight: "1.6",
               marginTop: "3px"
             }}
@@ -241,7 +241,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
             borderBottom: "1px solid #e5e7eb",
             fontSize: "8pt",
             fontWeight: "600",
-            color: "#374151",
+            color: "#000000",
             letterSpacing: "0.2px"
           }}
         >
@@ -358,7 +358,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
             paddingBottom: "8px"
           }}
         >
-          <span style={{ color: "#6b7280" }}>Subtotal</span>
+          <span style={{ color: "#000000" }}>Subtotal</span>
           <span style={{ color: "#000000", fontWeight: "600" }}>
             {`₹${formatCurrencyNumber(subtotal)}`}
           </span>
@@ -373,7 +373,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
               paddingBottom: "8px"
             }}
           >
-            <span style={{ color: "#6b7280" }}>GST ({gstRate}%)</span>
+            <span style={{ color: "#000000" }}>GST ({gstRate}%)</span>
             <span style={{ color: "#000000", fontWeight: "600" }}>
               {`₹${formatCurrencyNumber(gstAmount)}`}
             </span>
@@ -389,12 +389,74 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
               paddingBottom: "8px"
             }}
           >
-            <span style={{ color: "#ea580c", fontWeight: "500" }}>Late Fee</span>
-            <span style={{ color: "#ea580c", fontWeight: "600" }}>
+            <span style={{ color: "#000000", fontWeight: "500" }}>Late Fee</span>
+            <span style={{ color: "#000000", fontWeight: "600" }}>
               {`₹${formatCurrencyNumber(lateFee)}`}
             </span>
           </div>
         )}
+        
+        {/* Damage Fees Section */}
+        {(() => {
+          const itemsWithDamage = (order.items || []).filter(item => (item.damage_fee || 0) > 0);
+          const totalDamageFee = order.damage_fee_total || 0;
+          
+          if (itemsWithDamage.length === 0) return null;
+          
+          return (
+            <>
+              <div 
+                className="flex justify-between py-2"
+                style={{ 
+                  marginBottom: "8px", 
+                  fontSize: "8.5pt",
+                  borderTop: "1px solid #e5e7eb",
+                  paddingTop: "12px",
+                  marginTop: "8px"
+                }}
+              >
+                <span style={{ color: "#000000", fontWeight: "700" }}>Damage Fees</span>
+                <span></span>
+              </div>
+              {itemsWithDamage.map((item, idx) => (
+                <div 
+                  key={idx}
+                  className="flex justify-between py-1"
+                  style={{ 
+                    fontSize: "7.5pt",
+                    paddingLeft: "12px"
+                  }}
+                >
+                  <span style={{ color: "#000000" }}>
+                    • {item.product_name || "Item"} ({item.quantity} qty)
+                    {item.damage_description && ` - ${item.damage_description}`}
+                  </span>
+                  <span style={{ color: "#000000", fontWeight: "600" }}>
+                    {`₹${formatCurrencyNumber(item.damage_fee || 0)}`}
+                  </span>
+                </div>
+              ))}
+              <div 
+                className="flex justify-between py-2"
+                style={{ 
+                  marginBottom: "8px", 
+                  fontSize: "8.5pt",
+                  borderBottom: "1px solid #e5e7eb",
+                  paddingBottom: "8px",
+                  borderTop: "1px solid #e5e7eb",
+                  paddingTop: "8px",
+                  marginTop: "4px"
+                }}
+              >
+                <span style={{ color: "#000000", fontWeight: "700" }}>Total Damage Fee</span>
+                <span style={{ color: "#000000", fontWeight: "700" }}>
+                  {`₹${formatCurrencyNumber(totalDamageFee)}`}
+                </span>
+              </div>
+            </>
+          );
+        })()}
+        
         <div 
           className="flex justify-between pt-4 mt-3"
           style={{
@@ -435,19 +497,19 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
         }}
       >
         <div className="flex-1 pr-8">
-          <p 
-            style={{
-              fontSize: "7.5pt",
-              color: "#9ca3af",
-              textTransform: "uppercase",
-              fontWeight: "600",
-              marginBottom: "8px",
-              letterSpacing: "1px"
-            }}
-          >
-            Terms & Conditions
-          </p>
-          <div style={{ color: "#6b7280", lineHeight: "1.7" }}>
+            <p 
+              style={{
+                fontSize: "7.5pt",
+                color: "#000000",
+                textTransform: "uppercase",
+                fontWeight: "600",
+                marginBottom: "8px",
+                letterSpacing: "1px"
+              }}
+            >
+              Terms & Conditions
+            </p>
+          <div style={{ color: "#000000", lineHeight: "1.7" }}>
             <p style={{ marginBottom: "4px" }}>Items must be returned in good condition</p>
             <p style={{ marginBottom: "4px" }}>Late returns may incur additional charges</p>
             <p style={{ marginBottom: "4px" }}>Contact us for any queries or concerns</p>
@@ -456,7 +518,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
             className="mt-5 pt-3 border-t border-gray-200"
             style={{ width: "180px", paddingTop: "12px" }}
           >
-            <p style={{ color: "#9ca3af", fontSize: "7.5pt" }}>Authorized Signature</p>
+            <p style={{ color: "#000000", fontSize: "7.5pt" }}>Authorized Signature</p>
           </div>
         </div>
         
@@ -470,7 +532,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
             <p 
               style={{
                 fontSize: "7.5pt",
-                color: "#9ca3af",
+                color: "#000000",
                 textTransform: "uppercase",
                 fontWeight: "600",
                 marginBottom: "10px",
@@ -497,7 +559,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
                 style={{ width: "90px", height: "90px" }}
               />
             </div>
-            <p style={{ fontSize: "7pt", color: "#6b7280", marginTop: "6px", lineHeight: "1.5" }}>
+            <p style={{ fontSize: "7pt", color: "#000000", marginTop: "6px", lineHeight: "1.5" }}>
               {user?.upi_id || "N/A"}
             </p>
             <p style={{ fontSize: "8pt", color: "#000000", fontWeight: "600", marginTop: "3px" }}>

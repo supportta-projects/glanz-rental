@@ -61,7 +61,7 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["recent-orders"] }),
     ]);
     setTimeout(() => setIsRefreshing(false), 500);
-  }, [queryClient]);
+  }, []); // queryClient is stable, no need to include in deps
 
   useEffect(() => {
     if (typeof window === "undefined") return;

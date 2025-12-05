@@ -154,18 +154,18 @@ const styles = StyleSheet.create({
   },
   shopAddress: {
     fontSize: 8,
-    color: "#6b7280",
+    color: "#000000",
     lineHeight: 1.3,
     marginBottom: 1,
   },
   shopPhone: {
     fontSize: 8,
-    color: "#6b7280",
+    color: "#000000",
     marginTop: 2,
   },
   shopGstin: {
     fontSize: 8,
-    color: "#6b7280",
+    color: "#000000",
     marginTop: 2,
     fontWeight: "600",
   },
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   },
   invoiceDateText: {
     fontSize: 8,
-    color: "#6b7280",
+    color: "#000000",
   },
   
   // Continuation header - Fixed height, same structure as full header but compressed
@@ -224,18 +224,18 @@ const styles = StyleSheet.create({
   },
   continuationInvoiceText: {
     fontSize: 8,
-    color: "#6b7280",
+    color: "#000000",
     fontWeight: "600",
   },
   continuationShopAddress: {
     fontSize: 7,
-    color: "#6b7280",
+    color: "#000000",
     marginTop: 2,
     lineHeight: 1.2,
   },
   continuationShopPhone: {
     fontSize: 7,
-    color: "#6b7280",
+    color: "#000000",
     marginTop: 2,
     lineHeight: 1.2,
   },
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   },
   billToLabel: {
     fontSize: 7,
-    color: "#9ca3af",
+    color: "#000000",
     textTransform: "uppercase",
     fontWeight: "700",
     marginBottom: 6,
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   },
   customerInfo: {
     fontSize: 8,
-    color: "#6b7280",
+    color: "#000000",
     lineHeight: 1.4,
     marginBottom: 1,
   },
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   },
   rentalPeriodLabel: {
     fontSize: 7,
-    color: "#9ca3af",
+    color: "#000000",
     textTransform: "uppercase",
     fontWeight: "700",
     marginBottom: 4,
@@ -303,18 +303,18 @@ const styles = StyleSheet.create({
   },
   continuationBillToLabel: {
     fontSize: 8,
-    color: "#374151",
+    color: "#000000",
     fontWeight: "600",
     marginBottom: 2,
   },
   continuationCustomerInfo: {
     fontSize: 7,
-    color: "#6b7280",
+    color: "#000000",
     lineHeight: 1.3,
   },
   continuationRentalLabel: {
     fontSize: 8,
-    color: "#374151",
+    color: "#000000",
     fontWeight: "500",
     textAlign: "right",
   },
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   tableHeaderText: {
     fontSize: 8,
     fontWeight: "700",
-    color: "#374151",
+    color: "#000000",
     letterSpacing: 0.2,
   },
   
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 8,
-    color: "#6b7280",
+    color: "#000000",
     fontWeight: "400",
   },
   summaryValue: {
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   termsTitle: {
     fontSize: 8,
     fontWeight: "700",
-    color: "#374151",
+    color: "#000000",
     marginBottom: 8,
     textTransform: "uppercase",
     letterSpacing: 1,
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   },
   signatureLine: {
     fontSize: 7,
-    color: "#9ca3af",
+    color: "#000000",
     marginTop: 10, // Reduced spacing
     borderTop: "1px solid #e5e7eb",
     paddingTop: 6, // Reduced spacing
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   },
   qrLabel: {
     fontSize: 7,
-    color: "#374151",
+    color: "#000000",
     fontWeight: "700",
     marginBottom: 4, // Tightened spacing
     textTransform: "uppercase",
@@ -536,9 +536,9 @@ const styles = StyleSheet.create({
   },
   qrInfo: {
     fontSize: 6.5,
-    color: "#6b7280",
-    marginTop: 2, // Tightened spacing
-    lineHeight: 1.1, // Tightened spacing
+    color: "#000000",
+    marginTop: 2,
+    lineHeight: 1.1,
     fontWeight: "400",
   },
   disclaimer: {
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
     right: MARGIN,
     textAlign: "center",
     fontSize: 7,
-    color: "#9ca3af",
+    color: "#000000",
     height: PAGE_NUMBER_HEIGHT,
   },
 });
@@ -829,7 +829,7 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
                   alignItems: "center",
                   justifyContent: "center"
                 }]}>
-                  <Text style={{ fontSize: 6, color: "#9ca3af" }}>No Image</Text>
+                  <Text style={{ fontSize: 6, color: "#000000" }}>No Image</Text>
                 </View>
               )}
             </View>

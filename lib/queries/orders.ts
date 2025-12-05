@@ -1,8 +1,52 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Order, OrderStatus, OrderItemReturnStatus } from "@/lib/types";
 import { useRealtimeSubscription } from "@/lib/hooks/use-realtime-subscription";
 import { isOrderLate } from "@/lib/utils/date";
+
+// Function to check and auto-cancel expired scheduled orders
+// Made resilient to handle missing RPC function gracefully
+async function checkAndCancelExpiredScheduledOrders(branchId: string | null): Promise<number> {
+  const supabase = createClient();
+  
+  try {
+    // Call the database function - handle gracefully if it doesn't exist
+    const { data, error } = await supabase.rpc('auto_cancel_expired_scheduled_orders');
+    
+    // Check for specific error codes
+    if (error) {
+      // If function doesn't exist (PostgreSQL error code 42883), silently skip
+      if (error.code === '42883' || error.message?.includes('does not exist') || error.message?.includes('function') && error.message?.includes('not found')) {
+        // Function not created yet - this is expected if migration hasn't been run
+        return 0;
+      }
+      // Log other errors but don't break the app
+      if (error.code && error.message) {
+        console.warn('[checkAndCancelExpiredScheduledOrders] Error:', error.code, error.message);
+      }
+      return 0;
+    }
+    
+    // If any orders were cancelled, the data will be the count
+    const cancelledCount = data !== null && data !== undefined ? Number(data) : 0;
+    if (cancelledCount > 0) {
+      console.log(`[checkAndCancelExpiredScheduledOrders] Cancelled ${cancelledCount} expired scheduled orders`);
+    }
+    return cancelledCount;
+  } catch (error: any) {
+    // Handle network errors or other exceptions
+    if (error?.code === '42883' || error?.message?.includes('does not exist') || error?.message?.includes('function') && error?.message?.includes('not found')) {
+      // Function not created yet - expected behavior
+      return 0;
+    }
+    // Only log unexpected errors
+    if (error?.message) {
+      console.warn('[checkAndCancelExpiredScheduledOrders] Exception:', error.message);
+    }
+    return 0;
+  }
+}
 
 const PAGE_SIZE = 50; // Optimized page size for infinite scroll
 
@@ -51,9 +95,44 @@ export function useOrdersInfinite(
   }
 ) {
   const supabase = createClient();
+  const queryClient = useQueryClient();
   
   // Realtime only for orders page (as per requirements)
   useRealtimeSubscription("orders", branchId);
+  
+  // Track last check time to prevent excessive calls
+  const lastCheckRef = useRef<{ branchId: string | null; timestamp: number }>({ branchId: null, timestamp: 0 });
+  const CHECK_INTERVAL = 30000; // Check every 30 seconds max per branch
+  
+  // Check and cancel expired scheduled orders on mount and when branchId changes
+  useEffect(() => {
+    if (!branchId) return;
+    
+    const now = Date.now();
+    const lastCheck = lastCheckRef.current;
+    
+    // Only check if branch changed or enough time has passed
+    if (lastCheck.branchId === branchId && (now - lastCheck.timestamp) < CHECK_INTERVAL) {
+      return;
+    }
+    
+    // Update ref before async call
+    lastCheckRef.current = { branchId, timestamp: now };
+    
+    // Call auto-cancel function
+    checkAndCancelExpiredScheduledOrders(branchId).then((cancelledCount) => {
+      // Only invalidate if orders were actually cancelled
+      if (cancelledCount > 0) {
+        // Use setTimeout to batch invalidations and prevent rapid re-renders
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["orders-infinite", branchId] });
+          queryClient.invalidateQueries({ queryKey: ["orders", branchId] });
+        }, 100);
+      }
+    }).catch(() => {
+      // Silently handle errors - don't break the app
+    });
+  }, [branchId]); // Only depend on branchId - queryClient is stable
 
   return useInfiniteQuery({
     queryKey: ["orders-infinite", branchId, filters],

@@ -70,7 +70,7 @@ export default function ProfilePage() {
   const [upiId, setUpiId] = useState("");
   const [savingUpi, setSavingUpi] = useState(false);
 
-  // Initialize fields from user
+  // Initialize fields from user - only run when user.id changes
   useEffect(() => {
     if (user) {
       setFullName(user.full_name || "");
@@ -104,7 +104,7 @@ export default function ProfilePage() {
         }
       }
     }
-  }, [user]);
+  }, [user?.id]); // Only depend on user.id to prevent unnecessary re-runs
 
   // Handle logo upload (company)
   const handleCompanyLogoUpload = useCallback(async (file: File) => {

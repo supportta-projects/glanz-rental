@@ -61,6 +61,16 @@ function BranchSwitcher() {
 
   const currentBranch = user?.branch;
 
+  const getDisplayName = () => {
+    if (user?.company_name) {
+      return user.company_name;
+    }
+    if (currentBranch?.name) {
+      return currentBranch.name;
+    }
+    return "No Branch";
+  };
+
   const handleBranchSwitch = async (branchId: string | null) => {
     const selectedBranch = branches?.find((b) => b.id === branchId);
     switchBranch(branchId, selectedBranch);
@@ -85,7 +95,7 @@ function BranchSwitcher() {
               <Building2 className="h-4 w-4 flex-shrink-0 text-[#273492]" />
             </div>
             <span className="text-xs font-semibold truncate">
-              {currentBranch?.name || "No Branch"}
+              {getDisplayName()}
             </span>
           </div>
           <ChevronDown className={cn(

@@ -35,7 +35,7 @@ export default function EditBranchPage() {
       setAddress(branch.address || "");
       setPhone(branch.phone || "");
     }
-  }, [branch]);
+  }, [branch?.id]); // Only depend on branch.id to prevent unnecessary re-runs
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

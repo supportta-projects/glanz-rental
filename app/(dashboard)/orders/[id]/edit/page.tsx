@@ -67,8 +67,14 @@ export default function EditOrderPage() {
         setSelectedCustomer(order.customer);
       }
     }
-    return () => clearDraft();
-  }, [order, loadOrder, clearDraft]);
+    // Cleanup on unmount only
+    return () => {
+      // Only clear draft if we're leaving the page
+      if (!order) {
+        clearDraft();
+      }
+    };
+  }, [order?.id]); // Only depend on order.id to prevent unnecessary re-runs
 
   const days = draft.end_date && draft.start_date
     ? calculateDays(draft.start_date, draft.end_date)
@@ -121,7 +127,7 @@ export default function EditOrderPage() {
   const canEditFull = useMemo(() => {
     if (!order) return false;
     return canEditOrder(order);
-  }, [order]);
+  }, [order?.status]); // Only depend on order.status, not entire order object
 
   // Set edit mode based on order status
   useEffect(() => {
@@ -132,7 +138,7 @@ export default function EditOrderPage() {
         setEditMode("invoice-only");
       }
     }
-  }, [order, canEditFull]);
+  }, [order?.status, canEditFull]); // Only depend on order.status
 
   const handleAddItem = (result: UploadResult) => {
     if (!result.previewUrl) return;

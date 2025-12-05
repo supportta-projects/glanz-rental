@@ -43,7 +43,7 @@ export default function EditStaffPage() {
       setRole(staff.role || "staff");
       setBranchId(staff.branch_id || "");
     }
-  }, [staff]);
+  }, [staff?.id]); // Only depend on staff.id to prevent unnecessary re-runs
 
   // Filter available branches based on user role
   const availableBranches = branches?.filter((branch) => {

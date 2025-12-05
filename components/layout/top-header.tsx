@@ -36,12 +36,12 @@ export function TopHeader() {
         <div className="flex items-center justify-between px-4 md:px-6 h-full max-w-full">
           {/* Left: Branch Name with Icon */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            {user?.branch && (
+            {(user?.company_name || user?.branch) && (
               <div className="flex items-center gap-2 min-w-0">
                 <Building2 className="h-5 w-5 text-[#6b7280] flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
                   <span className="font-semibold text-[#0f1724] truncate text-sm md:text-base leading-tight">
-                    {user.branch.name}
+                    {user?.company_name || user?.branch?.name || "No Branch"}
                   </span>
                   <span className="text-xs text-[#6b7280] truncate hidden md:block">
                     {user.full_name || "User"}
