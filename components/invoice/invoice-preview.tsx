@@ -37,10 +37,12 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
     ? `upi://pay?pa=${user.upi_id}&am=${order.total_amount.toFixed(2)}&cu=INR&tn=Order ${order.invoice_number}`
     : null;
 
-  // Format shop address (handle multi-line)
-  const shopAddressLines = user?.branch?.address 
-    ? user.branch.address.split("\n").filter(line => line.trim())
-    : [];
+  // Format shop address (handle multi-line) - use order's branch first
+  const shopAddressLines = order.branch?.address 
+    ? order.branch.address.split("\n").filter(line => line.trim())
+    : (user?.branch?.address 
+      ? user.branch.address.split("\n").filter(line => line.trim())
+      : []);
 
   return (
     <div 
@@ -73,9 +75,11 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
           <div style={{ flex: 1 }}>
             <div className="flex items-center mb-3" style={{ gap: "12px" }}>
               <img 
-                src={user?.branch && (user.branch as any).logo_url 
-                  ? (user.branch as any).logo_url 
-                  : "/glanz_logo.png"} 
+                src={order.branch && (order.branch as any).logo_url 
+                  ? (order.branch as any).logo_url 
+                  : (user?.branch && (user.branch as any).logo_url 
+                    ? (user.branch as any).logo_url 
+                    : "/glanz_logo.png")} 
                 alt="Logo"
                 style={{
                   width: "56px",
@@ -93,7 +97,7 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
                   margin: 0
                 }}
               >
-                {user?.company_name || user?.branch?.name || "Glanz Costumes"}
+                {order.branch?.name || user?.company_name || user?.branch?.name || "Glanz Costumes"}
               </h1>
             </div>
             {shopAddressLines.length > 0 && (
@@ -113,8 +117,8 @@ export function InvoicePreview({ order, user, onClose }: InvoicePreviewProps) {
                 ))}
               </div>
             )}
-            {user?.branch?.phone && (() => {
-              const phoneNumbers = user.branch.phone.split(',');
+            {(order.branch?.phone || user?.branch?.phone) && (() => {
+              const phoneNumbers = (order.branch?.phone || user?.branch?.phone || "").split(',');
               return (
                 <p 
                   style={{

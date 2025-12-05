@@ -651,10 +651,14 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
     ? `upi://pay?pa=${user.upi_id}&am=${order.total_amount.toFixed(2)}&cu=INR&tn=Order ${order.invoice_number}`
     : null;
 
-  // Get company name (prefer company_name, then branch name, then default)
+  // Get company name (prefer company_name, then order's branch name, then user's branch name, then default)
   const getShopName = () => {
     if (user?.company_name) {
       return user.company_name;
+    }
+    // Use order's branch name if available, fallback to user's branch
+    if (order.branch?.name) {
+      return order.branch.name;
     }
     if (user?.branch?.name) {
       return user.branch.name;
@@ -662,13 +666,18 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
     return "Glanz Costumes";
   };
 
-  const shopAddressLines = user?.branch?.address 
-    ? user.branch.address.split("\n").filter(line => line.trim())
-    : [];
+  // Use order's branch address/phone, fallback to user's branch
+  const shopAddressLines = order.branch?.address 
+    ? order.branch.address.split("\n").filter(line => line.trim())
+    : (user?.branch?.address 
+      ? user.branch.address.split("\n").filter(line => line.trim())
+      : []);
 
-  const phoneNumbers = user?.branch?.phone 
-    ? user.branch.phone.split(',').map(p => p.trim()).join(', ')
-    : null;
+  const phoneNumbers = order.branch?.phone 
+    ? order.branch.phone.split(',').map(p => p.trim()).join(', ')
+    : (user?.branch?.phone 
+      ? user.branch.phone.split(',').map(p => p.trim()).join(', ')
+      : null);
 
   // ============================================================================
   // RENDER FUNCTIONS
@@ -679,9 +688,11 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
       <View style={styles.headerLeft}>
         <View style={styles.logoContainer}>
           <Image 
-            src={user?.branch && (user.branch as any).logo_url 
-              ? (user.branch as any).logo_url 
-              : "/glanz_logo.png"} 
+            src={order.branch && (order.branch as any).logo_url 
+              ? (order.branch as any).logo_url 
+              : (user?.branch && (user.branch as any).logo_url 
+                ? (user.branch as any).logo_url 
+                : "/glanz_logo.png")} 
             style={styles.logo}
           />
         </View>
@@ -717,9 +728,11 @@ export function InvoicePDF({ order, user, qrCodeDataUrl }: InvoicePDFProps) {
       <View style={styles.continuationHeaderLeft}>
         <View style={styles.continuationLogoContainer}>
           <Image 
-            src={user?.branch && (user.branch as any).logo_url 
-              ? (user.branch as any).logo_url 
-              : "/glanz_logo.png"} 
+            src={order.branch && (order.branch as any).logo_url 
+              ? (order.branch as any).logo_url 
+              : (user?.branch && (user.branch as any).logo_url 
+                ? (user.branch as any).logo_url 
+                : "/glanz_logo.png")} 
             style={styles.continuationLogo}
           />
         </View>

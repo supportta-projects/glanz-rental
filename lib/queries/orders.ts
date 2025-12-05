@@ -163,7 +163,7 @@ export function useOrdersInfinite(
 
         let query = supabase
           .from("orders")
-          .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, damage_fee_total, completion_notes, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id, photo_url, product_name, quantity, price_per_day, days, line_total, return_status, actual_return_date, late_return, missing_note, returned_quantity, damage_fee, damage_description)", { count: "exact" })
+          .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, damage_fee_total, completion_notes, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name, address, phone, logo_url), items:order_items(id, photo_url, product_name, quantity, price_per_day, days, line_total, return_status, actual_return_date, late_return, missing_note, returned_quantity, damage_fee, damage_description)", { count: "exact" })
           .eq("branch_id", branchId)
           .order("created_at", { ascending: false });
 
@@ -279,7 +279,7 @@ export function useOrders(
 
       let query = supabase
         .from("orders")
-        .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, damage_fee_total, completion_notes, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name), items:order_items(id, photo_url, product_name, quantity, price_per_day, days, line_total, return_status, actual_return_date, late_return, missing_note, returned_quantity, damage_fee, damage_description)", { count: "exact" })
+        .select("id, invoice_number, branch_id, staff_id, customer_id, booking_date, start_date, end_date, start_datetime, end_datetime, status, total_amount, late_fee, late_returned, damage_fee_total, completion_notes, created_at, customer:customers(id, name, phone, customer_number), branch:branches(id, name, address, phone, logo_url), items:order_items(id, photo_url, product_name, quantity, price_per_day, days, line_total, return_status, actual_return_date, late_return, missing_note, returned_quantity, damage_fee, damage_description)", { count: "exact" })
         .order("created_at", { ascending: false });
 
       if (branchId) {
@@ -368,7 +368,7 @@ export function useOrder(orderId: string) {
           created_at,
           customer:customers(id, name, phone, address),
           staff:profiles(id, full_name),
-          branch:branches(id, name),
+          branch:branches(id, name, address, phone, logo_url),
           items:order_items(
             id,
             photo_url,
