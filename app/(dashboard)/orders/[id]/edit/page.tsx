@@ -206,9 +206,14 @@ export default function EditOrderPage() {
     const item = draft.items[index];
     const updates: Partial<OrderItem> = { [field]: value };
 
-    if (field === "quantity" || field === "price_per_day") {
-      updates.line_total = (updates.quantity || item.quantity) * 
-                          (updates.price_per_day || item.price_per_day);
+    // ✅ FIX (Issue D3): Calculate line total WITH days: quantity × price_per_day × days
+    if (field === "quantity" || field === "price_per_day" || field === "days") {
+      const quantity = updates.quantity ?? item.quantity;
+      const pricePerDay = updates.price_per_day ?? item.price_per_day;
+      const itemDays = updates.days ?? item.days ?? days; // Use item days or order days
+      
+      // ✅ FIX: Include days in calculation
+      updates.line_total = quantity * pricePerDay * itemDays;
     }
 
     updateItem(index, updates);
@@ -254,6 +259,38 @@ export default function EditOrderPage() {
 
     if (!draft.invoice_number) {
       showToast("Please enter an invoice number", "error");
+      return;
+    }
+
+    // ✅ FIX (Issue D1, D2, D6): Comprehensive item validation (same as create order)
+    const invalidItems: Array<{ index: number; reason: string }> = [];
+    
+    draft.items.forEach((item, index) => {
+      if (!item.quantity || item.quantity <= 0) {
+        invalidItems.push({ index: index + 1, reason: `Item ${index + 1}: Quantity must be greater than 0` });
+      }
+      if (item.quantity > 1000) {
+        invalidItems.push({ index: index + 1, reason: `Item ${index + 1}: Quantity cannot exceed 1000` });
+      }
+      if (!item.price_per_day || item.price_per_day <= 0) {
+        invalidItems.push({ index: index + 1, reason: `Item ${index + 1}: Price per day must be greater than 0` });
+      }
+      if (!item.product_name || item.product_name.trim().length === 0) {
+        invalidItems.push({ index: index + 1, reason: `Item ${index + 1}: Product name is required` });
+      }
+      // Validate line_total calculation
+      const expectedLineTotal = (item.quantity || 0) * (item.price_per_day || 0) * (item.days || days);
+      const tolerance = 0.01;
+      if (Math.abs((item.line_total || 0) - expectedLineTotal) > tolerance) {
+        invalidItems.push({ index: index + 1, reason: `Item ${index + 1}: Line total calculation mismatch. Please update the item.` });
+      }
+    });
+
+    if (invalidItems.length > 0) {
+      const errorMessage = invalidItems.length === 1 
+        ? invalidItems[0].reason
+        : `Multiple items have issues:\n${invalidItems.map(i => `• ${i.reason}`).join('\n')}`;
+      showToast(errorMessage, "error");
       return;
     }
 

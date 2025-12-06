@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { Branch } from "@/lib/types";
+import { getMainBranchId } from "@/lib/utils/branches";
 
 export function useBranches() {
   const supabase = createClient();
@@ -98,6 +99,12 @@ export function useDeleteBranch() {
 
   return useMutation({
     mutationFn: async (branchId: string) => {
+      // ✅ FIX: Prevent deletion of main branch
+      const mainBranchId = await getMainBranchId();
+      if (mainBranchId === branchId) {
+        throw new Error("Cannot delete the main branch. This is the default branch and cannot be removed.");
+      }
+
       // Check for orders first
       const { data: orders, error: ordersError } = await supabase
         .from("orders")
@@ -123,6 +130,36 @@ export function useDeleteBranch() {
       queryClient.invalidateQueries({ queryKey: ["branches"] });
       queryClient.invalidateQueries({ queryKey: ["branch"] });
       queryClient.invalidateQueries({ queryKey: ["staff"] }); // Invalidate staff to refresh branch assignments
+    },
+  });
+}
+
+export function useToggleBranchActive() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      branchId,
+      isActive,
+    }: {
+      branchId: string;
+      isActive: boolean;
+    }) => {
+      const { data, error } = await (supabase
+        .from("branches") as any)
+        .update({ is_active: isActive })
+        .eq("id", branchId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Branch;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+      queryClient.invalidateQueries({ queryKey: ["branch"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
   });
 }

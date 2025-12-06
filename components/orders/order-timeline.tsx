@@ -69,40 +69,40 @@ export function OrderTimeline({ orderId }: OrderTimelineProps) {
       case "order_created":
         return "Order Created";
       case "order_scheduled":
-        return "Order Scheduled";
+        return "Scheduled";
       case "rental_started":
         return "Rental Started";
       case "order_edited":
-        return "Order Edited";
+        return "Order Updated";
       case "billing_updated":
         return "Billing Updated";
       case "status_changed":
-        // Don't show generic status changed - show what actually happened based on notes or new status
-        // This should rarely happen now since we use specific actions, but handle as fallback
-        if (event.notes) {
-          return event.notes;
-        }
         if (event.new_status === "completed") {
-          return "Order Completed";
+          return "Completed";
         } else if (event.new_status === "cancelled") {
-          return "Order Cancelled";
+          return "Cancelled";
         } else if (event.new_status === "partially_returned") {
           return "Partial Return";
+        } else if (event.new_status === "flagged") {
+          return "Flagged";
         }
-        return "Status Updated";
+        return "Status Changed";
       case "marked_returned":
       case "item_returned":
-        return "Item Returned";
-      case "item_reverted":
-        return "Item Reverted";
-      case "marked_missing":
-        return "Item Marked Missing";
+      case "all_items_returned":
+        return "Items Returned";
       case "partial_return":
         return "Partial Return";
       case "order_completed":
-        return "Order Completed";
+        return "Completed";
+      case "items_reverted":
+        return "Items Reverted";
+      case "items_marked_missing":
+        return "Items Missing";
+      case "items_updated":
+        return "Items Updated";
       case "order_cancelled":
-        return "Order Cancelled";
+        return "Cancelled";
       case "order_pending_return":
         return "Pending Return";
       case "updated_return_date":
@@ -213,16 +213,16 @@ export function OrderTimeline({ orderId }: OrderTimelineProps) {
                   </div>
                 </div>
 
-                {/* Event content - Compact */}
+                {/* Event content - Simple and clean */}
                 <div className="flex-1 min-w-0 pt-0.5 pb-2">
-                  <div className="flex items-start justify-between gap-2 mb-1">
+                  <div className="flex items-center justify-between gap-2 mb-1">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <div className="flex items-center gap-2 mb-1">
                         <Badge className={`${getActionColor(event.action)} text-xs font-semibold px-2 py-0.5`}>
                           {getActionLabel(event.action, event)}
                         </Badge>
                         {event.notes && (
-                          <span className="text-xs text-gray-600 truncate">
+                          <span className="text-xs text-gray-600">
                             {event.notes}
                           </span>
                         )}

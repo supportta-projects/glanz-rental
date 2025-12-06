@@ -198,7 +198,7 @@ export default function StaffPage() {
 
                     {/* Actions */}
                     <div className="pt-4 border-t border-gray-200">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-3">
                         {/* Super Admin Indicator */}
                         {member.role === "super_admin" && (
                           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 border border-purple-200 rounded-lg">

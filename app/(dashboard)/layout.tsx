@@ -2,10 +2,13 @@
 
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { DesktopSidebar } from "@/components/layout/desktop-sidebar";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { createClient } from "@/lib/supabase/client";
+import { getMainBranch, getMainBranchId } from "@/lib/utils/branches";
+import type { Branch } from "@/lib/types";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function DashboardLayout({
   children,
@@ -15,47 +18,86 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname(); // Must be called before any conditional returns
   const { user, setUser } = useUserStore();
-  const supabase = createClient();
+  const queryClient = useQueryClient();
+  
+  // ✅ FIX: Use useRef to store stable supabase client reference
+  // This prevents the dependency array from changing size between renders
+  const supabaseRef = useRef(createClient());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkUser = async () => {
       const {
         data: { session },
-      } = await supabase.auth.getSession();
+      } = await supabaseRef.current.auth.getSession();
 
       if (!session) {
         router.push("/login");
         return;
       }
 
-      // Fetch user profile if not in store
-      if (!user) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("*, branch:branches(*)")
-          .eq("id", session.user.id)
-          .single();
+      // ✅ FIX: Always fetch fresh profile data from database on refresh
+      // This ensures we get the latest data and can reset branch_id for super_admin
+      const { data: profileData } = await supabaseRef.current
+        .from("profiles")
+        .select("*, branch:branches(*)")
+        .eq("id", session.user.id)
+        .single();
 
-        if (profileData) {
-          // Type assertion for profile data
-          const profile = profileData as any;
-          setUser({
-            id: profile.id,
-            username: profile.username,
-            role: profile.role,
-            branch_id: profile.branch_id,
-            full_name: profile.full_name,
-            phone: profile.phone,
-            gst_number: profile.gst_number,
-            gst_enabled: profile.gst_enabled ?? false,
-            gst_rate: profile.gst_rate ? parseFloat(String(profile.gst_rate)) : undefined,
-            gst_included: profile.gst_included ?? false,
-            upi_id: profile.upi_id,
-            company_name: profile.company_name,
-            company_logo_url: profile.company_logo_url,
-            branch: profile.branch,
-          });
+      if (profileData) {
+        // Type assertion for profile data
+        const profile = profileData as any;
+        
+        // ✅ FIX: For shop admins (branch_admin, staff), automatically assign main branch
+        // For super_admin, keep branch_id as null (can switch branches)
+        let branchId: string | null;
+        let branch: Branch | null = null;
+
+        if (profile.role === "super_admin") {
+          branchId = null; // Super admin can switch branches
+        } else {
+          // For shop admins (branch_admin, staff), automatically assign main branch
+          const mainBranchId = await getMainBranchId();
+          branchId = mainBranchId || profile.branch_id; // Use main branch or fallback to profile branch_id
+          
+          // Fetch branch details if we have a branch_id
+          if (branchId) {
+            // If we got main branch ID, fetch its details
+            if (mainBranchId) {
+              const mainBranch = await getMainBranch();
+              branch = mainBranch || null;
+            } else {
+              // Use the branch from profile if main branch not found
+              branch = profile.branch || null;
+            }
+          }
+        }
+        
+        setUser({
+          id: profile.id,
+          username: profile.username,
+          role: profile.role,
+          branch_id: branchId,
+          full_name: profile.full_name,
+          phone: profile.phone,
+          gst_number: profile.gst_number,
+          gst_enabled: profile.gst_enabled ?? false,
+          gst_rate: profile.gst_rate ? parseFloat(String(profile.gst_rate)) : undefined,
+          gst_included: profile.gst_included ?? false,
+          upi_id: profile.upi_id,
+          company_name: profile.company_name,
+          company_logo_url: profile.company_logo_url,
+          branch: branch || undefined,
+        });
+
+        // ✅ FIX: Invalidate and refetch all queries after setting branch_id so they refetch with new branch
+        if (branchId) {
+          // Use a longer timeout to ensure pages have mounted and queries are initialized
+          setTimeout(() => {
+            queryClient.invalidateQueries();
+            // ✅ FIX: Also explicitly refetch active queries for immediate data loading
+            queryClient.refetchQueries({ type: 'active' });
+          }, 300);
         }
       }
       setLoading(false);
@@ -63,7 +105,7 @@ export default function DashboardLayout({
 
     checkUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount - router, user, setUser, supabase are stable
+  }, []); // Empty array is now safe - supabase is stored in ref, router and setUser are stable
 
   if (loading || !user) {
     return (

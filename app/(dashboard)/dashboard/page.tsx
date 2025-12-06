@@ -54,6 +54,21 @@ export default function DashboardPage() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // ✅ FIX: Refetch queries when branch_id becomes available (after auto-selection)
+  // Use a ref to track if we've already refetched for this branch_id to prevent loops
+  const lastBranchIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (user?.branch_id) {
+      // Always refetch if branch_id is available and different from last
+      if (user.branch_id !== lastBranchIdRef.current) {
+        lastBranchIdRef.current = user.branch_id;
+        // ✅ FIX: Use refetchQueries for immediate refetch instead of invalidateQueries
+        queryClient.refetchQueries({ queryKey: ["dashboard-stats", user.branch_id] });
+        queryClient.refetchQueries({ queryKey: ["recent-orders", user.branch_id] });
+      }
+    }
+  }, [user?.branch_id, queryClient]);
+
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await Promise.all([
@@ -151,11 +166,7 @@ export default function DashboardPage() {
               <p className="text-red-600 text-xs">{statsError.message || "Please refresh the page"}</p>
             </Card>
           )}
-          {!user?.branch_id && (
-            <Card className="p-4 bg-yellow-50 border-yellow-200 animate-fade-in">
-              <p className="text-yellow-800 text-sm">No branch assigned. Please contact your administrator.</p>
-            </Card>
-          )}
+          {/* ✅ REMOVED: "No branch assigned" warning - not needed */}
 
           {/* Operational Overview - Premium Cards */}
           <div className="space-y-5">

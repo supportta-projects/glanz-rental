@@ -10,6 +10,9 @@ import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { useToast } from "@/components/ui/toast";
+import { getMainBranch, getMainBranchId } from "@/lib/utils/branches";
+import type { Branch } from "@/lib/types";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -20,6 +23,7 @@ export default function LoginPage() {
   const { setUser } = useUserStore();
   const { showToast } = useToast();
   const supabase = createClient();
+  const queryClient = useQueryClient();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,11 +61,36 @@ export default function LoginPage() {
       }
 
       // Set user in store
+      // ✅ FIX: For shop admins (branch_admin, staff), automatically assign main branch
+      // For super_admin, keep branch_id as null (can switch branches)
+      let branchId: string | null;
+      let branch: Branch | null = null;
+
+      if (profile.role === "super_admin") {
+        branchId = null; // Super admin can switch branches
+      } else {
+        // For shop admins (branch_admin, staff), automatically assign main branch
+        const mainBranchId = await getMainBranchId();
+        branchId = mainBranchId || profile.branch_id; // Use main branch or fallback to profile branch_id
+        
+        // Fetch branch details if we have a branch_id
+        if (branchId) {
+          // If we got main branch ID, fetch its details
+          if (mainBranchId) {
+            const mainBranch = await getMainBranch();
+            branch = mainBranch || null;
+          } else {
+            // Use the branch from profile if main branch not found
+            branch = profile.branch || null;
+          }
+        }
+      }
+      
       setUser({
         id: profile.id,
         username: profile.username,
         role: profile.role,
-        branch_id: profile.branch_id,
+        branch_id: branchId,
         full_name: profile.full_name,
         phone: profile.phone,
         gst_number: profile.gst_number,
@@ -71,8 +100,16 @@ export default function LoginPage() {
         upi_id: profile.upi_id,
         company_name: profile.company_name,
         company_logo_url: profile.company_logo_url,
-        branch: profile.branch,
+        branch: branch || undefined,
       });
+
+      // ✅ FIX: Invalidate all queries after setting branch_id so they refetch with new branch
+      if (branchId) {
+        // Use setTimeout to ensure state is updated first
+        setTimeout(() => {
+          queryClient.invalidateQueries();
+        }, 100);
+      }
 
       showToast("Login successful!", "success");
       

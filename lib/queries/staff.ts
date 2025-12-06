@@ -155,3 +155,32 @@ export function useStaffMember(staffId: string) {
   });
 }
 
+export function useToggleStaffActive() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      staffId,
+      isActive,
+    }: {
+      staffId: string;
+      isActive: boolean;
+    }) => {
+      const { data, error } = await (supabase
+        .from("profiles") as any)
+        .update({ is_active: isActive })
+        .eq("id", staffId)
+        .select("*, branch:branches(*)")
+        .single();
+
+      if (error) throw error;
+      return data as User;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-member"] });
+    },
+  });
+}
+

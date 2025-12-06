@@ -1,8 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { startOfDay, endOfDay } from "date-fns";
 import type { DashboardStats, Order } from "@/lib/types";
 import { useRealtimeSubscription } from "@/lib/hooks/use-realtime-subscription";
+import { useEffect } from "react";
 
 export function useDashboardStats(
   branchId: string | null,
@@ -267,9 +268,18 @@ export function useDashboardStats(
     staleTime: 30000, // 30s - balance between freshness and performance
     gcTime: 300000, // 5m as per requirements
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
-    refetchOnMount: false, // Use cached data if available
+    refetchOnMount: true, // ✅ FIX: Always refetch when query becomes enabled (especially when branch_id changes)
     refetchOnReconnect: true, // Refresh after reconnection
   });
+
+  // ✅ FIX: Explicitly refetch when branchId becomes available
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (branchId) {
+      // Explicitly refetch when branchId becomes available
+      queryClient.refetchQueries({ queryKey: ["dashboard-stats", branchId, rangeStart, rangeEnd] });
+    }
+  }, [branchId, rangeStart, rangeEnd, queryClient]);
 }
 
 export function useRecentOrders(branchId: string | null) {
@@ -278,7 +288,7 @@ export function useRecentOrders(branchId: string | null) {
   // Set up real-time subscription for recent orders
   useRealtimeSubscription("orders", branchId);
 
-  return useQuery({
+  const queryResult = useQuery({
     queryKey: ["recent-orders", branchId],
     queryFn: async (): Promise<Order[]> => {
       if (!branchId) throw new Error("Branch ID required");
@@ -299,7 +309,18 @@ export function useRecentOrders(branchId: string | null) {
     staleTime: 30000, // 30s - balance between freshness and performance
     gcTime: 300000, // 5m as per requirements
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
-    refetchOnMount: false, // Use cached data if available
+    refetchOnMount: true, // ✅ FIX: Always refetch when query becomes enabled (especially when branch_id changes)
     refetchOnReconnect: true, // Refresh after reconnection
   });
+
+  // ✅ FIX: Explicitly refetch when branchId becomes available
+  const queryClientForRecent = useQueryClient();
+  useEffect(() => {
+    if (branchId) {
+      // Explicitly refetch when branchId becomes available
+      queryClientForRecent.refetchQueries({ queryKey: ["recent-orders", branchId] });
+    }
+  }, [branchId, queryClientForRecent]);
+
+  return queryResult;
 }

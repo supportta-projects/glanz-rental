@@ -20,7 +20,8 @@ import { cn } from "@/lib/utils/cn";
 import { useUserStore } from "@/lib/stores/useUserStore";
 import { createClient } from "@/lib/supabase/client";
 import { useBranches } from "@/lib/queries/branches";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getMainBranch, getMainBranchId } from "@/lib/utils/branches";
 
 // Base menu items - available to all roles
 const baseMenuItems = [
@@ -56,19 +57,54 @@ function BranchSwitcher() {
   const { user, switchBranch } = useUserStore();
   const { data: branches } = useBranches();
   const [isOpen, setIsOpen] = useState(false);
+  const [mainBranch, setMainBranch] = useState<{ id: string; name: string } | null>(null);
   const queryClient = useQueryClient();
   const router = useRouter();
 
   const currentBranch = user?.branch;
 
-  const getDisplayName = () => {
-    if (user?.company_name) {
-      return user.company_name;
+  // ✅ FIX: Load main branch on mount and auto-select for shop admins
+  useEffect(() => {
+    const loadMainBranch = async () => {
+      const mainBranchId = await getMainBranchId();
+      if (mainBranchId) {
+        const mainBranchData = await getMainBranch();
+        if (mainBranchData) {
+          setMainBranch({ id: mainBranchData.id, name: mainBranchData.name });
+          
+          // ✅ FIX: Auto-select main branch if no branch is selected (for shop admins)
+          // Super admin can have branch_id = null, so only auto-select for shop admins
+          if (!user?.branch_id && user?.role !== "super_admin" && mainBranchData.id) {
+            switchBranch(mainBranchData.id, mainBranchData);
+            // ✅ FIX: Invalidate all queries immediately after switching branch
+            queryClient.invalidateQueries();
+            router.refresh();
+          }
+        }
+      }
+    };
+    
+    if (branches && branches.length > 0 && !mainBranch && user) {
+      loadMainBranch();
     }
-    if (currentBranch?.name) {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branches, user?.branch_id, user?.role]); // Add user dependencies to ensure it runs when user is loaded
+
+  const getDisplayName = () => {
+    // If a branch is selected, show the branch name
+    if (user?.branch_id && currentBranch?.name) {
       return currentBranch.name;
     }
-    return "No Branch";
+    
+    // ✅ FIX: Show main branch name as default instead of "Select Branch"
+    // For super admin, show main branch name when no branch selected
+    // For shop admins, main branch should already be auto-selected
+    if (mainBranch) {
+      return mainBranch.name;
+    }
+    
+    // Fallback to company name or "Main Branch"
+    return user?.company_name || "Main Branch";
   };
 
   const handleBranchSwitch = async (branchId: string | null) => {
@@ -112,17 +148,7 @@ function BranchSwitcher() {
             />
             <div className="absolute bottom-full left-0 right-0 mb-2 bg-white/95 backdrop-blur-lg rounded-xl shadow-xl border border-gray-200/60 max-h-48 overflow-y-auto z-50 animate-fade-in">
               <div className="p-1.5">
-                <button
-                  onClick={() => handleBranchSwitch(null)}
-                  className={cn(
-                    "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200",
-                    !user?.branch_id
-                      ? "bg-gradient-to-r from-[#273492]/10 to-[#273492]/5 text-[#273492] font-semibold shadow-sm"
-                      : "text-gray-700 hover:bg-gray-50/80"
-                  )}
-                >
-                  All Branches
-                </button>
+                {/* ✅ REMOVED: "All Branches" button and "Main Branch" button - only show actual branches */}
                 {branches?.map((branch) => (
                   <button
                     key={branch.id}
@@ -213,7 +239,8 @@ export function DesktopSidebar() {
           </div>
           <div>
             <div className="font-bold text-[#273492] text-base tracking-tight">
-              {user?.company_name || "Glanz Costumes"}
+              {/* ✅ FIX: Always show company name from profile, fallback to "Rental System" */}
+              {user?.company_name || "Rental System"}
             </div>
           </div>
         </div>

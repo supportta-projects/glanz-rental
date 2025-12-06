@@ -10,8 +10,10 @@ import { Button } from "@/components/ui/button";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { useToast } from "@/components/ui/toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { getMainBranchId } from "@/lib/utils/branches";
+import { cn } from "@/lib/utils/cn";
 
 export default function BranchesPage() {
   const { user } = useUserStore();
@@ -22,6 +24,16 @@ export default function BranchesPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [branchToDelete, setBranchToDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [mainBranchId, setMainBranchId] = useState<string | null>(null);
+
+  // ✅ FIX: Load main branch ID to check if branch can be deleted
+  useEffect(() => {
+    const loadMainBranchId = async () => {
+      const mainId = await getMainBranchId();
+      setMainBranchId(mainId);
+    };
+    loadMainBranchId();
+  }, [branches]);
 
   const handleDeleteClick = (branch: { id: string; name: string }) => {
     setBranchToDelete(branch);
@@ -92,13 +104,23 @@ export default function BranchesPage() {
                         <Edit className="h-4 w-4" />
                       </Button>
                     </Link>
+                    {/* ✅ FIX: Disable delete button for main branch */}
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleDeleteClick(branch)}
-                      disabled={deleteBranchMutation.isPending}
-                      title="Delete branch"
+                      className={cn(
+                        "h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity",
+                        mainBranchId === branch.id && "opacity-30 cursor-not-allowed"
+                      )}
+                      onClick={() => {
+                        if (mainBranchId === branch.id) {
+                          showToast("Cannot delete the main branch. This is the default branch and cannot be removed.", "error");
+                          return;
+                        }
+                        handleDeleteClick(branch);
+                      }}
+                      disabled={deleteBranchMutation.isPending || mainBranchId === branch.id}
+                      title={mainBranchId === branch.id ? "Main branch cannot be deleted" : "Delete branch"}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -130,10 +152,20 @@ export default function BranchesPage() {
           <DialogHeader>
             <DialogTitle>Delete Branch</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{branchToDelete?.name}"? This action cannot be undone.
-              <br /><br />
-              <strong className="text-red-600">Warning:</strong> This will also delete all orders associated with this branch.
-              Staff members assigned to this branch will have their branch assignment removed.
+              {mainBranchId === branchToDelete?.id ? (
+                <>
+                  <strong className="text-red-600">Cannot delete main branch:</strong> "{branchToDelete?.name}" is the main/default branch and cannot be removed.
+                  <br /><br />
+                  This branch is required for the system to function properly.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to delete "{branchToDelete?.name}"? This action cannot be undone.
+                  <br /><br />
+                  <strong className="text-red-600">Warning:</strong> This will also delete all orders associated with this branch.
+                  Staff members assigned to this branch will have their branch assignment removed.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -150,9 +182,9 @@ export default function BranchesPage() {
             <Button
               variant="destructive"
               onClick={handleDelete}
-              disabled={isDeleting}
+              disabled={isDeleting || mainBranchId === branchToDelete?.id}
             >
-              {isDeleting ? "Deleting..." : "Delete Branch"}
+              {isDeleting ? "Deleting..." : mainBranchId === branchToDelete?.id ? "Cannot Delete Main Branch" : "Delete Branch"}
             </Button>
           </DialogFooter>
         </DialogContent>

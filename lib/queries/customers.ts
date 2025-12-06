@@ -246,3 +246,33 @@ export function useDeleteCustomer() {
   });
 }
 
+export function useToggleCustomerActive() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      customerId,
+      isActive,
+    }: {
+      customerId: string;
+      isActive: boolean;
+    }) => {
+      const { data, error } = await (supabase
+        .from("customers") as any)
+        .update({ is_active: isActive })
+        .eq("id", customerId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Customer;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer", variables.customerId] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
+}
+

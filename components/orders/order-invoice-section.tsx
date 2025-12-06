@@ -3,7 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { generateInvoiceNumber } from "@/lib/utils/invoice";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface OrderInvoiceSectionProps {
   invoiceNumber: string;
@@ -32,15 +32,37 @@ export function OrderInvoiceSection({
   placeholder,
   autoGenerate = true,
 }: OrderInvoiceSectionProps) {
+  const [placeholderValue, setPlaceholderValue] = useState<string>("GLAORD-YYYYMMDD-XXXX");
+
   // Auto-generate invoice number if empty and autoGenerate is enabled
   useEffect(() => {
     if (autoGenerate && !invoiceNumber) {
-      const generated = generateInvoiceNumber();
-      onInvoiceNumberChange(generated);
+      // ✅ FIX: generateInvoiceNumber is now async
+      generateInvoiceNumber().then((generated) => {
+        onInvoiceNumberChange(generated);
+      }).catch((error) => {
+        console.error("Failed to generate invoice number:", error);
+        // Fallback to a simple format if generation fails
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const random = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+        onInvoiceNumberChange(`GLAORD-${year}${month}${day}-${random}`);
+      });
     }
   }, [autoGenerate, invoiceNumber, onInvoiceNumberChange]);
 
-  const displayPlaceholder = placeholder || generateInvoiceNumber();
+  // Load placeholder value on mount
+  useEffect(() => {
+    if (!placeholder) {
+      generateInvoiceNumber()
+        .then((generated) => setPlaceholderValue(generated))
+        .catch(() => setPlaceholderValue("GLAORD-YYYYMMDD-XXXX"));
+    }
+  }, [placeholder]);
+
+  const displayPlaceholder = placeholder || placeholderValue;
 
   return (
     <div className="space-y-2">

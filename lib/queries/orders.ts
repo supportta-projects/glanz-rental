@@ -89,7 +89,7 @@ async function logTimelineEvent(
 export function useOrdersInfinite(
   branchId: string | null,
   filters?: {
-    status?: "all" | "active" | "pending" | "completed" | "cancelled" | "partially_returned";
+    status?: "all" | "active" | "pending" | "completed" | "cancelled" | "partially_returned" | "flagged" | "scheduled";
     searchQuery?: string; // Client-side only
     dateRange?: { start: Date; end: Date; option?: string };
   }
@@ -155,9 +155,18 @@ export function useOrdersInfinite(
         if (error) throw error;
         result = data as { data: Order[]; total: number };
       } catch (rpcError: any) {
-        // Fallback to direct query if RPC function doesn't exist (404) or fails
-        // Silent fallback for better performance
+        // ✅ FIX: Better error logging for debugging missing items issue
+        console.error("[useOrdersInfinite] RPC function error:", {
+          error: rpcError,
+          code: rpcError?.code,
+          message: rpcError?.message,
+          details: rpcError?.details,
+          hint: rpcError?.hint,
+          branchId,
+          filters,
+        });
         
+        // Fallback to direct query if RPC function doesn't exist (404) or fails
         const from = pageParam * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
 
@@ -167,20 +176,28 @@ export function useOrdersInfinite(
           .eq("branch_id", branchId)
           .order("created_at", { ascending: false });
 
-        // For scheduled orders: we need to filter by start_date (client-side)
+        // ✅ FIX: For scheduled orders, don't filter by date range (they have future start dates)
         // For other orders: filter by created_at (server-side)
-        // So we fetch scheduled orders without date filter, then filter client-side
+        // When status filter is "scheduled" or "all", include all scheduled orders regardless of date range
         if (filters?.dateRange) {
           const startDate = filters.dateRange.start.toISOString().split("T")[0];
           const endDate = filters.dateRange.end.toISOString().split("T")[0];
           
-          // Fetch scheduled orders without date filter (will be filtered client-side by start_date)
+          // If filtering specifically for scheduled orders, don't apply date filter to scheduled orders
+          // Otherwise, fetch scheduled orders without date filter (will be filtered client-side by start_date)
           // Fetch other orders with created_at filter
           // Use OR to get both: scheduled orders OR (non-scheduled orders within date range)
-          query = query.or(
-            `status.eq.scheduled,` +
-            `and(status.neq.scheduled,created_at.gte.${startDate},created_at.lte.${endDate + "T23:59:59"})`
-          );
+          if (filters?.status === "scheduled") {
+            // When filtering for scheduled orders only, don't apply date range filter
+            // This ensures all scheduled orders are shown regardless of their start date
+            query = query.eq("status", "scheduled");
+          } else {
+            // For "all" status or other statuses, include scheduled orders without date filter
+            query = query.or(
+              `status.eq.scheduled,` +
+              `and(status.neq.scheduled,created_at.gte.${startDate},created_at.lte.${endDate + "T23:59:59"})`
+            );
+          }
         }
 
         if (filters?.status && filters.status !== "all") {
@@ -194,6 +211,10 @@ export function useOrdersInfinite(
             query = query.eq("status", "cancelled");
           } else if (filters.status === "partially_returned") {
             query = query.eq("status", "partially_returned");
+          } else if (filters.status === "flagged") {
+            query = query.eq("status", "flagged");
+          } else if (filters.status === "scheduled") {
+            query = query.eq("status", "scheduled");
           }
         }
 
@@ -202,8 +223,9 @@ export function useOrdersInfinite(
         const { data, error, count } = await query;
         if (error) throw error;
 
-        // Filter scheduled orders by start_date if dateRange is provided
-        // BUT: Skip filtering scheduled orders for "all time" (to show all scheduled orders)
+        // ✅ FIX: Filter scheduled orders by start_date if dateRange is provided
+        // BUT: Don't filter scheduled orders when status filter is "scheduled" or "all" (show all scheduled orders)
+        // This ensures scheduled orders with future dates are always visible
         let filteredData = (data as Order[]) || [];
         if (filters?.dateRange) {
           const startDate = filters.dateRange.start.toISOString().split("T")[0];
@@ -214,16 +236,20 @@ export function useOrdersInfinite(
           const dateRangeOption = (filters.dateRange as any).option;
           const isAllTimeFilter = dateRangeDays >= 700 || dateRangeOption === "alltime" || dateRangeOption === "clear";
           
+          // ✅ FIX: When filtering for scheduled orders specifically, don't filter by date range
+          // This ensures all scheduled orders (including future ones) are shown
+          const isScheduledFilter = filters?.status === "scheduled" || filters?.status === "all";
+          
           filteredData = filteredData.filter((order) => {
-            // For scheduled orders: only filter by start_date if NOT "all time"
+            // For scheduled orders: don't filter by date range when showing scheduled tab or all orders
+            // This ensures scheduled orders with future start dates are always visible
             if (order.status === "scheduled") {
-              if (isAllTimeFilter) {
-                // Show all scheduled orders for "all time" filter
+              // If filtering for scheduled orders or all orders, show all scheduled orders
+              if (isScheduledFilter || isAllTimeFilter) {
                 return true;
               }
-              // For specific date ranges (including tomorrow), filter by start_date
+              // For specific date ranges when NOT on scheduled tab, filter by start_date
               const orderStartDate = (order.start_datetime || order.start_date || "").toString().split("T")[0];
-              // For "tomorrow" filter, check if order's start_date matches tomorrow
               return orderStartDate >= startDate && orderStartDate <= endDate;
             }
             // For other orders, use created_at (already filtered by query, but double-check)
@@ -250,10 +276,18 @@ export function useOrdersInfinite(
     staleTime: 10000, // 10s - Short stale time to allow quick refetch after creation
     gcTime: 600000, // 10m - keep in cache longer for instant access
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
-    refetchOnMount: true, // Always refetch on mount to show latest orders after creation
+    refetchOnMount: true, // ✅ FIX: Always refetch on mount, especially when branch_id changes
     refetchOnReconnect: true, // Refetch on reconnect to catch missed updates
     placeholderData: (previousData) => previousData, // Optimistic UI updates
   });
+
+  // ✅ FIX: Explicitly refetch when branchId becomes available
+  useEffect(() => {
+    if (branchId) {
+      // Explicitly refetch when branchId becomes available
+      queryClient.refetchQueries({ queryKey: ["orders-infinite", branchId] });
+    }
+  }, [branchId, queryClient]);
 }
 
 // Legacy paginated query (for backward compatibility)
@@ -262,7 +296,7 @@ export function useOrders(
   page: number = 1, 
   pageSize: number = 20,
   filters?: {
-    status?: "all" | "active" | "pending" | "completed" | "cancelled" | "partially_returned";
+    status?: "all" | "active" | "pending" | "completed" | "cancelled" | "partially_returned" | "flagged" | "scheduled";
     searchQuery?: string;
     dateRange?: { start: Date; end: Date; option?: string };
   }
@@ -301,6 +335,12 @@ export function useOrders(
           query = query.eq("status", "completed");
         } else if (filters.status === "cancelled") {
           query = query.eq("status", "cancelled");
+        } else if (filters.status === "partially_returned") {
+          query = query.eq("status", "partially_returned");
+        } else if (filters.status === "flagged") {
+          query = query.eq("status", "flagged");
+        } else if (filters.status === "scheduled") {
+          query = query.eq("status", "scheduled");
         }
       }
 
@@ -390,18 +430,64 @@ export function useOrder(orderId: string) {
         .single();
       
       if (error) {
-        // Only log errors in development
-        if (process.env.NODE_ENV === 'development') {
-          console.error("[useOrder] Error:", error);
-        }
+        console.error("[useOrder] Error fetching order:", error);
         throw error;
       }
       
       if (!data) {
         throw new Error(`Order not found: ${orderId}`);
       }
+
+      // ✅ CRITICAL FIX: Type assertion to fix TypeScript error
+      const orderData = data as any;
+
+      // ✅ CRITICAL FIX: If items are missing, fetch them separately as fallback
+      // This handles cases where nested select fails due to RLS or other issues
+      if (!orderData.items || (Array.isArray(orderData.items) && orderData.items.length === 0)) {
+        console.warn(`[useOrder] Order ${orderId} has no items in nested select. Fetching separately...`);
+        
+        try {
+          const { data: itemsData, error: itemsError } = await supabase
+            .from("order_items")
+            .select("*")
+            .eq("order_id", orderId)
+            .order("created_at", { ascending: true });
+          
+          if (itemsError) {
+            console.error("[useOrder] Error fetching items separately:", itemsError);
+            // Don't throw - return order without items rather than failing completely
+          } else if (itemsData && itemsData.length > 0) {
+            console.log(`[useOrder] ✅ Found ${itemsData.length} items via separate query`);
+            // Map the items to match the expected structure
+            orderData.items = itemsData.map((item: any) => ({
+              id: item.id,
+              photo_url: item.photo_url,
+              product_name: item.product_name,
+              quantity: item.quantity,
+              price_per_day: item.price_per_day,
+              days: item.days,
+              line_total: item.line_total,
+              return_status: item.return_status,
+              actual_return_date: item.actual_return_date,
+              late_return: item.late_return,
+              missing_note: item.missing_note,
+              returned_quantity: item.returned_quantity,
+              damage_fee: item.damage_fee,
+              damage_description: item.damage_description,
+            }));
+          } else {
+            console.warn(`[useOrder] ⚠️ No items found for order ${orderId} in order_items table`);
+            orderData.items = []; // Ensure items is always an array
+          }
+        } catch (fallbackError: any) {
+          console.error("[useOrder] Exception during fallback item fetch:", fallbackError);
+          orderData.items = []; // Ensure items is always an array even on error
+        }
+      } else {
+        console.log(`[useOrder] ✅ Order ${orderId} has ${orderData.items.length} items from nested select`);
+      }
       
-      return data as Order;
+      return orderData as Order;
     },
     enabled: !!orderId && typeof orderId === "string" && orderId !== "undefined" && orderId !== "null",
     retry: false, // Don't retry 404s or RLS errors
@@ -489,12 +575,35 @@ export function useCreateOrder() {
         order_id: order.id,
       }));
 
-      // Batch insert all items at once (much faster than sequential)
-      const { error: itemsError } = await (supabase
+      // ✅ CRITICAL FIX: Batch insert all items with verification
+      const { error: itemsError, data: insertedItems } = await (supabase
         .from("order_items") as any)
-        .insert(itemsWithOrderId);
+        .insert(itemsWithOrderId)
+        .select(); // Select inserted items to verify
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error("[useCreateOrder] ❌ Error inserting items:", {
+          error: itemsError,
+          orderId: order.id,
+          itemsCount: itemsWithOrderId.length,
+          items: itemsWithOrderId.map((i: any) => ({ product_name: i.product_name, quantity: i.quantity })),
+        });
+        throw itemsError;
+      }
+
+      // ✅ FIX: Verify items were actually inserted
+      if (!insertedItems || insertedItems.length !== orderData.items.length) {
+        const errorMsg = `Failed to insert all items. Expected ${orderData.items.length}, got ${insertedItems?.length || 0}`;
+        console.error("[useCreateOrder] ❌ Item count mismatch:", {
+          orderId: order.id,
+          expected: orderData.items.length,
+          inserted: insertedItems?.length || 0,
+          insertedItems,
+        });
+        throw new Error(errorMsg);
+      }
+
+      console.log(`[useCreateOrder] ✅ Successfully inserted ${insertedItems.length} items for order ${order.id}`);
 
       // Log timeline event: Order Created
       await logTimelineEvent(supabase, {
@@ -502,7 +611,7 @@ export function useCreateOrder() {
         action: "order_created",
         userId: orderData.staff_id,
         newStatus: orderStatus,
-        notes: `Order created with ${orderData.items.length} item${orderData.items.length !== 1 ? 's' : ''}. Status: ${orderStatus}`,
+        notes: `${orderData.items.length} item${orderData.items.length !== 1 ? 's' : ''}`,
       });
 
       // Return order with items for optimistic updates
@@ -638,7 +747,8 @@ export function useUpdateOrder() {
 
       // Log ONE timeline event: Order Edited with all changes combined
       if (changes.length > 0) {
-        const changeDescription = `Changed: ${changes.join(", ")}. Items: ${orderData.items.length} item${orderData.items.length !== 1 ? 's' : ''}`;
+        // Simple format: just show what changed
+        const changeDescription = changes.join(", ");
         
         await logTimelineEvent(supabase, {
           orderId: orderData.orderId,
@@ -707,7 +817,7 @@ export function useUpdateOrderBilling() {
         orderId,
         action: "billing_updated",
         userId: authUser.id,
-        notes: `Invoice number: ${invoice_number}. Total: Rs ${total_amount.toFixed(2)}`,
+        notes: `Total: ₹${total_amount.toFixed(0)}`,
       });
 
       return data;
@@ -926,7 +1036,7 @@ export function useStartRental() {
         userId: authUser.id,
         previousStatus: "scheduled",
         newStatus: "active",
-        notes: `Rental period started. Duration: ${rentalDurationDays} day${rentalDurationDays !== 1 ? 's' : ''}`,
+        notes: `${rentalDurationDays} day${rentalDurationDays !== 1 ? 's' : ''}`,
       });
 
       return data;
@@ -977,20 +1087,45 @@ export function useProcessOrderReturn() {
         throw new Error("Authentication required");
       }
 
-      // Prepare item returns JSONB format
-      const itemReturnsJsonb = itemReturns.map((ir) => ({
-        item_id: ir.itemId,
-        return_status: ir.returnStatus,
-        actual_return_date: ir.actualReturnDate || (ir.returned_quantity && ir.returned_quantity > 0 ? new Date().toISOString() : null),
-        missing_note: ir.missingNote || null,
-        returned_quantity: ir.returned_quantity ?? null,
-        damage_fee: ir.damage_fee ?? null,
-        damage_description: ir.damage_description || null,
-      }));
+      // Prepare item returns JSONB format with proper type validation
+      const itemReturnsJsonb = itemReturns.map((ir) => {
+        // Ensure returned_quantity is a number (not string)
+        const returnedQty = typeof ir.returned_quantity === 'number' 
+          ? ir.returned_quantity 
+          : (ir.returned_quantity ? Number(ir.returned_quantity) : 0);
+        
+        // Ensure damage_fee is a number (not string)
+        const damageFee = typeof ir.damage_fee === 'number'
+          ? ir.damage_fee
+          : (ir.damage_fee ? Number(ir.damage_fee) : 0);
+        
+        return {
+          item_id: ir.itemId,
+          return_status: ir.returnStatus,
+          actual_return_date: ir.actualReturnDate || (returnedQty > 0 ? new Date().toISOString() : null),
+          missing_note: ir.missingNote || null,
+          returned_quantity: returnedQty > 0 ? returnedQty : null,
+          damage_fee: damageFee > 0 ? damageFee : null,
+          damage_description: ir.damage_description || null,
+        };
+      });
 
       // Validate payload before sending
       if (!itemReturnsJsonb || itemReturnsJsonb.length === 0) {
         throw new Error("No item returns to process");
+      }
+
+      // Validate each item return
+      for (const ir of itemReturnsJsonb) {
+        if (!ir.item_id) {
+          throw new Error("Invalid item ID in return data");
+        }
+        if (ir.returned_quantity !== null && (ir.returned_quantity < 0 || !Number.isInteger(ir.returned_quantity))) {
+          throw new Error(`Invalid returned_quantity for item ${ir.item_id}: must be a non-negative integer`);
+        }
+        if (ir.damage_fee !== null && (ir.damage_fee < 0 || isNaN(ir.damage_fee))) {
+          throw new Error(`Invalid damage_fee for item ${ir.item_id}: must be a non-negative number`);
+        }
       }
 
       // Log payload for debugging (only in development)
@@ -1005,30 +1140,94 @@ export function useProcessOrderReturn() {
       }
 
       // Single database function call - all operations in one transaction (~50-100ms)
-      const { data, error } = await (supabase.rpc as any)("process_order_return_optimized", {
-        p_order_id: orderId,
-        p_item_returns: itemReturnsJsonb,
-        p_user_id: authUser.id,
-        p_late_fee: lateFee,
-      });
+      let data, error;
+      try {
+        const result = await (supabase.rpc as any)("process_order_return_optimized", {
+          p_order_id: orderId,
+          p_item_returns: itemReturnsJsonb,
+          p_user_id: authUser.id,
+          p_late_fee: lateFee,
+        });
+        data = result.data;
+        error = result.error;
+      } catch (rpcError: any) {
+        // Catch any exceptions from the RPC call
+        console.error("[useProcessOrderReturn] RPC call exception:", {
+          error: rpcError,
+          message: rpcError?.message,
+          stack: rpcError?.stack,
+          name: rpcError?.name,
+          toString: String(rpcError),
+        });
+        throw new Error(rpcError?.message || "Failed to call database function");
+      }
 
       if (error) {
-        // Enhanced error logging
-        console.error("[useProcessOrderReturn] Database function error:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          fullError: JSON.stringify(error, null, 2),
-        });
+        // Enhanced error logging - handle empty error objects
+        const errorInfo: any = {
+          hasError: true,
+          message: error.message || "Unknown error",
+          details: error.details || null,
+          hint: error.hint || null,
+          code: error.code || null,
+        };
         
-        // Provide user-friendly error message
-        const errorMessage = error.message || error.details || error.hint || "Database function failed. Please check if the function exists in Supabase.";
+        // Try to extract more info from error object
+        try {
+          errorInfo.fullError = JSON.stringify(error, Object.getOwnPropertyNames(error));
+        } catch (e) {
+          errorInfo.fullError = String(error);
+        }
+        
+        // Also try to get all properties
+        try {
+          errorInfo.allProperties = Object.keys(error);
+          errorInfo.errorObject = error;
+        } catch (e) {
+          // Ignore
+        }
+        
+        console.error("[useProcessOrderReturn] Database function error:", errorInfo);
+        
+        // ✅ FIX (Issue O7): Map PostgreSQL errors to user-friendly messages
+        let errorMessage = "Failed to process order return";
+        
+        if (error.code) {
+          // Map common PostgreSQL error codes to user-friendly messages
+          switch (error.code) {
+            case '23505': // Unique constraint violation
+              errorMessage = "This return has already been processed. Please refresh the page.";
+              break;
+            case '23503': // Foreign key violation
+              errorMessage = "Invalid order or item reference. Please refresh and try again.";
+              break;
+            case '23514': // Check constraint violation
+              errorMessage = "Invalid return data. Please check quantities and fees.";
+              break;
+            case 'P0001': // Raise exception
+              errorMessage = error.message || "Return processing failed. Please check your input.";
+              break;
+            case '42883': // Function does not exist
+              errorMessage = "Database function not available. Please contact support.";
+              break;
+            default:
+              errorMessage = error.message || error.details || error.hint || "Database function failed. Please try again.";
+          }
+        } else {
+          errorMessage = error.message || error.details || error.hint || "Failed to process return. Please try again.";
+        }
+        
         throw new Error(errorMessage);
       }
 
       if (!data) {
         throw new Error("Database function returned no data");
+      }
+
+      // Validate response structure
+      if (!data.new_status || data.total_amount === undefined) {
+        console.error("[useProcessOrderReturn] Invalid response structure:", data);
+        throw new Error("Database function returned invalid data structure");
       }
 
       return {
@@ -1072,29 +1271,61 @@ export function useProcessOrderReturn() {
         return item;
       });
 
-      // Calculate new status
-      const allReturned = updatedItems?.every((item) => item.return_status === "returned");
+      // ✅ CRITICAL FIX (Issue P2): Calculate new status with proper priority
+      // Status priority: completed > flagged > partially_returned > active
+      // 
+      // Rules:
+      // 1. completed: All items fully returned (returned_quantity = quantity) AND no damage AND no missing
+      // 2. flagged: Any damage OR any partial returns (returned_quantity < quantity) OR any missing items
+      // 3. partially_returned: Some items returned but no damage and no missing
+      // 4. active: No items returned yet
+      
+      const allReturned = updatedItems?.every((item) => {
+        const returnedQty = item.returned_quantity ?? 0;
+        return item.return_status === "returned" && returnedQty === item.quantity;
+      });
+      
       const hasMissing = updatedItems?.some((item) => item.return_status === "missing");
+      
       const hasNotReturned = updatedItems?.some(
-        (item) => !item.return_status || item.return_status === "not_yet_returned"
+        (item) => {
+          const returnedQty = item.returned_quantity ?? 0;
+          return (!item.return_status || item.return_status === "not_yet_returned") && returnedQty === 0;
+        }
       );
       
-      // Check for partial returns and damage
+      // Check for partial returns: returned_quantity > 0 AND returned_quantity < quantity
       const hasPartialReturns = updatedItems?.some(
-        (item) => item.returned_quantity && item.returned_quantity > 0 && item.returned_quantity < item.quantity
+        (item) => {
+          const returnedQty = item.returned_quantity ?? 0;
+          return returnedQty > 0 && returnedQty < item.quantity;
+        }
       );
+      
+      // Check for damage: damage_fee > 0 OR damage_description exists
       const hasDamage = updatedItems?.some(
-        (item) => (item.damage_fee && item.damage_fee > 0) || item.damage_description
+        (item) => {
+          const damageFee = item.damage_fee ?? 0;
+          return damageFee > 0 || (item.damage_description && item.damage_description.trim().length > 0);
+        }
       );
 
       let newStatus: OrderStatus = previousOrder.status;
-      if (allReturned && !hasPartialReturns && !hasDamage) {
+      
+      // Priority 1: All items fully returned, no damage, no missing → completed
+      if (allReturned && !hasPartialReturns && !hasDamage && !hasMissing) {
         newStatus = "completed";
-      } else if (hasPartialReturns || hasDamage) {
+      }
+      // Priority 2: Any damage OR partial returns OR missing items → flagged
+      else if (hasDamage || hasPartialReturns || hasMissing) {
         newStatus = "flagged";
-      } else if (hasMissing || hasNotReturned) {
+      }
+      // Priority 3: Some items returned but no damage and no missing → partially_returned
+      else if (!hasNotReturned && !allReturned) {
         newStatus = "partially_returned";
       }
+      // Priority 4: No items returned yet → keep current status (likely "active" or "pending_return")
+      // Don't change status if nothing has been returned
 
       // Calculate new total
       const originalTotal = (previousOrder.total_amount || 0) - (previousOrder.late_fee || 0);
@@ -1176,7 +1407,7 @@ export function useProcessOrderReturn() {
           ir => ir.returnStatus === "missing"
         ).length;
         
-        // Build concise summary with quantity and damage info
+        // Build simple, concise summary
         let action = "items_updated";
         const noteParts: string[] = [];
         
@@ -1184,7 +1415,6 @@ export function useProcessOrderReturn() {
           // Calculate returned quantities
           let totalReturnedQty = 0;
           let totalExpectedQty = 0;
-          const partialItems: string[] = [];
           let totalDamageFee = 0;
           
           variables.itemReturns.forEach((ir) => {
@@ -1193,9 +1423,6 @@ export function useProcessOrderReturn() {
               if (item) {
                 totalReturnedQty += ir.returned_quantity;
                 totalExpectedQty += item.quantity;
-                if (ir.returned_quantity < item.quantity) {
-                  partialItems.push(`${ir.returned_quantity}/${item.quantity}`);
-                }
                 if (ir.damage_fee && ir.damage_fee > 0) {
                   totalDamageFee += ir.damage_fee;
                 }
@@ -1204,14 +1431,16 @@ export function useProcessOrderReturn() {
           });
           
           action = returnedCount === variables.itemReturns.length 
-            ? "all_items_returned" 
+            ? "order_completed" 
             : "partial_return";
           
-          // Build concise note - shorter format
-          if (partialItems.length > 0) {
-            noteParts.push(`${totalReturnedQty}/${totalExpectedQty} qty`);
-          } else if (returnedCount > 0) {
-            noteParts.push(`${returnedCount} item(s)`);
+          // Simple format: "X/Y qty, ₹Z damage" or just "X items"
+          if (totalReturnedQty > 0) {
+            if (totalReturnedQty < totalExpectedQty) {
+              noteParts.push(`${totalReturnedQty}/${totalExpectedQty} qty`);
+            } else {
+              noteParts.push(`${returnedCount} item${returnedCount !== 1 ? 's' : ''}`);
+            }
           }
           
           if (totalDamageFee > 0) {
@@ -1219,23 +1448,23 @@ export function useProcessOrderReturn() {
           }
         } else if (revertedCount > 0) {
           action = "items_reverted";
-          noteParts.push(`${revertedCount} item(s) reverted`);
+          noteParts.push(`${revertedCount} item${revertedCount !== 1 ? 's' : ''}`);
         } else if (missingCount > 0) {
           action = "items_marked_missing";
-          noteParts.push(`${missingCount} item(s) missing`);
+          noteParts.push(`${missingCount} item${missingCount !== 1 ? 's' : ''}`);
         }
         
         const lateFee = variables.lateFee || 0;
         if (lateFee > 0) {
-          noteParts.push(`₹${lateFee.toFixed(0)} late`);
+          noteParts.push(`₹${lateFee.toFixed(0)} late fee`);
         }
         
-        // Log ONE concise timeline event for all changes
+        // Log ONE simple timeline event
         await logTimelineEvent(supabase, {
           orderId: variables.orderId,
           action,
           userId: authUser.id,
-          notes: noteParts.join(", ") || "Updated",
+          notes: noteParts.length > 0 ? noteParts.join(", ") : undefined,
         });
       }
       

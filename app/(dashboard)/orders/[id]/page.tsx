@@ -409,6 +409,29 @@ export default function OrderDetailsPage() {
             {/* Checkbox disabled for scheduled orders, enabled for active/ongoing orders */}
             {order.status !== "cancelled" && (
               <div>
+                {/* ✅ CRITICAL FIX: Show warning if items are missing */}
+                {(!order.items || order.items.length === 0) && (
+                  <Card className="p-4 mb-4 bg-yellow-50 border-yellow-200 border-2 rounded-xl">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-yellow-800 font-semibold mb-1">⚠️ No Items Found</p>
+                        <p className="text-yellow-700 text-sm">
+                          This order appears to have no items. This may indicate:
+                        </p>
+                        <ul className="text-yellow-700 text-sm mt-2 ml-4 list-disc space-y-1">
+                          <li>Items were not saved during order creation</li>
+                          <li>Database connection issue during item insertion</li>
+                          <li>Row Level Security (RLS) policy blocking item access</li>
+                        </ul>
+                        <p className="text-yellow-700 text-sm mt-2 font-medium">
+                          Please check the browser console for error details or contact support.
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+                
                 <OrderReturnSection
                   order={order}
                   disabled={isScheduled} // Disable checkbox for scheduled orders, enable for active/ongoing

@@ -14,8 +14,10 @@ import { FloatingActionButton } from "@/components/layout/floating-action-button
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDate, formatCurrency } from "@/lib/utils/date";
-import { useCustomers, type CustomerWithDues } from "@/lib/queries/customers";
+import { useCustomers, type CustomerWithDues, useToggleCustomerActive } from "@/lib/queries/customers";
 import { useDebounce } from "@/lib/hooks/use-debounce";
+import { ActiveToggle } from "@/components/ui/active-toggle";
+import { useToast } from "@/components/ui/toast";
 import {
   LoadingState,
   EmptyState,
@@ -30,6 +32,8 @@ const CustomerCard = memo(({ customer, index, getProofTypeLabel }: {
   getProofTypeLabel: (type?: string) => string | null;
 }) => {
   const router = useRouter();
+  const { showToast } = useToast();
+  const toggleActiveMutation = useToggleCustomerActive();
   const hasDues = customer.due_amount > 0;
   const phoneNumber = customer.phone.replace(/\D/g, "");
   const whatsappUrl = `https://wa.me/${phoneNumber}`;
@@ -110,6 +114,28 @@ const CustomerCard = memo(({ customer, index, getProofTypeLabel }: {
 
         {/* Right: Action Buttons */}
         <div className="flex flex-col gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+          {/* Active/Inactive Toggle */}
+          <div className="flex items-center justify-center mb-1">
+            <ActiveToggle
+              checked={customer.is_active ?? true}
+              onCheckedChange={async (checked) => {
+                try {
+                  await toggleActiveMutation.mutateAsync({
+                    customerId: customer.id,
+                    isActive: checked,
+                  });
+                  showToast(
+                    `Customer ${checked ? "activated" : "deactivated"} successfully`,
+                    "success"
+                  );
+                } catch (error: any) {
+                  showToast(error.message || "Failed to update customer status", "error");
+                }
+              }}
+              disabled={toggleActiveMutation.isPending}
+              ariaLabel={`Toggle active status for ${customer.name}`}
+            />
+          </div>
           <a
             href={callUrl}
             onClick={(e) => {

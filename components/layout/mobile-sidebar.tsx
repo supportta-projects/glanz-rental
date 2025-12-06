@@ -20,8 +20,9 @@ import { useUserStore } from "@/lib/stores/useUserStore";
 import { createClient } from "@/lib/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useBranches } from "@/lib/queries/branches";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { getMainBranch, getMainBranchId } from "@/lib/utils/branches";
 
 // Base menu items - available to all roles
 const baseMenuItems = [
@@ -57,10 +58,56 @@ function MobileBranchSwitcher({ onClose }: { onClose: () => void }) {
   const { user, switchBranch } = useUserStore();
   const { data: branches } = useBranches();
   const [isOpen, setIsOpen] = useState(false);
+  const [mainBranch, setMainBranch] = useState<{ id: string; name: string } | null>(null);
   const queryClient = useQueryClient();
   const router = useRouter();
 
   const currentBranch = user?.branch;
+
+  // ✅ FIX: Load main branch on mount and auto-select for shop admins
+  useEffect(() => {
+    const loadMainBranch = async () => {
+      const mainBranchId = await getMainBranchId();
+      if (mainBranchId) {
+        const mainBranchData = await getMainBranch();
+        if (mainBranchData) {
+          setMainBranch({ id: mainBranchData.id, name: mainBranchData.name });
+          
+          // ✅ FIX: Auto-select main branch if no branch is selected (for shop admins)
+          // Super admin can have branch_id = null, so only auto-select for shop admins
+          if (!user?.branch_id && user?.role !== "super_admin" && mainBranchData.id) {
+            switchBranch(mainBranchData.id, mainBranchData);
+            // ✅ FIX: Invalidate all queries immediately after switching branch
+            queryClient.invalidateQueries();
+            router.refresh();
+          }
+        }
+      }
+    };
+    
+    if (branches && branches.length > 0 && !mainBranch && user) {
+      loadMainBranch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branches, user?.branch_id, user?.role]); // Add user dependencies to ensure it runs when user is loaded
+
+  // ✅ FIX: Get display name - show main branch name as default instead of "Select Branch"
+  const getDisplayName = () => {
+    // If a branch is selected, show the branch name
+    if (user?.branch_id && currentBranch?.name) {
+      return currentBranch.name;
+    }
+    
+    // ✅ FIX: Show main branch name as default instead of "Select Branch"
+    // For super admin, show main branch name when no branch selected
+    // For shop admins, main branch should already be auto-selected
+    if (mainBranch) {
+      return mainBranch.name;
+    }
+    
+    // Fallback to company name or "Main Branch"
+    return user?.company_name || "Main Branch";
+  };
 
   const handleBranchSwitch = async (branchId: string | null) => {
     const selectedBranch = branches?.find((b) => b.id === branchId);
@@ -84,7 +131,7 @@ function MobileBranchSwitcher({ onClose }: { onClose: () => void }) {
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Building2 className="h-5 w-5 flex-shrink-0 text-gray-500" />
           <span className="text-sm font-medium truncate">
-            {currentBranch?.name || "No Branch"}
+            {getDisplayName()}
           </span>
         </div>
         <ChevronDown className={cn(
@@ -95,17 +142,7 @@ function MobileBranchSwitcher({ onClose }: { onClose: () => void }) {
 
       {isOpen && (
         <div className="mt-2 space-y-1">
-          <button
-            onClick={() => handleBranchSwitch(null)}
-            className={cn(
-              "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
-              !user?.branch_id
-                ? "bg-[#273492]/10 text-[#273492] font-medium"
-                : "text-gray-700 hover:bg-gray-50"
-            )}
-          >
-            All Branches
-          </button>
+          {/* ✅ REMOVED: "All Branches" button and "Main Branch" button - only show actual branches */}
           {branches?.map((branch) => (
             <button
               key={branch.id}
@@ -175,7 +212,8 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
               </div>
               <div>
                 <div className="text-sm font-bold text-gray-900">
-                  {user?.company_name || "Glanz Costumes"}
+                  {/* ✅ FIX: Always show company name from profile, fallback to "Rental System" */}
+                  {user?.company_name || "Rental System"}
                 </div>
               </div>
             </div>

@@ -31,6 +31,7 @@ export interface Branch {
   address: string;
   phone?: string;
   logo_url?: string;
+  is_active?: boolean; // Whether the branch is active
 }
 
 export interface Customer {

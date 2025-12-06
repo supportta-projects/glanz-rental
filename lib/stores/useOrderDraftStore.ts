@@ -37,13 +37,15 @@ const selectGrandTotal = (state: OrderDraftState) => {
   const user = useUserStore.getState().user;
   const gstEnabled = user?.gst_enabled ?? false;
   
-  if (!gstEnabled) return subtotal;
+  if (!gstEnabled) return Math.round(subtotal * 100) / 100; // ✅ FIX (Issue E1): Round to 2 decimal places
   
   const gstRatePercent = user?.gst_rate ?? 5.00;
   const gstRate = gstRatePercent / 100;
   const gstIncluded = user?.gst_included ?? false;
   
-  return gstIncluded ? subtotal : subtotal + (subtotal * gstRate);
+  // ✅ FIX (Issue E1): Round to 2 decimal places to prevent floating point errors
+  const result = gstIncluded ? subtotal : subtotal + (subtotal * gstRate);
+  return Math.round(result * 100) / 100;
 };
 
 const selectGst = (state: OrderDraftState) => {
@@ -57,7 +59,9 @@ const selectGst = (state: OrderDraftState) => {
   const gstRate = gstRatePercent / 100;
   const gstIncluded = user?.gst_included ?? false;
   
-  return gstIncluded ? subtotal * (gstRate / (1 + gstRate)) : subtotal * gstRate;
+  // ✅ FIX (Issue E1): Round to 2 decimal places to prevent floating point errors
+  const gstAmount = gstIncluded ? subtotal * (gstRate / (1 + gstRate)) : subtotal * gstRate;
+  return Math.round(gstAmount * 100) / 100;
 };
 
 export const useOrderDraftStore = create<OrderDraftState>()(

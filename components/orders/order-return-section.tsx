@@ -150,9 +150,45 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
 
-    const numValue = parseInt(value) || 0;
+    // ✅ CRITICAL FIX (Issue M1, M2, M6): Validate returned_quantity
+    // Only allow integers, non-negative, and not exceeding quantity
+    
+    // ✅ FIX (Issue M6): Check if input contains decimal point (not an integer)
+    if (value.includes('.') || value.includes(',')) {
+      showToast("Returned quantity must be a whole number (no decimals)", "error");
+      return;
+    }
+    
+    const numValue = parseInt(value, 10);
+    
+    // Check if input is valid integer
+    if (isNaN(numValue) || value.trim() === "" || !Number.isInteger(numValue)) {
+      // If empty or invalid, allow it but clamp to 0
+      if (value.trim() === "" || isNaN(numValue)) {
+        setItemReturnStates((prev) => ({
+          ...prev,
+          [itemId]: {
+            ...prev[itemId],
+            returned_quantity: 0,
+          },
+        }));
+      }
+      return; // Don't update if invalid input
+    }
+
+    // Clamp value: 0 <= returned_quantity <= quantity
     const maxQuantity = item.quantity;
     const clampedValue = Math.max(0, Math.min(numValue, maxQuantity));
+
+    // Show warning if user tried to exceed max
+    if (numValue > maxQuantity) {
+      showToast(`Returned quantity cannot exceed ${maxQuantity} (original quantity)`, "info");
+    }
+
+    // Show warning if user tried to enter negative
+    if (numValue < 0) {
+      showToast("Returned quantity cannot be negative", "info");
+    }
 
     setItemReturnStates((prev) => ({
       ...prev,
@@ -168,12 +204,21 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
   const handleDamageFeeChange = (itemId: string, value: string) => {
     if (disabled) return;
     
+    // ✅ FIX (Issue M3): Validate damage fee is non-negative
     const numValue = parseFloat(value) || 0;
+    
+    // Show error if negative value entered
+    if (numValue < 0) {
+      showToast("Damage fee cannot be negative", "error");
+      return;
+    }
+    
+    const clampedValue = Math.max(0, numValue);
     setItemReturnStates((prev) => ({
       ...prev,
       [itemId]: {
         ...prev[itemId],
-        damage_fee: Math.max(0, numValue),
+        damage_fee: clampedValue,
       },
     }));
   };
@@ -193,6 +238,7 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
   const handleMarkAllReturned = () => {
     if (disabled) return;
     
+    // ✅ FIX: Mark all items as returned and automatically submit
     const newStates: Record<string, ItemReturnState> = {};
     items.forEach((item) => {
       if (item.id) {
@@ -205,6 +251,12 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
       }
     });
     setItemReturnStates(newStates);
+    
+    // ✅ FIX: Automatically submit after marking all as returned
+    // Use setTimeout to ensure state is updated before submission
+    setTimeout(() => {
+      handleSubmitReturn();
+    }, 150);
   };
 
   const handleSubmitReturn = async () => {
@@ -234,23 +286,50 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
 
       if (!hasChanges) return;
 
-      // Determine return status based on returned quantity
+      // ✅ CRITICAL FIX (Issue N1): Determine return status based on returned quantity
+      // Logic:
+      // - 0 returned → not_yet_returned
+      // - All returned (qty = quantity) → returned
+      // - Partial return (0 < qty < quantity) → returned (but order status will be partially_returned or flagged)
+      // - Missing items are tracked separately via return_status = "missing"
+      
+      // Validate returned_quantity is within bounds (should already be clamped, but double-check)
+      const validatedQty = Math.max(0, Math.min(newReturnedQty, item.quantity));
+      
       let returnStatus: "returned" | "missing" | "not_yet_returned";
-      if (newReturnedQty === 0) {
+      if (validatedQty === 0) {
         returnStatus = "not_yet_returned";
-      } else if (newReturnedQty === item.quantity) {
+      } else if (validatedQty === item.quantity) {
+        // All items returned
         returnStatus = "returned";
       } else {
-        returnStatus = "returned"; // Partial return is still "returned" status
+        // Partial return: some items returned (0 < qty < quantity)
+        // Status is "returned" because items were physically returned
+        // The missing quantity (quantity - returned_quantity) will be handled by the database
+        // The order-level status will be determined as "partially_returned" or "flagged"
+        returnStatus = "returned";
+      }
+
+      // ✅ CRITICAL FIX (Issue M1, M2): Final validation before sending
+      // Ensure returned_quantity is valid (0 <= qty <= quantity)
+      const finalReturnedQty = Math.max(0, Math.min(Number(newReturnedQty), item.quantity));
+      
+      // Validate damage_fee is non-negative
+      const finalDamageFee = state.damage_fee > 0 ? Math.max(0, Number(state.damage_fee)) : undefined;
+      
+      // If damage_fee > 0, require damage_description
+      if (finalDamageFee && finalDamageFee > 0 && !state.damage_description?.trim()) {
+        showToast(`Please provide a damage description for item "${item.product_name || 'item'}"`, "error");
+        return;
       }
 
       itemReturns.push({
         itemId: item.id,
         returnStatus,
-        returned_quantity: newReturnedQty,
-        damage_fee: state.damage_fee > 0 ? state.damage_fee : undefined,
-        damage_description: state.damage_description || undefined,
-        actualReturnDate: newReturnedQty > 0 ? new Date().toISOString() : undefined,
+        returned_quantity: finalReturnedQty, // Validated: 0 <= qty <= quantity
+        damage_fee: finalDamageFee, // Validated: >= 0
+        damage_description: state.damage_description?.trim() || undefined,
+        actualReturnDate: finalReturnedQty > 0 ? new Date().toISOString() : undefined,
       });
     });
 
@@ -259,8 +338,46 @@ export function OrderReturnSection({ order, onReturnComplete, disabled = false }
       return;
     }
 
+    // ✅ CRITICAL FIX (Issue M1, M2): Final validation of all item returns
+    for (const itemReturn of itemReturns) {
+      const item = items.find((i) => i.id === itemReturn.itemId);
+      if (!item) continue;
+      
+      // Validate returned_quantity
+      if (itemReturn.returned_quantity !== undefined) {
+        if (itemReturn.returned_quantity < 0) {
+          showToast(`Returned quantity cannot be negative for item "${item.product_name || 'item'}"`, "error");
+          return;
+        }
+        if (itemReturn.returned_quantity > item.quantity) {
+          showToast(`Returned quantity (${itemReturn.returned_quantity}) cannot exceed original quantity (${item.quantity}) for item "${item.product_name || 'item'}"`, "error");
+          return;
+        }
+      }
+      
+      // Validate damage_fee
+      if (itemReturn.damage_fee !== undefined && itemReturn.damage_fee < 0) {
+        showToast(`Damage fee cannot be negative for item "${item.product_name || 'item'}"`, "error");
+        return;
+      }
+    }
+
     try {
-      const fee = parseFloat(lateFee) || 0;
+      // ✅ FIX (Issue M3): Validate late fee is non-negative and reasonable
+      const feeValue = parseFloat(lateFee) || 0;
+      if (isNaN(feeValue) || feeValue < 0) {
+        showToast("Late fee must be a valid non-negative number", "error");
+        return;
+      }
+      
+      // Validate late fee is reasonable (not more than order total)
+      const orderTotal = order.total_amount || 0;
+      if (feeValue > orderTotal * 2) {
+        showToast(`Late fee (₹${feeValue.toLocaleString()}) seems unusually high. Please verify.`, "error");
+        return;
+      }
+      
+      const fee = Math.max(0, feeValue);
 
       await processReturnMutation.mutateAsync({
         orderId: order.id,

@@ -52,14 +52,23 @@ function TabsTrigger({ value, children, className }: TabsTriggerProps) {
 
   return (
     <button
-      onClick={() => context.onValueChange(value)}
+      onClick={() => {
+        // Instant visual feedback - update immediately
+        context.onValueChange(value);
+      }}
       className={cn(
-        "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+        "px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-75 ease-out will-change-transform",
+        "transform-gpu", // GPU acceleration for smooth transitions
         isActive
-          ? "bg-white text-[#273492] shadow-sm font-semibold"
-          : "text-gray-600 hover:text-gray-900 hover:bg-gray-50",
+          ? "bg-white text-[#273492] shadow-sm font-semibold scale-100"
+          : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 active:scale-95",
         className
       )}
+      style={{
+        // Force GPU acceleration for instant rendering
+        transform: isActive ? 'scale(1)' : undefined,
+        transition: 'all 75ms cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
     >
       {children}
     </button>
