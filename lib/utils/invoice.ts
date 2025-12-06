@@ -27,9 +27,14 @@ export async function generateInvoiceNumber(): Promise<string> {
       .limit(1)
       .maybeSingle(); // Use maybeSingle() instead of single() to avoid error if not found
     
-    // If no data found (error code PGRST116 or null data), this invoice number is available
-    if (error && error.code === 'PGRST116') {
-      return invoiceNumber;
+    // ✅ FIX Bug 2: Properly handle errors - distinguish between "no row found" and actual errors
+    if (error) {
+      // PGRST116 = no rows returned (invoice number is available)
+      if (error.code === 'PGRST116') {
+        return invoiceNumber;
+      }
+      // Other errors (permission denied, connection error, etc.) should be thrown
+      throw new Error(`Database error while checking invoice number: ${error.message || 'Unknown error'}`);
     }
     
     // If we got no data, it means the invoice number doesn't exist (unique)

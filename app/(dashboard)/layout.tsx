@@ -36,6 +36,10 @@ export default function DashboardLayout({
         return;
       }
 
+      // ✅ FIX: Wait a tick to ensure Zustand persist has hydrated from localStorage
+      // This ensures we can read the persisted branch_id before overwriting it
+      await new Promise(resolve => setTimeout(resolve, 0));
+
       // ✅ FIX: Always fetch fresh profile data from database on refresh
       // This ensures we get the latest data and can reset branch_id for super_admin
       const { data: profileData } = await supabaseRef.current
@@ -48,15 +52,27 @@ export default function DashboardLayout({
         // Type assertion for profile data
         const profile = profileData as any;
         
-        // ✅ FIX: For shop admins (branch_admin, staff), automatically assign main branch
-        // For super_admin, keep branch_id as null (can switch branches)
+        // ✅ FIX: Get persisted user state AFTER hydration (read from store again)
+        // This preserves manual branch selection for super_admin across refreshes
+        const persistedUser = useUserStore.getState().user;
+        
+        // ✅ FIX: For shop admins (branch_admin, staff), always use main branch (ignore persisted selection)
+        // For super_admin, preserve persisted branch_id if it exists, otherwise keep null
         let branchId: string | null;
         let branch: Branch | null = null;
 
         if (profile.role === "super_admin") {
-          branchId = null; // Super admin can switch branches
+          // ✅ FIX: For super_admin, preserve persisted branch_id if it exists
+          // This allows super_admin to switch branches and have it persist across refreshes
+          if (persistedUser?.branch_id && persistedUser.id === profile.id) {
+            // Only use persisted branch_id if it's for the same user
+            branchId = persistedUser.branch_id;
+            branch = persistedUser.branch || null;
+          } else {
+            branchId = null; // Super admin starts with no branch selected
+          }
         } else {
-          // For shop admins (branch_admin, staff), automatically assign main branch
+          // For shop admins (branch_admin, staff), always use main branch (they can't switch)
           const mainBranchId = await getMainBranchId();
           branchId = mainBranchId || profile.branch_id; // Use main branch or fallback to profile branch_id
           

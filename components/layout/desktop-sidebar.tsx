@@ -63,7 +63,7 @@ function BranchSwitcher() {
 
   const currentBranch = user?.branch;
 
-  // ✅ FIX: Load main branch on mount and auto-select for shop admins
+  // ✅ FIX: Load main branch on mount and restore/auto-select branch
   useEffect(() => {
     const loadMainBranch = async () => {
       const mainBranchId = await getMainBranchId();
@@ -72,13 +72,24 @@ function BranchSwitcher() {
         if (mainBranchData) {
           setMainBranch({ id: mainBranchData.id, name: mainBranchData.name });
           
-          // ✅ FIX: Auto-select main branch if no branch is selected (for shop admins)
-          // Super admin can have branch_id = null, so only auto-select for shop admins
-          if (!user?.branch_id && user?.role !== "super_admin" && mainBranchData.id) {
-            switchBranch(mainBranchData.id, mainBranchData);
-            // ✅ FIX: Invalidate all queries immediately after switching branch
-            queryClient.invalidateQueries();
-            router.refresh();
+          // ✅ FIX: For shop admins, always ensure main branch is selected
+          // For super_admin, restore persisted branch if it exists, otherwise keep null
+          if (user?.role !== "super_admin") {
+            // Shop admins: Always use main branch (they can't switch)
+            if (!user?.branch_id || user.branch_id !== mainBranchData.id) {
+              switchBranch(mainBranchData.id, mainBranchData);
+              queryClient.invalidateQueries();
+              router.refresh();
+            }
+          } else {
+            // Super admin: If they have a persisted branch_id, restore the branch object
+            if (user?.branch_id && !user?.branch) {
+              // Find the branch from the branches list
+              const selectedBranch = branches?.find((b) => b.id === user.branch_id);
+              if (selectedBranch) {
+                switchBranch(user.branch_id, selectedBranch);
+              }
+            }
           }
         }
       }
@@ -88,7 +99,7 @@ function BranchSwitcher() {
       loadMainBranch();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branches, user?.branch_id, user?.role]); // Add user dependencies to ensure it runs when user is loaded
+  }, [branches, user?.branch_id, user?.role, user?.branch]); // Add user.branch to restore branch object
 
   const getDisplayName = () => {
     // If a branch is selected, show the branch name

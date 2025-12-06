@@ -264,8 +264,21 @@ export default function CreateOrderPage() {
 
       const gstEnabled = user?.gst_enabled ?? false;
 
-      // ✅ FIX (Issue E2): Validate total_amount matches calculation
-      const calculatedTotal = grandTotal;
+      // ✅ FIX Bug 3: Validate total_amount matches calculation by recalculating from items
+      // Recalculate the total from scratch to verify it matches the store's calculated value
+      const subtotalFromItems = draft.items.reduce((sum, item) => sum + (item.line_total || 0), 0);
+      let calculatedTotal: number;
+      
+      if (!gstEnabled) {
+        calculatedTotal = Math.round(subtotalFromItems * 100) / 100;
+      } else {
+        const gstRatePercent = user?.gst_rate ?? 5.00;
+        const gstRate = gstRatePercent / 100;
+        const gstIncluded = user?.gst_included ?? false;
+        const result = gstIncluded ? subtotalFromItems : subtotalFromItems + (subtotalFromItems * gstRate);
+        calculatedTotal = Math.round(result * 100) / 100;
+      }
+      
       const tolerance = 0.01; // Allow small floating point differences
       if (Math.abs(calculatedTotal - grandTotal) > tolerance) {
         showToast("Order total calculation mismatch. Please refresh and try again.", "error");

@@ -1140,16 +1140,17 @@ export function useProcessOrderReturn() {
       }
 
       // Single database function call - all operations in one transaction (~50-100ms)
+      // ✅ FIX Bug 4: Properly destructure the RPC response
       let data, error;
       try {
-        const result = await (supabase.rpc as any)("process_order_return_optimized", {
+        const { data: rpcData, error: rpcError } = await (supabase.rpc as any)("process_order_return_optimized", {
           p_order_id: orderId,
           p_item_returns: itemReturnsJsonb,
           p_user_id: authUser.id,
           p_late_fee: lateFee,
         });
-        data = result.data;
-        error = result.error;
+        data = rpcData;
+        error = rpcError;
       } catch (rpcError: any) {
         // Catch any exceptions from the RPC call
         console.error("[useProcessOrderReturn] RPC call exception:", {

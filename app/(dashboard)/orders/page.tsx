@@ -161,7 +161,8 @@ export default function OrdersPage() {
         setActiveTab(newTab);
       });
     }
-  }, [statusFromUrl, activeTab, startTransition]); // Only depend on statusFromUrl, not activeTab
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFromUrl, startTransition]); // ✅ FIX Bug 1: Only depend on statusFromUrl, not activeTab (prevents infinite loop)
 
   // Handle tab change - update both state and URL with instant visual feedback
   const handleTabChange = useCallback((value: string) => {
